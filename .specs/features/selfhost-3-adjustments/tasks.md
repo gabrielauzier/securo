@@ -91,11 +91,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Create mode shows defaults after fill→close→reopen and after save→reopen (spec ACC AC 1-3)
-- [ ] Edit mode still loads the selected account (AC 4)
-- [ ] New test `frontend/src/pages/accounts-dialog.test.tsx` covers the four ACs
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx`
-- [ ] Test count: 4 tests pass (no silent deletions)
+- [x] Create mode shows defaults after fill→close→reopen and after save→reopen (spec ACC AC 1-3)
+- [x] Edit mode still loads the selected account (AC 4)
+- [x] New test `frontend/src/pages/accounts-dialog.test.tsx` covers the four ACs
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx`
+- [x] Test count: 4 tests pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: Quick-FE

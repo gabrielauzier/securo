@@ -665,7 +665,7 @@ export default function AccountsPage() {
   )
 }
 
-function AccountDialog({
+export function AccountDialog({
   open,
   onClose,
   account,
@@ -706,18 +706,20 @@ function AccountDialog({
   const [statementCloseDay, setStatementCloseDay] = useState(account?.statement_close_day?.toString() ?? '')
   const [paymentDueDay, setPaymentDueDay] = useState(account?.payment_due_day?.toString() ?? '')
 
-  const [formSource, setFormSource] = useState<{ account: typeof account } | null>(null)
-  if (!formSource || formSource.account !== account) {
-    setFormSource({ account })
-    setName(account?.name ?? '')
-    setDisplayName(account?.display_name ?? '')
-    setType(account?.type ?? 'checking')
-    setBalance(account?.balance?.toString() ?? '0')
-    setCurrency(account?.currency ?? userCurrency)
-    setBalanceDate(localDateString())
-    setCreditLimit(account?.credit_limit?.toString() ?? '')
-    setStatementCloseDay(account?.statement_close_day?.toString() ?? '')
-    setPaymentDueDay(account?.payment_due_day?.toString() ?? '')
+  const [formSource, setFormSource] = useState<{ open: boolean; account: typeof account } | null>(null)
+  if (!formSource || formSource.account !== account || formSource.open !== open) {
+    setFormSource({ open, account })
+    if (open) {
+      setName(account?.name ?? '')
+      setDisplayName(account?.display_name ?? '')
+      setType(account?.type ?? 'checking')
+      setBalance(account?.balance?.toString() ?? '0')
+      setCurrency(account?.currency ?? userCurrency)
+      setBalanceDate(localDateString())
+      setCreditLimit(account?.credit_limit?.toString() ?? '')
+      setStatementCloseDay(account?.statement_close_day?.toString() ?? '')
+      setPaymentDueDay(account?.payment_due_day?.toString() ?? '')
+    }
   }
 
   return (

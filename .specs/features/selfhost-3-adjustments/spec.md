@@ -206,7 +206,7 @@ The first production week of `0.16.3-selfhost.2` exposed two account bugs and fo
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| ACC-01 | P1: New-account dialog opens clean | - | Pending |
+| ACC-01 | P1: New-account dialog opens clean | Phase 1 | Done |
 | BAL-01 | P1: Opening balance is a floor | - | Pending |
 | BAL-02 | P1: Opening balance is a floor | - | Pending |
 | BAL-03 | P1: Opening balance is a floor | - | Pending |
