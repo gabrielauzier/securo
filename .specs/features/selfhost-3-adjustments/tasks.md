@@ -258,11 +258,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Editing only the name submits a payload without `balance` or `balance_date`
-- [ ] Changing the balance or date submits both
-- [ ] Test added to `frontend/src/pages/accounts-dialog.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx`
-- [ ] Test count: T1 tests + 3 new pass
+- [x] Editing only the name submits a payload without `balance` or `balance_date`
+- [x] Changing the balance or date submits both
+- [x] Test added to `frontend/src/pages/accounts-dialog.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx`
+- [x] Test count: T1 tests + 3 new pass
 
 **Tests**: unit
 **Gate**: Quick-FE

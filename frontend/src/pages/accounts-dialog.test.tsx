@@ -79,4 +79,53 @@ describe('AccountDialog', () => {
     expect(typeSelect()).toHaveValue('savings')
     expect(balanceInput()).toHaveValue(250.5)
   })
+
+  describe('edit payload', () => {
+    const manualAccount = {
+      id: 'acc-1',
+      name: 'Savings',
+      type: 'savings',
+      balance: 250.5,
+      currency: 'BRL',
+      connection_id: null,
+    } as unknown as Account
+
+    function submit() {
+      fireEvent.submit(nameInput().closest('form')!)
+      return vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
+    }
+
+    it('omits balance and balance_date when only the name changes', () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      renderWithProviders(<AccountDialog {...baseProps} open account={manualAccount} />)
+      fireEvent.change(nameInput(), { target: { value: 'Renamed' } })
+      const payload = submit()
+      expect(payload.name).toBe('Renamed')
+      expect(payload).not.toHaveProperty('balance')
+      expect(payload).not.toHaveProperty('balance_date')
+    })
+
+    it('sends balance and balance_date when the balance changes', () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      renderWithProviders(<AccountDialog {...baseProps} open account={manualAccount} />)
+      fireEvent.change(balanceInput(), { target: { value: '300' } })
+      const payload = submit()
+      expect(payload.balance).toBe(300)
+      expect(payload.balance_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+
+    it('sends balance and balance_date when the date changes', async () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      const { user } = renderWithProviders(<AccountDialog {...baseProps} open account={manualAccount} />)
+      await user.click(screen.getByRole('button', { name: new RegExp(String(new Date().getFullYear())) }))
+      const todayDay = String(new Date().getDate())
+      const otherDay = (await screen.findAllByRole('button', { name: /^\d{1,2}$/ })).find(
+        (btn) => btn.textContent !== todayDay && !btn.hasAttribute('disabled'),
+      )!
+      await user.click(otherDay)
+      const payload = submit()
+      expect(payload.balance).toBe(250.5)
+      expect(payload.balance_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+  })
 })

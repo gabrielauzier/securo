@@ -706,16 +706,17 @@ export function AccountDialog({
   const [statementCloseDay, setStatementCloseDay] = useState(account?.statement_close_day?.toString() ?? '')
   const [paymentDueDay, setPaymentDueDay] = useState(account?.payment_due_day?.toString() ?? '')
 
-  const [formSource, setFormSource] = useState<{ open: boolean; account: typeof account } | null>(null)
+  const [formSource, setFormSource] = useState<{ open: boolean; account: typeof account; balanceDate: string } | null>(null)
   if (!formSource || formSource.account !== account || formSource.open !== open) {
-    setFormSource({ open, account })
+    const initialBalanceDate = localDateString()
+    setFormSource({ open, account, balanceDate: initialBalanceDate })
     if (open) {
       setName(account?.name ?? '')
       setDisplayName(account?.display_name ?? '')
       setType(account?.type ?? 'checking')
       setBalance(account?.balance?.toString() ?? '0')
       setCurrency(account?.currency ?? userCurrency)
-      setBalanceDate(localDateString())
+      setBalanceDate(initialBalanceDate)
       setCreditLimit(account?.credit_limit?.toString() ?? '')
       setStatementCloseDay(account?.statement_close_day?.toString() ?? '')
       setPaymentDueDay(account?.payment_due_day?.toString() ?? '')
@@ -740,8 +741,18 @@ export function AccountDialog({
               return Number.isFinite(n) && n >= 1 && n <= 31 ? n : null
             }
             const isConnected = !!account?.connection_id
+            // Editing: the balance and its date rewrite the opening row, so send
+            // them only when the user changed one (a name-only edit must not move it).
+            const balanceTouched =
+              !account ||
+              balance !== (account.balance?.toString() ?? '0') ||
+              balanceDate !== formSource?.balanceDate
             onSave({
-              ...(!isConnected && { name, balance: parseFloat(balance), balance_date: balanceDate, currency }),
+              ...(!isConnected && {
+                name,
+                currency,
+                ...(balanceTouched && { balance: parseFloat(balance), balance_date: balanceDate }),
+              }),
               type,
               display_name: displayName.trim() || null,
               ...(isCC && {
