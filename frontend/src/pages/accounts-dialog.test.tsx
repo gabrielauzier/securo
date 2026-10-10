@@ -80,6 +80,24 @@ describe('AccountDialog', () => {
     expect(balanceInput()).toHaveValue(250.5)
   })
 
+  it('defaults currency to the user currency, display name to empty and the date to today', () => {
+    vi.mocked(baseProps.onSave).mockClear()
+    renderWithProviders(<AccountDialog {...baseProps} open account={null} />)
+    fireEvent.change(nameInput(), { target: { value: 'Fresh' } })
+    fireEvent.submit(nameInput().closest('form')!)
+    const payload = vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
+    const now = new Date()
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+    expect(payload.currency).toBe('BRL')
+    expect(payload.display_name).toBeNull()
+    expect(payload.balance).toBe(0)
+    expect(payload.balance_date).toBe(today)
+  })
+
   describe('edit payload', () => {
     const manualAccount = {
       id: 'acc-1',

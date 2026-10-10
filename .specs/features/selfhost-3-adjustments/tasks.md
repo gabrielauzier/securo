@@ -123,7 +123,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 - [x] Accounts without an opening row are unaffected; with two opening rows the latest date wins
 - [x] New test `backend/tests/test_opening_floor.py` covers each case
 - [x] Gate passes: `cd backend && uv run pytest tests/test_opening_floor.py -q`
-- [x] Test count: 7 tests pass (SPEC_DEVIATION: estimate was 6; the touch-after-import case was added)
+- [x] Test count: 6 tests pass (corrected in F2: the earlier note claimed 7 in error; BAL-01 AC4 edit tests live in `test_accounts_api.py`)
 
 **Tests**: unit
 **Gate**: Quick
@@ -970,6 +970,22 @@ Fixes from `validation.md` (iteration 1).
 - [x] Connected accounts unchanged
 
 **Commit**: `fix(accounts): floor the summary opening balance at the opening date`
+
+---
+
+### F2: Cover BAL-01 AC4 and spec-precision pins
+
+**What**: Tests for editing the opening date/amount, pre-opening rows staying listed, and the ACC-01 create defaults.
+**Where**: `backend/tests/test_accounts_api.py`, `frontend/src/pages/accounts-dialog.test.tsx`
+**Requirement**: BAL-01, ACC-01
+
+**Done when**:
+
+- [x] PATCH of opening date and amount recomputes the list balance on the next read
+- [x] Pre-opening transaction stays in the transactions list but not in the balance (BAL AC2)
+- [x] Dialog test pins currency default, empty display name and today's date
+
+**Commit**: `test(accounts): cover opening balance edits and create defaults`
 
 ---
 

@@ -898,3 +898,77 @@ async def test_summary_opening_balance_window_before_opening_keeps_earlier_rows(
     ).json()
 
     assert summary["opening_balance"] == pytest.approx(-200.0)
+
+
+@pytest.mark.asyncio
+async def test_editing_opening_date_recomputes_balance_on_next_read(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """BAL-01 AC4: moving the opening date later excludes a previously counted row;
+    moving it back counts it again."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Edit Date", "checking", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day + _timedelta(days=2))
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(800.0)
+
+    later = (opening_day + _timedelta(days=5)).isoformat()
+    resp = await client.patch(
+        f"/api/accounts/{account_id}",
+        headers=auth_headers,
+        json={"balance": "1000.00", "balance_date": later},
+    )
+    assert resp.status_code == 200, resp.text
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(1000.0)
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}",
+        headers=auth_headers,
+        json={"balance": "1000.00", "balance_date": opening_day.isoformat()},
+    )
+    assert resp.status_code == 200, resp.text
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(800.0)
+
+
+@pytest.mark.asyncio
+async def test_editing_opening_amount_recomputes_balance_on_next_read(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """BAL-01 AC4: changing the opening amount moves the balance on the next read."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Edit Amount", "checking", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day + _timedelta(days=2))
+    await _add_tx(session, test_user, account_id, 50, "debit", opening_day - _timedelta(days=2))
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(800.0)
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}",
+        headers=auth_headers,
+        json={"balance": "1500.00", "balance_date": opening_day.isoformat()},
+    )
+    assert resp.status_code == 200, resp.text
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(1300.0)
+
+
+@pytest.mark.asyncio
+async def test_pre_opening_transaction_stays_listed_but_not_in_balance(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """BAL AC2: a row dated before the opening date is still listed for the account
+    while it does not move the balance."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Listed Before", "checking", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day - _timedelta(days=5))
+
+    resp = await client.get(
+        "/api/transactions", params={"account_id": account_id}, headers=auth_headers
+    )
+    assert resp.status_code == 200
+    dates = [t["date"] for t in resp.json()["items"]]
+    assert (opening_day - _timedelta(days=5)).isoformat() in dates
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(1000.0)
