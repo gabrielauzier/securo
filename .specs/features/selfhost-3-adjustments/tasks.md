@@ -1006,6 +1006,38 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F4: Validate the mapping destination account
+
+**What**: Create/update of an import mapping rejects an unknown or inaccessible `account_id` with HTTP 404.
+**Where**: `backend/app/services/import_mapping_service.py`, `backend/app/api/import_mappings.py`, `spec.md`
+**Requirement**: IMP-01
+
+**Done when**:
+
+- [x] Nonexistent and other-user account ids give 404 on create and update (never 500)
+- [x] `null` still clears the account; accessible account is accepted
+- [x] Decision documented in spec Assumptions
+
+**Commit**: `fix(import-mappings): reject unknown or inaccessible accounts`
+
+---
+
+### F5: Document gate and revalidation assumptions (documentation only)
+
+**What**: Record the write-gated bulk-transfer preview and the restricted `apply_pairs` revalidation in spec Assumptions; behavior unchanged.
+**Where**: `spec.md`
+**Requirement**: BTR-01, TRF-01
+
+**Done when**:
+
+- [x] Assumptions row for the bulk preview write gate
+- [x] Assumptions row for `apply_pairs` restricted revalidation
+- [x] `test_write_permission_coverage.py` untouched
+
+**Commit**: `docs(specs): record preview gate and apply revalidation decisions`
+
+---
+
 ## Phase Execution Map
 
 ```

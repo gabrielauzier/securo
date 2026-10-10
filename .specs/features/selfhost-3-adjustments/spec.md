@@ -46,6 +46,9 @@ The first production week of `0.16.3-selfhost.2` exposed two account bugs and fo
 | F2 "suggested" pairs | Not applied by F2; remain in the existing suggestions queue | Out of the PRD | y |
 | F4 pairing universe | Only the selected transactions; window/amount tolerance from the transfer rule | Owner decision | y |
 | Permissions | Mutating endpoints require `current_writable_workspace`; previews are read-gated | Existing convention | y |
+| Bulk-transfer preview gate | `POST /transactions/bulk-transfer/preview` requires write access, unlike the rule-wide `GET` preview which is read-gated | It is a POST (body carries up to 100 ids) and `test_write_permission_coverage` requires every POST to be write-gated; viewers cannot bulk-select-to-mark anyway | y |
+| Rule-wide apply revalidation | `apply_pairs` revalidates posted pairs only against the posted ids (`restrict_ids`), not against the whole workspace | Same code path as the bulk flow, whose universe is the selection; stale legs (linked/deleted) are still skipped | y |
+| Mapping destination account | A supplied `account_id` on create/update must belong to a workspace the user is a member of or manages; otherwise HTTP 404 `Account not found` (nothing stored, never 500); `null` clears it | Same 404-for-inaccessible convention as the accounts API; reuses `account_service.get_account` per user workspace | y |
 
 **Open questions:** none - all resolved or logged above.
 
