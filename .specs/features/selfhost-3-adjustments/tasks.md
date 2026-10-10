@@ -932,7 +932,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 ### T33: Release docs for selfhost.3
 
 **What**: Document the balance rule change and new features in the deploy/release notes for `0.16.3-selfhost.3`.
-**Where**: `docs/deploy/` (release notes file)
+**Where**: `deploy/public/RELEASE-NOTES.md` (SPEC_DEVIATION: the fork release docs live in `deploy/public/`, there is no `docs/deploy/`)
 **Depends on**: T32
 **Reuses**: fork release flow doc from commit `9a1ddff`
 **Requirement**: BAL-01
@@ -944,8 +944,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Notes explain that balances now ignore transactions dated before the opening balance, with the 1000/05-10/15-10 example
-- [ ] Full gates pass: backend `pytest -q && ruff check . && ty check`; frontend `typecheck && lint && test`
+- [x] Notes explain that balances now ignore transactions dated before the opening balance, with the 1000/05-10/15-10 example
+- [x] Full gates pass: backend `pytest -q && ruff check . && ty check`; frontend `typecheck && lint && test`
 
 **Tests**: none
 **Gate**: Build
