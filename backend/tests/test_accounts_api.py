@@ -956,6 +956,29 @@ async def test_editing_opening_date_recomputes_balance_on_next_read(
 
 
 @pytest.mark.asyncio
+async def test_balance_floor_applies_with_zero_balance_and_a_saved_date(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """ABD-02 AC4/AC5: a zero-balance account (no opening row) is floored at its
+    saved date, and a date-only edit changes the next read."""
+    saved = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Zero Dated", "checking", "0", saved
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", saved - _timedelta(days=4))
+    await _add_tx(session, test_user, account_id, 50, "debit", saved + _timedelta(days=2))
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(-50.0)
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}",
+        headers=auth_headers,
+        json={"balance_date": (saved - _timedelta(days=6)).isoformat()},
+    )
+    assert resp.status_code == 200, resp.text
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(-250.0)
+
+
+@pytest.mark.asyncio
 async def test_editing_opening_amount_recomputes_balance_on_next_read(
     client: AsyncClient, auth_headers, session, test_user
 ):

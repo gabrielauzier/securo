@@ -57,26 +57,25 @@ def is_inside_provider_snapshot():
 def within_opening_floor(cutoff: date):
     """SQL filter: the row counts toward the account balance at ``cutoff``.
 
-    An account's balance starts from its ``opening_balance`` transaction, so
-    entries dated before that opening date must not move it (AD-001). The
-    opening date is the latest ``opening_balance`` row of the account; rows
-    dated on the opening day count. A ``cutoff`` earlier than the opening date
-    reads history as it was, so every row up to the cutoff is kept. Accounts
-    without an opening row are not floored.
+    An account's balance starts at the date saved on the account
+    (``Account.balance_date``), so entries dated before it must not move the
+    balance (AD-001, storage per AD-002). Rows dated on that day count. A
+    ``cutoff`` earlier than the saved date reads history as it was, so every
+    row up to the cutoff is kept. Accounts without a saved date (bank-connected
+    ones, or manual accounts that never had one) are not floored.
     """
-    opening_row = aliased(Transaction)
-    opening = (
-        select(func.max(opening_row.date))
-        .where(
-            opening_row.account_id == Transaction.account_id,
-            opening_row.source == "opening_balance",
-        )
+    # Aliased so the subquery never auto-correlates with an outer ``accounts``
+    # in queries that already select from or join the account table.
+    saved = aliased(Account)
+    balance_date = (
+        select(saved.balance_date)
+        .where(saved.id == Transaction.account_id)
         .scalar_subquery()
     )
     return or_(
-        opening.is_(None),
-        cutoff < opening,
-        Transaction.date >= opening,
+        balance_date.is_(None),
+        cutoff < balance_date,
+        Transaction.date >= balance_date,
     )
 
 

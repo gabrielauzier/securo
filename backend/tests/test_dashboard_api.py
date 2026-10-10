@@ -550,7 +550,11 @@ async def test_balance_date_parameter_overrides_default_cutoff(client, auth_head
     # Create account with zero balance (no opening_balance transaction)
     acc_resp = await client.post(
         "/api/accounts",
-        json={"name": "OverrideTest", "type": "checking", "balance": 0, "currency": "BRL"},
+        json={
+            "name": "OverrideTest", "type": "checking", "balance": 0, "currency": "BRL",
+            # Saved balance date older than the rows below, so no floor applies.
+            "balance_date": (today - timedelta(days=60)).isoformat(),
+        },
         headers=auth_headers,
     )
     assert acc_resp.status_code == 201

@@ -91,6 +91,13 @@ async def _add_txn(
     )
     session.add(txn)
     await session.commit()
+    if source == "opening_balance":
+        # AD-002: the floor reads the account's saved date, which the service
+        # keeps in step with its opening row; mirror that for fixtures.
+        owner = await session.get(Account, account_id)
+        if owner is not None and owner.connection_id is None:
+            owner.balance_date = max(owner.balance_date or txn_date, txn_date)
+            await session.commit()
     await session.refresh(txn)
     return txn
 

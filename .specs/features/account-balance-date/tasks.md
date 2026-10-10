@@ -207,12 +207,12 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Floor applies for cutoff ≥ `balance_date`, full history for cutoff < `balance_date`, no floor when NULL (spec ABD-02 AC1-3)
-- [ ] Floor applies with `balance_date` set and no opening transaction (AC4); changing the date changes the next read (AC5)
-- [ ] Connected accounts unchanged (AC6)
-- [ ] Every existing floor test still asserts the same expected values (only fixtures changed); any test whose expected outcome must change is reported, not edited
-- [ ] Tests extended in `backend/tests/test_opening_floor.py` and the per-site tests in `test_account_service.py`, `test_accounts_api.py`, `test_dashboard_service.py`
-- [ ] Gate passes: `cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .`
+- [x] Floor applies for cutoff ≥ `balance_date`, full history for cutoff < `balance_date`, no floor when NULL (spec ABD-02 AC1-3)
+- [x] Floor applies with `balance_date` set and no opening transaction (AC4); changing the date changes the next read (AC5)
+- [x] Connected accounts unchanged (AC6)
+- [x] Every existing floor test still asserts the same expected values (only fixtures changed); any test whose expected outcome must change is reported, not edited
+- [x] Tests extended in `backend/tests/test_opening_floor.py` and the per-site tests in `test_account_service.py`, `test_accounts_api.py`, `test_dashboard_service.py`
+- [x] Gate passes: `cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .`
 
 **Tests**: unit
 **Gate**: Full
