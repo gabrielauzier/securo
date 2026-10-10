@@ -1,0 +1,29 @@
+#!/bin/bash
+# Atalho para o Docker Compose da PRODUÇÃO do Securo. Funciona de qualquer pasta.
+#
+# Garante, em todo comando, as três coisas que não podem ser esquecidas:
+#   -p securo-prod        projeto isolado do ambiente de desenvolvimento (que usa o projeto "securo")
+#   --env-file ...        segredos e URL pública da produção
+#   -f compose.images.yml dono e versão fixa das imagens
+#
+# Uso:    ./deploy/public/securo-compose ps | pull | up -d | stop | start | logs -f backend ...
+# Opção:  SECURO_ENV_FILE=caminho/do/.env  (padrão: deploy/public/.env, relativo à raiz do repositório)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+
+ENV_FILE="${SECURO_ENV_FILE:-deploy/public/.env}"
+[ -r "$ENV_FILE" ] || { echo "arquivo de ambiente não encontrado: $ENV_FILE (copie deploy/public/.env.example)" >&2; exit 1; }
+
+# `down -v` e `volume rm` apagam o banco e os anexos: exige confirmação explícita.
+for arg in "$@"; do
+  if [ "$arg" = "-v" ] || [ "$arg" = "--volumes" ]; then
+    echo "ATENÇÃO: '$arg' apaga os volumes (banco e anexos). Digite APAGAR para continuar:" >&2
+    read -r answer; [ "$answer" = "APAGAR" ] || { echo "cancelado." >&2; exit 1; }
+    break
+  fi
+done
+
+exec docker compose -p securo-prod --env-file "$ENV_FILE" \
+  -f docker-compose.prod.yml -f deploy/public/compose.images.yml "$@"

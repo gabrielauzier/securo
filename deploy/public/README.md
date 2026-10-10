@@ -6,7 +6,7 @@ Guia passo a passo para rodar o Securo numa máquina sua (um Mac mini, um notebo
 - Os exemplos usam o domínio **`example.com`** e o endereço **`securo.example.com`**: troque pelos seus.
 - Os passos de sistema são para **macOS** (launchd, `pmset`, firewall do macOS). Em Linux, a ideia é a mesma: troque o launchd por systemd
   (`cloudflared service install` já faz isso) e adapte o passo de endurecimento.
-- Operação do dia a dia (parar, retomar, atualizar, diagnosticar): [RUNBOOK.md](RUNBOOK.md). Restaurar backups: [backup/restore.md](backup/restore.md).
+- Operação do dia a dia (parar, retomar, atualizar, diagnosticar): [RUNBOOK.md](RUNBOOK.md). Restaurar backups: [backup/restore.md](backup/restore.md). Publicar as suas próprias imagens a partir de um fork: [RELEASING.md](RELEASING.md).
 
 ```
 Navegador ──HTTPS──> Cloudflare (DNS + TLS) ══ túnel (conexão de saída) ══> cloudflared (sua máquina)
@@ -82,11 +82,11 @@ Navegador ──HTTPS──> Cloudflare (DNS + TLS) ══ túnel (conexão de s
    cp deploy/public/.env.example deploy/public/.env
    chmod 600 deploy/public/.env
    ```
-   Preencha `SECRET_KEY` e `AGENTS_MCP_JWT_SECRET` (`openssl rand -hex 32` para cada) e `FRONTEND_URL=https://securo.example.com`. O `FRONTEND_URL` precisa ser exatamente a URL pública: controla CORS, callbacks OAuth e passkeys.
+   Preencha `SECRET_KEY` e `AGENTS_MCP_JWT_SECRET` (`openssl rand -hex 32` para cada) e `FRONTEND_URL=https://securo.example.com`. O `FRONTEND_URL` precisa ser exatamente a URL pública: controla CORS, callbacks OAuth e passkeys. Fixe também `SECURO_IMAGE_TAG` numa versão (veja "Versões e releases").
 
-2. **Use sempre `-p securo-prod`.** O `docker-compose.yml` (desenvolvimento) e o `docker-compose.prod.yml` declaram `name: securo`. Se o ambiente de dev rodar na mesma máquina, subir a produção sem `-p` **substitui os containers de dev e reaproveita o banco e os volumes de dev**. Confira o isolamento:
+2. **Use sempre o atalho `./deploy/public/securo-compose`**, que embute `-p securo-prod`. O `-p` importa porque o `docker-compose.yml` (desenvolvimento) e o `docker-compose.prod.yml` declaram `name: securo`: se o ambiente de dev rodar na mesma máquina, subir a produção sem ele **substitui os containers de dev e reaproveita o banco e os volumes de dev**. Confira o isolamento:
    ```bash
-   docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml config | grep -E "^name:|published:"
+   ./deploy/public/securo-compose config | grep -E "^name:|published:"
    ```
    Deve mostrar `name: securo-prod` e as portas `3100` e `8100` (presas ao `127.0.0.1` pelo `.env`).
 
@@ -97,8 +97,8 @@ Navegador ──HTTPS──> Cloudflare (DNS + TLS) ══ túnel (conexão de s
 
 4. Baixe e suba:
    ```bash
-   docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml pull
-   docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml up -d
+   ./deploy/public/securo-compose pull
+   ./deploy/public/securo-compose up -d
    curl -s http://127.0.0.1:3100/api/health        # {"status":"healthy"}
    ```
    As migrations rodam sozinhas no start do backend. O Postgres do compose **não publica porta**: só é acessível dentro da rede do projeto.
@@ -220,6 +220,11 @@ Ele: (1) impede o sleep na tomada e religa sozinho após queda de energia (`pmse
 
 ---
 
+## Versões e releases
+- Por padrão o Compose de produção usa `ghcr.io/securo-finance/securo-*:latest`, e o projeto só publica imagens quando **publica uma release**. Em produção **fixe a versão** em `SECURO_IMAGE_TAG` (no `.env`), para que um `pull` nunca troque o app sem você ter lido as notas e feito backup. O arquivo [`compose.images.yml`](compose.images.yml) aplica esses valores, e o atalho `securo-compose` o inclui sempre.
+- Se você mantém um **fork** com mudanças suas (ou prefere construir as imagens você mesmo), o fork publica as próprias imagens em `ghcr.io/<seu-usuario>/securo-*` ao criar uma release. O processo completo, com um script de apoio e as armadilhas, está em [RELEASING.md](RELEASING.md).
+- Organização de branches sugerida para um fork: `main` espelho exato do projeto original (só fast-forward), `prod` com o que roda no seu servidor (o espelho mais as suas mudanças), e branches de trabalho (`fix/…`, `feat/…`, `docs/…`) saindo de `main` quando for abrir PR para o projeto original.
+
 ## Armadilhas e lições
 1. **Nameservers de dois provedores ao mesmo tempo** fazem metade das consultas cair numa zona sem os seus registros: o site ou o e-mail falham de forma intermitente. Use um provedor só.
 2. **O proxy da Cloudflare reaparece** em registros importados ou editados. Revise as nuvens cinzas depois de qualquer edição na zona (DKIM, autodiscover e autoconfig são os mais afetados).
@@ -242,5 +247,6 @@ Ele: (1) impede o sleep na tomada e religa sozinho após queda de energia (`pmse
 - [ ] `TRUSTED_PROXY_HOPS` validado pela chave do rate limit.
 - [ ] Backup diário agendado, **restauração testada**, cópia externa no R2 verificada.
 - [ ] Chave privada age, `SECRET_KEY` e `AGENTS_MCP_JWT_SECRET` no gerenciador de senhas.
+- [ ] Versão das imagens **fixada** em `SECURO_IMAGE_TAG` (não `latest`).
 - [ ] Máquina endurecida (energia, firewall), Docker iniciando no login, disco com folga.
 - [ ] Decisão consciente sobre FileVault/nobreak.

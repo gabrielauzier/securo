@@ -15,25 +15,19 @@ Internet → Cloudflare → túnel (cloudflared, LaunchAgent) → 127.0.0.1:3100
 | Backup | Job diário 03:15, envia ao R2 | LaunchAgent `com.securo.backup` |
 
 > ## ⚠️ Leia antes de mexer
-> - **Sempre use `-p securo-prod` e `--env-file deploy/public/.env`.** Se o ambiente de **desenvolvimento** rodar na mesma máquina, ele usa o projeto `securo` (containers `securo-*-1`, portas 3000/8000), e os dois arquivos compose declaram `name: securo`. Rodar o compose de produção sem `-p securo-prod` **substitui os containers de dev e reaproveita o banco de dev**.
+> - **Use sempre `./deploy/public/securo-compose`** (em vez de `docker compose` direto). Ele já inclui `-p securo-prod`, o `.env` de produção e a versão fixa das imagens. Se o ambiente de **desenvolvimento** rodar na mesma máquina, ele usa o projeto `securo` (containers `securo-*-1`, portas 3000/8000), e os dois arquivos compose declaram `name: securo`. Rodar o compose de produção sem `-p securo-prod` (o wrapper cuida disso) **substitui os containers de dev e reaproveita o banco de dev**.
 > - **Nunca use `down -v`, `docker volume rm` nem `docker system prune --volumes`** em produção: apagam o banco e os anexos (`securo-prod_pgdata`, `securo-prod_attachments`). O `down` sem `-v` remove só os containers (os dados ficam), mas prefira `stop`.
 > - Faça um **backup antes** de qualquer operação arriscada: `./deploy/public/backup/backup.sh`.
 
-## 0. Atalho (opcional)
-Para não repetir as flags, no `~/.zshrc`:
-```bash
-securo-prod() { (cd /caminho/para/o/repositorio/securo && docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml "$@"); }
-```
-Depois: `securo-prod ps`, `securo-prod stop`, `securo-prod logs -f backend`. Abaixo uso os comandos completos.
-
-Todos os comandos assumem que você está na raiz do repositório:
+## 0. Convenções
+Todos os comandos assumem a raiz do repositório e usam o atalho **`./deploy/public/securo-compose`**, que é o `docker compose` da produção com `-p securo-prod`, o `.env` de produção e a versão fixa das imagens já embutidos (funciona de qualquer pasta). Se o seu `.env` estiver em outro lugar, defina `SECURO_ENV_FILE=caminho/do/.env`.
 ```bash
 cd /caminho/para/o/repositorio/securo
 ```
 
 ## 1. Ver o estado
 ```bash
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml ps
+./deploy/public/securo-compose ps
 ```
 ```bash
 curl -s http://127.0.0.1:3100/api/health        # local: deve responder {"status":"healthy"}
@@ -62,13 +56,13 @@ Em ~10 segundos o `/api/health` público volta a responder 200.
 
 ### 2.2 Parar a aplicação (manutenção; preserva todos os dados)
 ```bash
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml stop
+./deploy/public/securo-compose stop
 ```
 Para os 6 containers sem removê-los; **volumes e dados ficam intactos**. Se o túnel estiver ativo, o público passa a responder **HTTP 502** (túnel sem origem). Para uma manutenção limpa, derrube antes o túnel (2.1) e o público verá 530 em vez de 502.
 
 **Retomar:**
 ```bash
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml start
+./deploy/public/securo-compose start
 ```
 O banco e o Redis ficam saudáveis em ~10 s; em seguida sobem backend, workers e frontend. Se os containers tiverem sido removidos (por exemplo, após um `down`), use `up -d` no lugar de `start`.
 
@@ -76,18 +70,18 @@ O banco e o Redis ficam saudáveis em ~10 s; em seguida sobem backend, workers e
 ```bash
 # parar
 launchctl bootout gui/$(id -u)/com.cloudflare.cloudflared
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml stop
+./deploy/public/securo-compose stop
 ```
 ```bash
 # retomar
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml start
+./deploy/public/securo-compose start
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
 ```
 Confira com a seção 1. `stop` e `start` não removem containers nem volumes, então os dados ficam intactos.
 
 ### 2.4 Reiniciar só um serviço (ex.: depois de mudar o `.env`)
 ```bash
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml up -d backend celery-worker celery-beat
+./deploy/public/securo-compose up -d backend celery-worker celery-beat
 ```
 Mudanças no `deploy/public/.env` só valem depois de recriar os containers afetados (`up -d`); `restart` não relê o `.env`.
 
@@ -107,28 +101,35 @@ Com `autorestart` ligado o Mac religa sozinho. **Se o FileVault estiver ativo** 
 2. O **túnel** (LaunchAgent) sobe com a sessão. O **Docker Desktop só sobe sozinho se "Start Docker Desktop when you sign in" estiver ligado** (Settings → General). Se não estiver, abra o Docker Desktop manualmente.
 3. Os containers têm `restart: unless-stopped` e voltam quando o Docker inicia. Se algum não voltar:
    ```bash
-   docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml up -d
+   ./deploy/public/securo-compose up -d
    ```
 4. Confirme com a seção 1. Enquanto isso não for feito, o público responde 530 ou 502.
 
 Atualizações do macOS que reiniciam o Mac derrubam o serviço até o desbloqueio. Se você desligou a instalação automática (passo opcional do `hardening/harden-mac.sh`), instale manualmente numa janela de manutenção: faça backup, atualize, digite a senha no reinício e confira a seção 1.
 
 ## 4. Atualizar a versão do Securo
-```bash
-./deploy/public/backup/backup.sh                       # 1. backup (grava em BACKUP_DIR e envia ao R2, se configurado)
-```
-```bash
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml pull
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml up -d
-```
-As migrations rodam sozinhas no start do backend (`alembic upgrade head`). Veja as notas da versão antes. Para voltar atrás é preciso restaurar o backup (ver [backup/restore.md](backup/restore.md)), porque as migrations não são revertidas automaticamente.
+A versão que roda é a definida por `SECURO_IMAGE_OWNER` e `SECURO_IMAGE_TAG` no `.env`. **Fixe uma versão** (nada de `latest`) para que um `pull` nunca troque o app sem você ter lido as notas e feito backup. Para construir e publicar suas próprias imagens a partir do fork, veja [RELEASING.md](RELEASING.md).
+
+1. Backup (grava em `BACKUP_DIR` e envia ao R2, se configurado), anotando a versão atual:
+   ```bash
+   grep -E '^SECURO_IMAGE_(OWNER|TAG)=' deploy/public/.env
+   ./deploy/public/backup/backup.sh
+   ```
+2. Edite `SECURO_IMAGE_TAG` (e `SECURO_IMAGE_OWNER`, se mudar de origem) no `.env` e aplique:
+   ```bash
+   ./deploy/public/securo-compose pull
+   ./deploy/public/securo-compose up -d
+   ```
+3. Confira com a seção 1 e acompanhe os logs do backend (as migrations rodam sozinhas no start, `alembic upgrade head`).
+
+**Voltar atrás:** as migrations **não são revertidas**. Se a versão nova não tiver aplicado nenhuma migration (veja os logs), basta recolocar a tag antiga no `.env` e repetir o `pull` e o `up -d`. Se tiver aplicado, restaure o backup feito no passo 1 (ver [backup/restore.md](backup/restore.md)) **junto** com a tag antiga.
 
 ## 5. Logs e diagnóstico
 ```bash
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml logs --tail 100 backend
+./deploy/public/securo-compose logs --tail 100 backend
 ```
 ```bash
-docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml logs -f      # todos, ao vivo
+./deploy/public/securo-compose logs -f      # todos, ao vivo
 ```
 ```bash
 tail -n 30 ~/Library/Logs/com.cloudflare.cloudflared.err.log    # túnel

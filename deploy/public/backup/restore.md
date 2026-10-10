@@ -9,7 +9,7 @@ Onde estão: na pasta definida por `BACKUP_DIR` (padrão `~/securo-backup-files`
 
 > Convenções: rode os comandos a partir da raiz do repositório. Troque `<data>` pelo carimbo do backup
 > (ex.: `20260101-031500`). Os comandos assumem o projeto Compose `securo-prod` e o arquivo de ambiente
-> `deploy/public/.env` (veja o README).
+> `deploy/public/.env`, ambos embutidos no atalho `./deploy/public/securo-compose` (veja o README).
 
 ## 1. Verificar a integridade
 ```bash
@@ -32,7 +32,7 @@ O dump em claro contém dados financeiros: apague `/tmp/restore.dump` ao termina
 ## 3. Restaurar na produção (DESTRUTIVO: substitui o banco atual)
 Pare o backend e os workers para não gravarem durante a restauração, e faça um backup novo antes.
 ```bash
-C="docker compose -p securo-prod --env-file deploy/public/.env -f docker-compose.prod.yml"
+C="./deploy/public/securo-compose"
 ./deploy/public/backup/backup.sh                   # backup de segurança do estado atual
 $C stop backend celery-worker celery-beat frontend
 age -d -i ~/.config/securo-backup/age-key.txt -o /tmp/restore.dump securo-db-<data>.dump.age
@@ -43,7 +43,6 @@ docker exec securo-prod-db-1 pg_restore -U postgres -d securo --no-owner /tmp/re
 $C up -d
 rm /tmp/restore.dump
 ```
-(No zsh, `$C` não é separado em palavras: use uma função ou rode `bash` para esta sequência.)
 
 ## 4. Restaurar os anexos
 ```bash

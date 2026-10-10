@@ -1,0 +1,21 @@
+# Override do Compose: define de onde vêm as imagens do Securo e QUAL VERSÃO roda.
+#
+# O docker-compose.prod.yml usa `ghcr.io/securo-finance/securo-*:latest`. Em produção convém fixar a versão e,
+# se você publica suas próprias releases a partir de um fork, trocar o dono das imagens. Os valores vêm do seu
+# `.env` (veja `.env.example`); sem eles, o comportamento é idêntico ao padrão do projeto (imagens oficiais,
+# `latest`).
+#
+# Use sempre pelo wrapper, que inclui este arquivo: ./deploy/public/securo-compose <comando>
+#   SECURO_IMAGE_OWNER  dono no GHCR (padrão: securo-finance; no fork: o seu usuário do GitHub)
+#   SECURO_IMAGE_TAG    tag da imagem (padrão: latest; em produção use uma versão fixa, ex.: 0.16.3-selfhost.1)
+services:
+  backend:
+    image: ghcr.io/${SECURO_IMAGE_OWNER:-securo-finance}/securo-backend:${SECURO_IMAGE_TAG:-latest}
+  celery-worker:
+    image: ghcr.io/${SECURO_IMAGE_OWNER:-securo-finance}/securo-backend:${SECURO_IMAGE_TAG:-latest}
+  celery-beat:
+    image: ghcr.io/${SECURO_IMAGE_OWNER:-securo-finance}/securo-backend:${SECURO_IMAGE_TAG:-latest}
+  mcp-server:
+    image: ghcr.io/${SECURO_IMAGE_OWNER:-securo-finance}/securo-backend:${SECURO_IMAGE_TAG:-latest}
+  frontend:
+    image: ghcr.io/${SECURO_IMAGE_OWNER:-securo-finance}/securo-frontend:${SECURO_IMAGE_TAG:-latest}
