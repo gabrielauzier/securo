@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { screen } from '@testing-library/react'
 
-import {
-  TransferPairPreview,
-  selectedPairRefs,
-} from '@/components/transfer-pair-preview'
+import { TransferPairPreview } from '@/components/transfer-pair-preview'
+import { selectedPairRefs } from '@/components/transfer-pair-utils'
 import type { ProposedTransferPair } from '@/lib/api'
 import { renderWithProviders, t } from '@/test/utils'
 

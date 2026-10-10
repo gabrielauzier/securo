@@ -888,12 +888,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Opening the dialog loads the preview and writes nothing
-- [ ] Confirm sends only the checked pairs and toasts "N linked, M skipped"
-- [ ] Empty proposal shows the empty state
-- [ ] Tests added to the existing reconciliation-rules test file, or new `reconciliation-rules-apply.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/reconciliation-rules-apply.test.tsx && npm run lint`
-- [ ] Test count: 4 tests pass
+- [x] Opening the dialog loads the preview and writes nothing
+- [x] Confirm sends only the checked pairs and toasts "N linked, M skipped"
+- [x] Empty proposal shows the empty state
+- [x] Tests added to the existing reconciliation-rules test file, or new `reconciliation-rules-apply.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/reconciliation-rules-apply.test.tsx && npm run lint`
+- [x] Test count: 4 tests pass
 
 **Tests**: unit
 **Gate**: Build

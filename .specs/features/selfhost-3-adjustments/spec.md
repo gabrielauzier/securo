@@ -213,7 +213,7 @@ The first production week of `0.16.3-selfhost.2` exposed two account bugs and fo
 | NWN-01 | P1: Net-worth notice | T8-T11 | Done |
 | IMP-01 | P1: Saved CSV import mappings | T12-T19 | Done |
 | IGN-01 | P2: Bulk ignore | T20-T24 | Done |
-| TRF-01 | P2: Manual transfer pairing | - | Pending |
+| TRF-01 | P2: Manual transfer pairing | T25-T31 | Done |
 | BTR-01 | P2: Bulk mark as transfer | - | Pending |
 
 **Mapping:** ACC-01 = story 1 ACs 1-4; BAL-01 = ACs 1-5, 8-9 (core rule); BAL-02 = AC 6 (all balance read sites); BAL-03 = AC 7 (cutoff semantics); NWN-01 = notice ACs 1-4; IMP-01 = mapping ACs 1-10; IGN-01 = ignore ACs 1-6; TRF-01 = pairing ACs 1-7; BTR-01 = bulk transfer ACs 1-8.

@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next'
 import { ArrowRight } from 'lucide-react'
 import { useDateLocale, useDisplayLocale } from '@/hooks/use-display-locale'
 import { formatCurrency } from '@/lib/format'
-import type { ProposedTransferPair, TransferLeg, TransferPairRef } from '@/lib/api'
+import type { ProposedTransferPair, TransferLeg } from '@/lib/api'
+import { pairKey } from '@/components/transfer-pair-utils'
 import {
   Table,
   TableBody,
@@ -11,20 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-
-export function pairKey(pair: ProposedTransferPair): string {
-  return `${pair.a.id}:${pair.b.id}`
-}
-
-/** The pairs still checked, as the references the apply endpoints take. */
-export function selectedPairRefs(
-  pairs: ProposedTransferPair[],
-  deselected: ReadonlySet<string>,
-): TransferPairRef[] {
-  return pairs
-    .filter((pair) => !deselected.has(pairKey(pair)))
-    .map((pair) => ({ a: pair.a.id, b: pair.b.id }))
-}
 
 function Leg({ leg, sign }: { leg: TransferLeg; sign: '+' | '−' }) {
   const locale = useDisplayLocale()
