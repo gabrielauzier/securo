@@ -1558,6 +1558,62 @@ export const importLogs = {
   },
 }
 
+// Saved CSV import mappings (per user)
+export interface ImportMappingOptions {
+  date_format: string | null
+  flip_amount: boolean
+  inflow_column: string | null
+  outflow_column: string | null
+}
+
+export interface ImportMapping {
+  id: string
+  name: string
+  account_id: string | null
+  headers: string[]
+  /** Securo field -> CSV column, as sent to the import preview. */
+  column_mapping: Record<string, string>
+  options: ImportMappingOptions
+  last_used_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ImportMappingInput {
+  name: string
+  account_id?: string | null
+  headers: string[]
+  column_mapping: Record<string, string>
+  options?: Partial<ImportMappingOptions>
+}
+
+export const importMappings = {
+  list: async (): Promise<ImportMapping[]> => {
+    const { data } = await api.get('/import-mappings')
+    return data
+  },
+  create: async (input: ImportMappingInput): Promise<ImportMapping> => {
+    const { data } = await api.post('/import-mappings', input)
+    return data
+  },
+  update: async (id: string, input: Partial<ImportMappingInput>): Promise<ImportMapping> => {
+    const { data } = await api.patch(`/import-mappings/${id}`, input)
+    return data
+  },
+  remove: async (id: string): Promise<void> => {
+    await api.delete(`/import-mappings/${id}`)
+  },
+  /** Saved mappings whose header set equals `headers`, most recently used first. */
+  match: async (headers: string[]): Promise<ImportMapping[]> => {
+    const { data } = await api.post('/import-mappings/match', { headers })
+    return data.matches
+  },
+  touch: async (id: string): Promise<ImportMapping> => {
+    const { data } = await api.post(`/import-mappings/${id}/touch`)
+    return data
+  },
+}
+
 // Settings
 export const settings = {
   attachments: async (): Promise<{ allowed_extensions: string[]; max_file_size_mb: number; max_attachments_per_transaction: number }> => {

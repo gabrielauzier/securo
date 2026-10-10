@@ -520,8 +520,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] `importMappings.list/create/update/remove/match/touch` typed
-- [ ] Gate passes: `cd frontend && npm run typecheck`
+- [x] `importMappings.list/create/update/remove/match/touch` typed
+- [x] Gate passes: `cd frontend && npm run typecheck`
 
 **Tests**: none
 **Gate**: Build
