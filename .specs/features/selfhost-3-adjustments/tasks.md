@@ -315,7 +315,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 - [x] Result is computed with one grouped query (asserted via query-count or single helper call)
 - [x] Tests added to `backend/tests/test_report_service.py`
 - [x] Gate passes: `cd backend && uv run pytest tests/test_report_service.py -q`
-- [x] Test count: existing + 5 new pass
+- [x] Test count: existing + 6 new pass (SPEC_DEVIATION: estimate was 5; added a leg-requested-twice case)
 
 **Tests**: unit
 **Gate**: Quick
@@ -652,7 +652,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 - [x] Route declared before `/{transaction_id}` routes
 - [x] Tests added to `backend/tests/test_transactions_bulk_ignore.py`
 - [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
-- [x] Test count: existing + 5 new pass (SPEC_DEVIATION: estimate was 3; added the exactly-100 boundary and the other-workspace case)
+- [x] Test count: existing + 6 new pass (SPEC_DEVIATION: estimate was 5; added a leg-requested-twice case) (SPEC_DEVIATION: estimate was 3; added the exactly-100 boundary and the other-workspace case)
 
 **Tests**: integration
 **Gate**: Full
@@ -760,7 +760,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 - [x] A forged pair that the rule would not propose is rejected
 - [x] Tests added to `backend/tests/test_transfer_detection.py`
 - [x] Gate passes: `cd backend && uv run pytest tests/test_transfer_detection.py -q`
-- [x] Test count: existing + 5 new pass
+- [x] Test count: existing + 6 new pass (SPEC_DEVIATION: estimate was 5; added a leg-requested-twice case)
 
 **Tests**: unit
 **Gate**: Quick
@@ -783,11 +783,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Preview returns pairs with both legs' id, date, account, description, amount and strategy, and writes nothing
-- [ ] Apply links only the posted pairs; read-only member gets 403 on apply and 200 on preview
-- [ ] Tests added to `backend/tests/test_transfer_api.py`
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
-- [ ] Test count: existing + 6 new pass
+- [x] Preview returns pairs with both legs' id, date, account, description, amount and strategy, and writes nothing
+- [x] Apply links only the posted pairs; read-only member gets 403 on apply and 200 on preview
+- [x] Tests added to `backend/tests/test_transfer_api.py`
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
+- [x] Test count: existing + 6 new pass
 
 **Tests**: integration
 **Gate**: Full
