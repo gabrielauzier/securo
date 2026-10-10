@@ -1827,7 +1827,7 @@ export default function TransactionsPage() {
               onClear={() => { setSelectedIds(new Set()); setBulkCategory(''); setBulkTagInput('') }}
             />
 
-            <div className="hidden w-full items-center gap-1.5 sm:flex">
+            <div className="hidden w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 sm:flex">
             {/* Selection count + net total — stacked vertically so the
                 sum (issue #185) adds no horizontal width to an already
                 crowded bar. The sum is hidden below sm where only the
