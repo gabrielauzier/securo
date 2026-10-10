@@ -1118,6 +1118,38 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F11: Pin the account edit-mode load (ACC-01 AC4)
+
+**What**: Edit-mode test for a USD credit-card account asserting currency, credit limit, statement close day and payment due day, and that a name-only change keeps currency and omits balance fields.
+**Where**: `frontend/src/pages/accounts-dialog.test.tsx`
+**Requirement**: ACC-01
+
+**Done when**:
+
+- [x] Currency control shows USD and the three credit-card fields show the account values on open
+- [x] Name-only edit submits currency USD and no balance or balance_date
+- [x] Reverting any one of the four loads to its default fails the test
+
+**Commit**: `test(accounts): pin currency and card fields on edit load`
+
+---
+
+### F12: Assert apply_pairs skip reasons (TRF-01 AC4)
+
+**What**: Assert the `reason` of skipped pairs: already linked, deleted leg and cross-workspace pair.
+**Where**: `backend/tests/test_transfer_detection.py`
+**Requirement**: TRF-01
+
+**Done when**:
+
+- [x] Linked leg reports `already_linked`, deleted leg `not_found`
+- [x] Cross-workspace pair is skipped as `not_found` with nothing linked
+- [x] Mutating the already-linked check or dropping the workspace filter fails a test
+
+**Commit**: `test(transfers): assert the skip reason of stale and foreign pairs`
+
+---
+
 ## Phase Execution Map
 
 ```

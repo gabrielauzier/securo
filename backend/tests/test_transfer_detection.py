@@ -665,10 +665,32 @@ async def test_apply_skips_a_pair_whose_leg_was_linked_since_the_preview(
 
     assert result.linked == 0
     assert [(s.a, s.b) for s in result.skipped] == [(debit.id, credit.id)]
+    assert [s.reason for s in result.skipped] == ["already_linked"]
     await session.refresh(debit)
     await session.refresh(credit)
     assert debit.transfer_pair_id is None
     assert credit.transfer_pair_id == elsewhere
+
+
+@pytest.mark.asyncio
+async def test_apply_reports_a_pair_in_another_workspace_as_not_found(
+    session: AsyncSession, test_user, test_workspace
+):
+    """A pair that is not visible in the caller's workspace is skipped as a missing
+    row, not as a rule mismatch, and nothing is linked."""
+    debit, credit = await _mirrored(session, test_user, "Foreign")
+
+    result = await apply_pairs(session, uuid.uuid4(), [(debit.id, credit.id)])
+    await session.commit()
+
+    assert result.linked == 0
+    assert [(s.a, s.b, s.reason) for s in result.skipped] == [
+        (debit.id, credit.id, "not_found")
+    ]
+    await session.refresh(debit)
+    await session.refresh(credit)
+    assert debit.transfer_pair_id is None
+    assert credit.transfer_pair_id is None
 
 
 @pytest.mark.asyncio
@@ -687,6 +709,7 @@ async def test_apply_skips_a_pair_whose_leg_was_deleted_since_the_preview(
 
     assert result.linked == 1
     assert [(s.a, s.b) for s in result.skipped] == [(d1.id, c1.id)]
+    assert [s.reason for s in result.skipped] == ["not_found"]
     await session.refresh(d2)
     assert d2.transfer_pair_id is not None
 
