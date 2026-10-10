@@ -415,8 +415,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] `alembic upgrade head` and `downgrade -1` run cleanly on a scratch database
-- [ ] Gate passes: `cd backend && uv run pytest -q`
+- [x] `alembic upgrade head` and `downgrade -1` run cleanly on a scratch database
+- [x] Gate passes: `cd backend && uv run pytest -q`
 
 **Tests**: none
 **Gate**: Build
