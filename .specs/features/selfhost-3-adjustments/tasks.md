@@ -953,6 +953,26 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 ---
 
+## Verification Fixes
+
+Fixes from `validation.md` (iteration 1).
+
+### F1: Floor the account-detail summary `opening_balance` (BAL-02 AC6)
+
+**What**: The manual-account summary `opening_balance` (seed of the account-detail running balance) now uses the same cutoff-aware floor as `_account_balance_at`.
+**Where**: `backend/app/services/account_service.py`, `backend/tests/test_accounts_api.py`
+**Requirement**: BAL-02
+
+**Done when**:
+
+- [x] Opening 1000 on D, expense 200 before D, window after D: `current_balance == 1000` and `opening_balance == 1000`
+- [x] Window starting before D keeps earlier rows (BAL AC7)
+- [x] Connected accounts unchanged
+
+**Commit**: `fix(accounts): floor the summary opening balance at the opening date`
+
+---
+
 ## Phase Execution Map
 
 ```

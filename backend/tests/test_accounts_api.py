@@ -849,3 +849,52 @@ async def test_connected_account_summary_still_returns_provider_balance(
     summary = (await client.get(f"/api/accounts/{test_account.id}/summary", headers=auth_headers)).json()
 
     assert summary["current_balance"] == pytest.approx(1500.0)
+
+
+@pytest.mark.asyncio
+async def test_summary_opening_balance_applies_floor_for_window_after_opening(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """BAL-02 AC6: opening 1000 on D, expense 200 before D. A window starting after D
+    seeds the detail walk with 1000 (not 800), matching current_balance."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Floor Seed", "checking", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day - _timedelta(days=5))
+
+    window_start = (_app_today() - _timedelta(days=3)).isoformat()
+    summary = (
+        await client.get(
+            f"/api/accounts/{account_id}/summary",
+            params={"from": window_start, "to": _app_today().isoformat()},
+            headers=auth_headers,
+        )
+    ).json()
+
+    assert summary["current_balance"] == pytest.approx(1000.0)
+    assert summary["opening_balance"] == pytest.approx(1000.0)
+
+
+@pytest.mark.asyncio
+async def test_summary_opening_balance_window_before_opening_keeps_earlier_rows(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """BAL AC7: a window that starts before D reads history as it was, so earlier
+    rows dated before the window still seed the walk."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Floor Seed Early", "checking", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day - _timedelta(days=5))
+
+    window_start = (opening_day - _timedelta(days=2)).isoformat()
+    summary = (
+        await client.get(
+            f"/api/accounts/{account_id}/summary",
+            params={"from": window_start, "to": _app_today().isoformat()},
+            headers=auth_headers,
+        )
+    ).json()
+
+    assert summary["opening_balance"] == pytest.approx(-200.0)

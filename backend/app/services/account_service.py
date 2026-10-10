@@ -976,6 +976,9 @@ async def get_account_summary(
                 ), 0)).where(
                     *ob_base_filters,
                     Transaction.date < date_from,
+                    # Same floor as the balance at the day before the window,
+                    # so this seed agrees with current_balance (BAL-02 AC6).
+                    within_opening_floor(date_from - timedelta(days=1)),
                     Transaction.status.in_(("posted", "pending")),
                 )
             )
