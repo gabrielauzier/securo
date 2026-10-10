@@ -235,12 +235,12 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Account with `balance_date` in the window and earlier non-ignored transactions is listed with that date (AC7)
-- [ ] Account with `balance_date` but no opening transaction is listed too
-- [ ] Connected and NULL-date accounts are not listed; window bounds `(start, end]` kept
-- [ ] Existing notice tests keep their expected values (fixtures set `balance_date`)
-- [ ] Tests in `backend/tests/test_report_service.py`
-- [ ] Gate passes: `cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check . && .venv/bin/ty check`
+- [x] Account with `balance_date` in the window and earlier non-ignored transactions is listed with that date (AC7)
+- [x] Account with `balance_date` but no opening transaction is listed too
+- [x] Connected and NULL-date accounts are not listed; window bounds `(start, end]` kept
+- [x] Existing notice tests keep their expected values (fixtures set `balance_date`)
+- [x] Tests in `backend/tests/test_report_service.py`
+- [x] Gate passes: `cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check . && .venv/bin/ty check`
 
 **Tests**: unit
 **Gate**: Build

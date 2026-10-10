@@ -2753,6 +2753,10 @@ async def _seed_reset_account(
 ) -> Account:
     account = await _create_manual_account(session, user_id, name)
     if opening_date is not None:
+        # AD-002: the notice reads the account's saved date, which the service
+        # keeps equal to its opening row.
+        account.balance_date = opening_date
+        await session.commit()
         await _create_transaction(
             session, user_id, account.id, 1000, "credit", opening_date, source="opening_balance"
         )
@@ -2996,6 +3000,69 @@ async def test_net_worth_report_connected_account_is_not_a_reset(
         today - timedelta(days=100), source="opening_balance",
     )
     await _create_transaction(session, test_user.id, account.id, 50, "debit", today - timedelta(days=40))
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_lists_saved_date_without_an_opening_row(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-02 AC7: the notice follows Account.balance_date, with no opening transaction."""
+    today = date.today()
+    saved = today - timedelta(days=10)
+    account = await _create_manual_account(session, test_user.id, "Zero Dated")
+    account.balance_date = saved
+    await session.commit()
+    await _create_transaction(
+        session, test_user.id, account.id, 200, "debit", today - timedelta(days=40)
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert [(r.account_id, r.date) for r in report.meta.balance_resets] == [
+        (str(account.id), saved.isoformat())
+    ]
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_account_without_saved_date_is_not_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-02 AC3/AC7: a NULL balance_date lists nothing, even with an opening row."""
+    today = date.today()
+    account = await _create_manual_account(session, test_user.id, "No Date")
+    await _create_transaction(
+        session, test_user.id, account.id, 1000, "credit", today - timedelta(days=10),
+        source="opening_balance",
+    )
+    await _create_transaction(
+        session, test_user.id, account.id, 200, "debit", today - timedelta(days=40)
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_saved_date_with_only_ignored_history_is_not_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-02 AC7: only non-ignored earlier transactions make a reset."""
+    today = date.today()
+    await _seed_reset_account(
+        session, test_user.id, "Ignored Only", today - timedelta(days=10),
+        earlier_date=today - timedelta(days=40), earlier_ignored=True,
+    )
 
     report = await get_net_worth_report(
         session, test_workspace.id, test_user.id, months=3, interval="monthly"

@@ -301,54 +301,47 @@ async def _find_balance_resets(
     window_start: date,
     window_end: date,
 ) -> list[BalanceReset]:
-    """Accounts whose opening date falls inside the window over earlier history.
+    """Accounts whose saved balance date falls inside the window over earlier history.
 
-    The opening-balance floor (AD-001) makes the net worth jump on that date,
-    so the UI explains it. One grouped query covers the whole account list.
+    The balance floor (AD-001) makes the net worth jump on ``Account.balance_date``
+    (AD-002), so the UI explains it. The date comes from the account itself, so
+    it no longer depends on an opening transaction existing. One grouped query
+    checks the whole candidate list for earlier non-ignored history.
     """
-    if not accounts:
+    candidates = {
+        account.id: _as_date(account.balance_date)
+        for account in accounts
+        if account.connection_id is None
+        and account.balance_date is not None
+        and window_start < _as_date(account.balance_date) <= window_end
+    }
+    if not candidates:
         return []
-    opening_row = Transaction.__table__.alias("opening_row")
-    openings = (
-        select(
-            Transaction.account_id.label("account_id"),
-            func.max(Transaction.date).label("opening_date"),
-        )
-        .where(
-            Transaction.account_id.in_([account.id for account in accounts]),
-            Transaction.source == "opening_balance",
-        )
-        .group_by(Transaction.account_id)
-        .subquery()
-    )
-    earlier_history = (
-        select(opening_row.c.id)
-        .where(
-            opening_row.c.account_id == openings.c.account_id,
-            opening_row.c.source != "opening_balance",
-            opening_row.c.is_ignored.is_(False),
-            opening_row.c.date < openings.c.opening_date,
-        )
-        .exists()
-    )
-    rows = (
-        await session.execute(
-            select(openings.c.account_id, openings.c.opening_date).where(
-                openings.c.opening_date > window_start,
-                openings.c.opening_date <= window_end,
-                earlier_history,
+    with_history = set(
+        (
+            await session.execute(
+                select(Transaction.account_id)
+                .join(Account, Account.id == Transaction.account_id)
+                .where(
+                    Transaction.account_id.in_(list(candidates)),
+                    Transaction.source != "opening_balance",
+                    Transaction.is_ignored.is_(False),
+                    Transaction.date < Account.balance_date,
+                )
+                .distinct()
             )
         )
-    ).all()
-    opening_dates = {row.account_id: row.opening_date for row in rows}
+        .scalars()
+        .all()
+    )
     return [
         BalanceReset(
             account_id=str(account.id),
             account_name=get_account_name(account),
-            date=_as_date(opening_dates[account.id]).isoformat(),
+            date=candidates[account.id].isoformat(),
         )
         for account in accounts
-        if account.id in opening_dates
+        if account.id in with_history
     ]
 
 
