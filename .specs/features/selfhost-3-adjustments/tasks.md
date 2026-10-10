@@ -309,13 +309,13 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Account with opening 09/10 and a September transaction, window Sep–Oct → listed with date 09/10
-- [ ] Account with no earlier transactions, or opening outside the window, or only ignored earlier transactions → not listed
-- [ ] Collection filter limits the list to filtered accounts
-- [ ] Result is computed with one grouped query (asserted via query-count or single helper call)
-- [ ] Tests added to `backend/tests/test_report_service.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_report_service.py -q`
-- [ ] Test count: existing + 5 new pass
+- [x] Account with opening 09/10 and a September transaction, window Sep–Oct → listed with date 09/10
+- [x] Account with no earlier transactions, or opening outside the window, or only ignored earlier transactions → not listed
+- [x] Collection filter limits the list to filtered accounts
+- [x] Result is computed with one grouped query (asserted via query-count or single helper call)
+- [x] Tests added to `backend/tests/test_report_service.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_report_service.py -q`
+- [x] Test count: existing + 5 new pass
 
 **Tests**: unit
 **Gate**: Quick

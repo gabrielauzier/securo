@@ -25,6 +25,7 @@ from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.account_service import get_account_name
 from app.services.fx_rate_service import convert
 from app.schemas.report import (
+    BalanceReset,
     CategoryTrendItem,
     ReportBreakdown,
     ReportCompositionItem,
@@ -294,6 +295,67 @@ def _date_points(
     return points
 
 
+async def _find_balance_resets(
+    session: AsyncSession,
+    accounts: list[Account],
+    window_start: date,
+    window_end: date,
+) -> list[BalanceReset]:
+    """Accounts whose opening date falls inside the window over earlier history.
+
+    The opening-balance floor (AD-001) makes the net worth jump on that date,
+    so the UI explains it. One grouped query covers the whole account list.
+    """
+    if not accounts:
+        return []
+    opening_row = Transaction.__table__.alias("opening_row")
+    openings = (
+        select(
+            Transaction.account_id.label("account_id"),
+            func.max(Transaction.date).label("opening_date"),
+        )
+        .where(
+            Transaction.account_id.in_([account.id for account in accounts]),
+            Transaction.source == "opening_balance",
+        )
+        .group_by(Transaction.account_id)
+        .subquery()
+    )
+    earlier_history = (
+        select(opening_row.c.id)
+        .where(
+            opening_row.c.account_id == openings.c.account_id,
+            opening_row.c.source != "opening_balance",
+            opening_row.c.is_ignored.is_(False),
+            opening_row.c.date < openings.c.opening_date,
+        )
+        .exists()
+    )
+    rows = (
+        await session.execute(
+            select(openings.c.account_id, openings.c.opening_date).where(
+                openings.c.opening_date > window_start,
+                openings.c.opening_date <= window_end,
+                earlier_history,
+            )
+        )
+    ).all()
+    opening_dates = {row.account_id: row.opening_date for row in rows}
+    return [
+        BalanceReset(
+            account_id=str(account.id),
+            account_name=get_account_name(account),
+            date=_as_date(opening_dates[account.id]).isoformat(),
+        )
+        for account in accounts
+        if account.id in opening_dates
+    ]
+
+
+def _as_date(value) -> date:
+    return date.fromisoformat(value) if isinstance(value, str) else value
+
+
 async def get_net_worth_report(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -395,6 +457,7 @@ async def get_net_worth_report(
         series_keys=["accounts", "assets", "liabilities"],
         currency=primary_currency,
         interval=interval,
+        balance_resets=await _find_balance_resets(session, accounts, start, axis_end),
     )
 
     # Reuse the selected end date's per-item composition for the response-level
