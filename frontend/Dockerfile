@@ -1,4 +1,7 @@
-FROM node:22-slim AS build
+# The build output is plain HTML/JS/CSS, identical for every architecture, so run
+# this stage on the builder's own platform instead of emulating the target one.
+# Under QEMU the native bundler (Rolldown) can hang on linux/arm64 builds.
+FROM --platform=$BUILDPLATFORM node:22-slim AS build
 
 WORKDIR /app
 
