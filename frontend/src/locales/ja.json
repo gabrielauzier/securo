@@ -1914,6 +1914,7 @@
   "reports": {
     "section": "分析",
     "netWorth": "純資産",
+    "balanceResetNote": "{{account}} の残高は {{date}} に手動で更新されました。この日の純資産の変動はその更新を反映しています。",
     "trend": "推移",
     "breakdown": "内訳",
     "noData": "この期間のデータはありません",

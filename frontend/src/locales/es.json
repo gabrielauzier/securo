@@ -1918,6 +1918,7 @@
   "reports": {
     "section": "Analítica",
     "netWorth": "Patrimonio neto",
+    "balanceResetNote": "El saldo de {{account}} se actualizó manualmente el {{date}}; la variación del patrimonio en esa fecha refleja esa actualización.",
     "trend": "A lo largo del tiempo",
     "breakdown": "Desglose",
     "noData": "No hay datos disponibles para este periodo",

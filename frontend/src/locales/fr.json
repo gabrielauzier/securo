@@ -1918,6 +1918,7 @@
   "reports": {
     "section": "Analyses",
     "netWorth": "Valeur nette",
+    "balanceResetNote": "Le solde de {{account}} a été mis à jour manuellement le {{date}} ; la variation du patrimoine à cette date reflète cette mise à jour.",
     "trend": "Dans le temps",
     "breakdown": "Répartition",
     "noData": "Aucune donnée disponible pour cette période",

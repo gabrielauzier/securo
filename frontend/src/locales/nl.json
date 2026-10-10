@@ -1916,6 +1916,7 @@
   "reports": {
     "section": "Analyses",
     "netWorth": "Netto waarde",
+    "balanceResetNote": "Het saldo van {{account}} is op {{date}} handmatig bijgewerkt; de verandering in vermogen op die datum weerspiegelt deze update.",
     "trend": "Na verloop van tijd",
     "breakdown": "Uitsplitsing",
     "noData": "Er zijn geen gegevens beschikbaar voor deze periode",

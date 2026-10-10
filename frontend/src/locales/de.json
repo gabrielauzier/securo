@@ -1915,6 +1915,7 @@
   "reports": {
     "section": "Analysen",
     "netWorth": "Nettovermögen",
+    "balanceResetNote": "Der Kontostand von {{account}} wurde am {{date}} manuell aktualisiert; die Veränderung des Nettovermögens an diesem Tag spiegelt diese Aktualisierung wider.",
     "trend": "Im Zeitverlauf",
     "breakdown": "Verteilung",
     "noData": "Keine Daten für diesen Zeitraum verfügbar",

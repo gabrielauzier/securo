@@ -338,9 +338,9 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Key present with interpolation (`{{account}}`, `{{date}}`) in all 15 locale files, with pt-BR as source text
-- [ ] `balance_resets` added to the report meta type in `frontend/src/types`
-- [ ] Gate passes: `cd frontend && npm run typecheck && npx vitest run src/locales`
+- [x] Key present with interpolation (`{{account}}`, `{{date}}`) in all 15 locale files, with pt-BR as source text
+- [x] `balance_resets` added to the report meta type in `frontend/src/types`
+- [x] Gate passes: `cd frontend && npm run typecheck && npx vitest run src/locales`
 
 **Tests**: none
 **Gate**: Build

@@ -2030,6 +2030,7 @@
   "reports": {
     "section": "Analytika",
     "netWorth": "Čisté imanie",
+    "balanceResetNote": "Zostatok účtu {{account}} bol ručne aktualizovaný dňa {{date}}; zmena čistého majetku v tento deň odráža túto aktualizáciu.",
     "trend": "V čase",
     "breakdown": "Rozdelenie",
     "noData": "Pre toto obdobie nie sú dostupné žiadne dáta",

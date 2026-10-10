@@ -2003,6 +2003,7 @@
   "reports": {
     "section": "Analityka",
     "netWorth": "Majątek netto",
+    "balanceResetNote": "Saldo konta {{account}} zostało ręcznie zaktualizowane dnia {{date}}; zmiana wartości netto w tym dniu odzwierciedla tę aktualizację.",
     "trend": "W czasie",
     "breakdown": "Podział",
     "noData": "Brak danych dla tego okresu",

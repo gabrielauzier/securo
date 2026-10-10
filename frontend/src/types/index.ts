@@ -1002,6 +1002,12 @@ export interface ReportDataPoint {
   composition?: ReportCompositionItem[]
 }
 
+export interface BalanceReset {
+  account_id: string
+  account_name: string
+  date: string
+}
+
 export interface ReportMeta {
   type: string
   series_keys: string[]
@@ -1010,6 +1016,7 @@ export interface ReportMeta {
   forecast_start_date?: string | null
   baseline_active?: boolean
   baseline_lookback_days?: number | null
+  balance_resets?: BalanceReset[]
 }
 
 export interface ReportCompositionItem {

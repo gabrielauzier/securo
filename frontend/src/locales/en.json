@@ -1914,6 +1914,7 @@
   "reports": {
     "section": "Analytics",
     "netWorth": "Net Worth",
+    "balanceResetNote": "The balance of {{account}} was manually updated on {{date}}; the net worth change on that date reflects this update.",
     "trend": "Over Time",
     "breakdown": "Breakdown",
     "noData": "No data available for this period",

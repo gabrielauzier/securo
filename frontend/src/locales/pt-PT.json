@@ -1918,6 +1918,7 @@
   "reports": {
     "section": "Análises",
     "netWorth": "Património Líquido",
+    "balanceResetNote": "O saldo de {{account}} foi atualizado manualmente em {{date}}; a variação do património nessa data reflete essa atualização.",
     "trend": "Ao Longo do Tempo",
     "breakdown": "Composição",
     "noData": "Nenhum dado disponível para este período",
