@@ -285,8 +285,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] `BalanceReset{account_id, account_name, date}` defined; `ReportMeta.balance_resets` defaults to `[]`
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check . && uv run ty check`
+- [x] `BalanceReset{account_id, account_name, date}` defined; `ReportMeta.balance_resets` defaults to `[]`
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check . && uv run ty check`
 
 **Tests**: none
 **Gate**: Build
