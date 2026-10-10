@@ -75,8 +75,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] `balance_date: Mapped[Optional[date]]` (Date, nullable) defined
-- [ ] Gate passes: Build (backend)
+- [x] `balance_date: Mapped[Optional[date]]` (Date, nullable) defined
+- [x] Gate passes: Build (backend)
 
 **Tests**: none
 **Gate**: Build
