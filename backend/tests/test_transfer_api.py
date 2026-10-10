@@ -1261,6 +1261,7 @@ async def test_transfer_preview_lists_pairs_with_both_legs_and_writes_nothing(
     assert pair["a"]["description"] == "Out 321.0"
     assert pair["a"]["date"] == date.today().isoformat()
     assert Decimal(str(pair["a"]["amount"])) == Decimal("321.00")
+    assert pair["a"]["currency"] == test_account.currency
     assert pair["strategy"]
     after = await client.get(f"/api/transactions/{debit['id']}", headers=auth_headers)
     assert after.json()["transfer_pair_id"] is None

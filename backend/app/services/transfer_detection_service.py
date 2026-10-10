@@ -354,6 +354,7 @@ class ProposedLeg:
     account_name: Optional[str]
     description: str
     amount: Decimal
+    currency: str
     type: str
 
 
@@ -386,6 +387,7 @@ def _leg(tx: Transaction, accounts: dict[uuid.UUID, Account]) -> ProposedLeg:
         account_name=account.name if account else None,
         description=tx.description,
         amount=abs(Decimal(tx.amount)),
+        currency=tx.currency,
         type=tx.type,
     )
 

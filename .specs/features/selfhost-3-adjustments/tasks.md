@@ -861,11 +861,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Renders both legs, strategy, selected count; unchecking removes a pair from the confirm set
-- [ ] Empty state renders
-- [ ] New test `frontend/src/components/transfer-pair-preview.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/transfer-pair-preview.test.tsx`
-- [ ] Test count: 4 tests pass
+- [x] Renders both legs, strategy, selected count; unchecking removes a pair from the confirm set
+- [x] Empty state renders
+- [x] New test `frontend/src/components/transfer-pair-preview.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/transfer-pair-preview.test.tsx`
+- [x] Test count: 4 tests pass
 
 **Tests**: unit
 **Gate**: Quick-FE

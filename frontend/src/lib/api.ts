@@ -377,6 +377,7 @@ export interface TransferLeg {
   account_name: string | null
   description: string
   amount: number | string
+  currency: string
   type: 'debit' | 'credit'
 }
 

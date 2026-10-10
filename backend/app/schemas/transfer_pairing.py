@@ -16,6 +16,7 @@ class TransferLegRead(BaseModel):
     account_name: Optional[str] = None
     description: str
     amount: Decimal
+    currency: str
     type: str
 
 
