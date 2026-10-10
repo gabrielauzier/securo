@@ -16,11 +16,13 @@ from app.core.workspace_context import (
     current_workspace,
     current_writable_workspace,
 )
-from app.schemas.transaction import BulkAddToGroupRequest, BulkCategorizeRequest, BulkIgnoreRequest, BulkTagsRequest, CreateCounterpartRequest, InstallmentSeriesCreate, LinkTransferRequest, TransactionBulkDeleteRequest, TransactionCreate, TransactionRead, TransactionUpdate, TransferCreate, TransferRead
+from app.schemas.transaction import BulkAddToGroupRequest, BulkCategorizeRequest, BulkIgnoreRequest, BulkTagsRequest, BulkTransferPreviewRequest, BulkTransferRequest, CreateCounterpartRequest, InstallmentSeriesCreate, LinkTransferRequest, TransactionBulkDeleteRequest, TransactionCreate, TransactionRead, TransactionUpdate, TransferCreate, TransferRead
 from app.schemas.transaction_calendar import TransactionCalendarResponse
+from app.schemas.transfer_pairing import TransferApplyRead, TransferPreviewRead
 from app.services import transaction_service
 from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.transaction_calendar_service import get_transaction_calendar
+from app.services.transfer_detection_service import apply_pairs, propose_pairs
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -354,6 +356,30 @@ async def create_transfer(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/bulk-transfer/preview", response_model=TransferPreviewRead)
+async def bulk_transfer_preview(
+    data: BulkTransferPreviewRequest,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Pair the selected transactions with each other. Writes nothing."""
+    return await propose_pairs(session, ctx.workspace.id, set(data.transaction_ids))
+
+
+@router.post("/bulk-transfer", response_model=TransferApplyRead)
+async def bulk_transfer(
+    data: BulkTransferRequest,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Link the confirmed pairs that are still valid; report the rest as skipped."""
+    result = await apply_pairs(
+        session, ctx.workspace.id, [(p.a, p.b) for p in data.pairs]
+    )
+    await session.commit()
+    return result
 
 
 @router.post("/link-transfer", response_model=TransferRead)

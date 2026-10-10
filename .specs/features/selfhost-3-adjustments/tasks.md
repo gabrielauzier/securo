@@ -810,11 +810,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Preview lists pairs plus ambiguous, unmatched and already-linked ids (AC 1-5)
-- [ ] Confirm links the posted pairs (AC 6); 422 over 100 IDs (AC 7); read-only member rejected (AC 8)
-- [ ] Tests in new `backend/tests/test_transactions_bulk_transfer.py`
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
-- [ ] Test count: 11 new tests pass (SPEC_DEVIATION: estimate was 8; parametrized name test, match, patch, touch, delete cases)
+- [x] Preview lists pairs plus ambiguous, unmatched and already-linked ids (AC 1-5)
+- [x] Confirm links the posted pairs (AC 6); 422 over 100 IDs (AC 7); read-only member rejected (AC 8)
+- [x] Tests in new `backend/tests/test_transactions_bulk_transfer.py`
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
+- [x] Test count: 10 new tests pass (SPEC_DEVIATION: the 11 in the draft was a stale estimate; 10 cover BTR AC 1-8, the 50-pair cap, the 100-id boundary and workspace scoping)
 
 **Tests**: integration
 **Gate**: Full

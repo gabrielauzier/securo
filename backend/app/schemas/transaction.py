@@ -6,6 +6,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.category import CategoryRead
+from app.schemas.transfer_pairing import TransferPairRef
 from app.schemas.transaction_split import (
     TransactionSplitInput,
     TransactionSplitRead,
@@ -219,6 +220,15 @@ class BulkCategorizeRequest(BaseModel):
 class BulkIgnoreRequest(BaseModel):
     transaction_ids: list[uuid.UUID] = Field(max_length=100)
     ignored: bool
+
+
+class BulkTransferPreviewRequest(BaseModel):
+    transaction_ids: list[uuid.UUID] = Field(max_length=100)
+
+
+class BulkTransferRequest(BaseModel):
+    # 50 pairs is the 100 ids the preview accepts.
+    pairs: list[TransferPairRef] = Field(max_length=50)
 
 
 class TransactionBulkDeleteRequest(BaseModel):
