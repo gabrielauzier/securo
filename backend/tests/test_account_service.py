@@ -1640,3 +1640,84 @@ async def test_list_previous_balance_applies_the_floor(
     acc = await _balance_of(session, test_workspace.id, account.id)
 
     assert acc["previous_balance"] == pytest.approx(950.0)
+
+
+# ---------------------------------------------------------------------------
+# Opening balance floor (balance history)
+# Opening 1000 on D = today-5; expense 200 on D-3 (before the opening);
+# expense 100 on D+2 (after it).
+# ---------------------------------------------------------------------------
+
+
+async def _floor_history_fixture(session: AsyncSession, test_user):
+    from app.core.app_clock import app_today
+    today = app_today()
+    opening_day = today - timedelta(days=5)
+    account = await _make_account(session, test_user.id, "Floor History")
+    await _add_txn(session, test_user.id, account.id, 1000, "credit", opening_day, source="opening_balance")
+    await _add_txn(session, test_user.id, account.id, 200, "debit", opening_day - timedelta(days=3))
+    await _add_txn(session, test_user.id, account.id, 100, "debit", opening_day + timedelta(days=2))
+    return account, today, opening_day
+
+
+@pytest.mark.asyncio
+async def test_balance_at_before_opening_date_includes_earlier_transactions(
+    session: AsyncSession, test_user
+):
+    from app.services.account_service import _account_balance_at
+    account, _today, opening_day = await _floor_history_fixture(session, test_user)
+
+    balance = await _account_balance_at(
+        session, account.id, opening_day - timedelta(days=1), "BRL"
+    )
+
+    assert balance == pytest.approx(-200.0)
+
+
+@pytest.mark.asyncio
+async def test_balance_at_or_after_opening_date_excludes_earlier_transactions(
+    session: AsyncSession, test_user
+):
+    from app.services.account_service import _account_balance_at
+    account, today, opening_day = await _floor_history_fixture(session, test_user)
+
+    on_opening = await _account_balance_at(session, account.id, opening_day, "BRL")
+    now = await _account_balance_at(session, account.id, today, "BRL")
+
+    assert on_opening == pytest.approx(1000.0)
+    assert now == pytest.approx(900.0)
+
+
+@pytest.mark.asyncio
+async def test_balance_history_series_restarts_at_the_opening_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    account, today, opening_day = await _floor_history_fixture(session, test_user)
+
+    history = await get_account_balance_history(
+        session, account.id, test_workspace.id,
+        date_from=opening_day - timedelta(days=4), date_to=today,
+    )
+    by_date = {p["date"]: p["balance"] for p in history}
+
+    assert by_date[(opening_day - timedelta(days=4)).isoformat()] == pytest.approx(0.0)
+    assert by_date[(opening_day - timedelta(days=3)).isoformat()] == pytest.approx(-200.0)
+    assert by_date[(opening_day - timedelta(days=1)).isoformat()] == pytest.approx(-200.0)
+    assert by_date[opening_day.isoformat()] == pytest.approx(1000.0)
+    assert by_date[(opening_day + timedelta(days=2)).isoformat()] == pytest.approx(900.0)
+
+
+@pytest.mark.asyncio
+async def test_balance_history_last_point_equals_current_balance(
+    session: AsyncSession, test_user, test_workspace
+):
+    account, today, opening_day = await _floor_history_fixture(session, test_user)
+
+    history = await get_account_balance_history(
+        session, account.id, test_workspace.id,
+        date_from=opening_day - timedelta(days=6), date_to=today,
+    )
+    listed = next(a for a in await get_accounts(session, test_workspace.id) if a["id"] == account.id)
+
+    assert history[-1]["balance"] == pytest.approx(listed["current_balance"])
+    assert history[-1]["balance"] == pytest.approx(900.0)

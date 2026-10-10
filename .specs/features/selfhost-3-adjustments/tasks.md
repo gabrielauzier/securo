@@ -202,12 +202,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] A date before the opening date includes earlier transactions (spec BAL AC 7)
-- [ ] A date on/after it excludes pre-opening transactions
-- [ ] The last point of the series equals the account's current balance
-- [ ] Tests added to `backend/tests/test_account_service.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_account_service.py -q`
-- [ ] Test count: existing + 4 new pass
+- [x] A date before the opening date includes earlier transactions (spec BAL AC 7)
+- [x] A date on/after it excludes pre-opening transactions
+- [x] The last point of the series equals the account's current balance
+- [x] Tests added to `backend/tests/test_account_service.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_account_service.py -q`
+- [x] Test count: existing + 4 new pass
 
 **Tests**: unit
 **Gate**: Quick

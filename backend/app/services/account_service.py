@@ -1012,13 +1012,17 @@ async def _account_balance_at(
     account_currency: str = "",
 ) -> float:
     """Get balance for a single account at a specific date.
-    Excludes ignored transactions from the balance calculation."""
+    Excludes ignored transactions from the balance calculation. From the
+    account's opening date onward, rows dated before it no longer count;
+    a cutoff before the opening date reads the history as it was."""
+    effective_cutoff = min(cutoff, app_today())
     result = await session.execute(
         select(func.coalesce(func.sum(_signed_amount_expr(account_currency)), 0))
         .outerjoin(Category, Transaction.category_id == Category.id)
         .where(
             Transaction.account_id == account_id,
-            Transaction.date <= min(cutoff, app_today()),
+            Transaction.date <= effective_cutoff,
+            within_opening_floor(effective_cutoff),
             Transaction.status == "posted",
             Transaction.is_ignored == False,
             or_(
@@ -1064,11 +1068,25 @@ async def _account_daily_balance_series(
     )
     deltas = {row[0]: float(row[1] or 0) for row in result.all()}
 
+    # The balance restarts from the opening row on its date: rows before it
+    # are history up to the day before, and drop out from that day on.
+    opening_result = await session.execute(
+        select(func.max(Transaction.date)).where(
+            Transaction.account_id == account_id,
+            Transaction.source == "opening_balance",
+        )
+    )
+    opening_date = opening_result.scalar()
+    if opening_date is not None and opening_date > app_today():
+        opening_date = None
+
     # Build daily series
     series = []
     balance = start_balance
     current = date_from
     while current <= date_to:
+        if current == opening_date:
+            balance = 0.0
         balance += deltas.get(current, 0)
         series.append({"date": current.isoformat(), "balance": round(balance, 2)})
         current += timedelta(days=1)

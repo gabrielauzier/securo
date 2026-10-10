@@ -208,8 +208,8 @@ The first production week of `0.16.3-selfhost.2` exposed two account bugs and fo
 | -------------- | ----- | ----- | ------ |
 | ACC-01 | P1: New-account dialog opens clean | Phase 1 | Done |
 | BAL-01 | P1: Opening balance is a floor | Phase 1 | In progress |
-| BAL-02 | P1: Opening balance is a floor | - | Pending |
-| BAL-03 | P1: Opening balance is a floor | - | Pending |
+| BAL-02 | P1: Opening balance is a floor | Phase 1 | In progress |
+| BAL-03 | P1: Opening balance is a floor | Phase 1 | In progress |
 | NWN-01 | P1: Net-worth notice | - | Pending |
 | IMP-01 | P1: Saved CSV import mappings | - | Pending |
 | IGN-01 | P2: Bulk ignore | - | Pending |
