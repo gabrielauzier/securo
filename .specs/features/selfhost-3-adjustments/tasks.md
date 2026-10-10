@@ -1038,6 +1038,21 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F6: Pin balance-floor cutoffs (S2, S4)
+
+**What**: Tests for previous_balance with the opening date in the current month and the summary seed for a window starting on the opening date.
+**Where**: `backend/tests/test_account_service.py`, `backend/tests/test_accounts_api.py`
+**Requirement**: BAL-02, BAL-03
+
+**Done when**:
+
+- [x] Opening in current month with earlier expense: previous_balance == -200, current_balance == 1000 (S4)
+- [x] Window starting on the opening date: summary opening_balance == -200, current_balance == 1000 (S2)
+
+**Commit**: `test(accounts): pin balance floor cutoffs at the opening date`
+
+---
+
 ## Phase Execution Map
 
 ```

@@ -1642,6 +1642,25 @@ async def test_list_previous_balance_applies_the_floor(
     assert acc["previous_balance"] == pytest.approx(950.0)
 
 
+@pytest.mark.asyncio
+async def test_list_previous_balance_with_opening_in_current_month_keeps_history(
+    session: AsyncSession, test_user, test_workspace
+):
+    """BAL AC7: the opening date lies after the end of last month, so the cutoff for
+    previous_balance is before it and every row up to that cutoff counts (-200),
+    while current_balance is floored at the opening (1000)."""
+    from app.core.app_clock import app_today
+    first_of_month = app_today().replace(day=1)
+    account = await _make_account(session, test_user.id, "Floor Previous Current Month")
+    await _add_txn(session, test_user.id, account.id, 1000, "credit", first_of_month, source="opening_balance")
+    await _add_txn(session, test_user.id, account.id, 200, "debit", first_of_month - timedelta(days=5))
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    assert acc["previous_balance"] == pytest.approx(-200.0)
+    assert acc["current_balance"] == pytest.approx(1000.0)
+
+
 # ---------------------------------------------------------------------------
 # Opening balance floor (balance history)
 # Opening 1000 on D = today-5; expense 200 on D-3 (before the opening);

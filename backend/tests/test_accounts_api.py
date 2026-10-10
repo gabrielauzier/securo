@@ -901,6 +901,30 @@ async def test_summary_opening_balance_window_before_opening_keeps_earlier_rows(
 
 
 @pytest.mark.asyncio
+async def test_summary_opening_balance_window_starting_on_opening_date_keeps_earlier_rows(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """BAL AC7: the seed is the balance at date_from - 1, which is before D, so the
+    expense dated before D still counts (-200); current_balance stays floored (1000)."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Floor Seed On Opening", "checking", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day - _timedelta(days=5))
+
+    summary = (
+        await client.get(
+            f"/api/accounts/{account_id}/summary",
+            params={"from": opening_day.isoformat(), "to": _app_today().isoformat()},
+            headers=auth_headers,
+        )
+    ).json()
+
+    assert summary["opening_balance"] == pytest.approx(-200.0)
+    assert summary["current_balance"] == pytest.approx(1000.0)
+
+
+@pytest.mark.asyncio
 async def test_editing_opening_date_recomputes_balance_on_next_read(
     client: AsyncClient, auth_headers, session, test_user
 ):
