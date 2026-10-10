@@ -989,6 +989,23 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F3: Kill surviving mutants on P0 paths (N2, N4, N6, N7, I10)
+
+**What**: Boundary and edge tests for net-worth balance resets and mapping header edits.
+**Where**: `backend/tests/test_report_service.py`, `backend/tests/test_import_mapping_service.py`, `backend/tests/test_import_mappings_api.py`
+**Requirement**: NWN-01, IMP-01
+
+**Done when**:
+
+- [x] Opening on window end is listed; on window start is not (N2)
+- [x] Transaction on the opening day is not earlier history (N4)
+- [x] Two opening rows: latest date wins and the older row is not earlier history (N6, N7)
+- [x] PATCH of `headers` recomputes `headers_key`; `/match` finds the new headers, not the old (I10); `headers` asserted in the create response
+
+**Commit**: `test(reports): pin balance reset bounds and mapping header edits`
+
+---
+
 ## Phase Execution Map
 
 ```

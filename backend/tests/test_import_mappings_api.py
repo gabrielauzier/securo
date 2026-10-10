@@ -67,6 +67,7 @@ async def test_create_returns_201_and_the_saved_fields(
     assert body["name"] == "Nubank"
     assert body["account_id"] == str(test_account.id)
     assert body["column_mapping"] == NUBANK_MAPPING
+    assert sorted(body["headers"]) == sorted(NUBANK_HEADERS)
     assert body["options"]["date_format"] == "DD/MM/YYYY"
     assert body["last_used_at"] is None
     listed = await client.get(URL, headers=auth_headers)
@@ -106,6 +107,23 @@ async def test_match_returns_the_mapping_for_the_same_header_set(
     assert [m["id"] for m in hit.json()["matches"]] == [saved["id"]]
     assert miss.status_code == 200
     assert miss.json() == {"matches": []}
+
+
+async def test_patch_headers_rematches_by_the_new_headers(
+    client: AsyncClient, auth_headers: dict
+):
+    saved = (await client.post(URL, json=_body(), headers=auth_headers)).json()
+
+    patched = await client.patch(
+        f"{URL}/{saved['id']}", json={"headers": ["Foo", "Bar"]}, headers=auth_headers
+    )
+    old = await client.post(f"{URL}/match", json={"headers": NUBANK_HEADERS}, headers=auth_headers)
+    new = await client.post(f"{URL}/match", json={"headers": ["Bar", "Foo"]}, headers=auth_headers)
+
+    assert patched.status_code == 200
+    assert sorted(patched.json()["headers"]) == ["Bar", "Foo"]
+    assert old.json() == {"matches": []}
+    assert [m["id"] for m in new.json()["matches"]] == [saved["id"]]
 
 
 async def test_patch_renames_and_a_taken_name_is_409(client: AsyncClient, auth_headers: dict):

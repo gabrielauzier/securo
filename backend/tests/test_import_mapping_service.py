@@ -130,6 +130,21 @@ async def test_rename_to_an_existing_name_conflicts_but_own_name_is_fine(
     assert renamed.name == "NUBANK"
 
 
+async def test_patching_headers_changes_which_uploads_match(
+    session: AsyncSession, test_user: User
+):
+    saved = await svc.create_mapping(session, test_user.id, _create())
+
+    await svc.update_mapping(
+        session, test_user.id, saved.id, ImportMappingUpdate(headers=["Foo", " Bar "])
+    )
+
+    assert await svc.match_mappings(session, test_user.id, NUBANK_HEADERS) == []
+    found = await svc.match_mappings(session, test_user.id, ["Bar", "Foo"])
+    assert [m.id for m in found] == [saved.id]
+    assert found[0].headers == ["Bar", "Foo"]
+
+
 async def test_match_ignores_order_and_padding_but_requires_the_exact_set(
     session: AsyncSession, test_user: User
 ):
