@@ -6,6 +6,8 @@ from decimal import Decimal
 
 import pytest
 
+from app.core.app_clock import app_today as _app_today
+
 from app.models.transaction import Transaction
 
 
@@ -334,7 +336,8 @@ async def test_total_balance_computed_from_transactions(client, auth_headers):
             "amount": 200.00,
             "currency": "BRL",
             "type": "debit",
-            "date": "2026-02-20",
+            # On the opening date: rows before it no longer move the balance.
+            "date": _app_today().isoformat(),
             "account_id": acc_id,
         },
         headers=auth_headers,

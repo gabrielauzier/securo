@@ -230,12 +230,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Snapshot at today excludes pre-opening transactions; snapshot before the opening date includes them
-- [ ] Connected accounts unchanged at past and current cutoffs
-- [ ] Dashboard total equals sum of list balances in a mixed fixture
-- [ ] Tests added to `backend/tests/test_dashboard_service.py`
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
-- [ ] Test count: full suite passes with 5 new tests
+- [x] Snapshot at today excludes pre-opening transactions; snapshot before the opening date includes them
+- [x] Connected accounts unchanged at past and current cutoffs
+- [x] Dashboard total equals sum of list balances in a mixed fixture
+- [x] Tests added to `backend/tests/test_dashboard_service.py`
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
+- [x] Test count: full suite passes with 5 new tests
 
 **Tests**: unit
 **Gate**: Full
