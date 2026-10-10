@@ -166,6 +166,46 @@ describe('AccountDialog', () => {
     expect(payload.balance_date).toBe(today)
   })
 
+  describe('edit mode of a manual USD credit card', () => {
+    const card = {
+      id: 'acc-cc',
+      name: 'Visa',
+      type: 'credit_card',
+      balance: 100,
+      currency: 'USD',
+      credit_limit: 5000,
+      statement_close_day: 8,
+      payment_due_day: 15,
+      connection_id: null,
+    } as unknown as Account
+
+    it('shows the account currency and credit card fields', async () => {
+      renderWithProviders(<AccountDialog {...baseProps} open account={card} />)
+      expect(await screen.findByRole('option', { name: /Dollar/ })).toBeInTheDocument()
+      const [, currencySelect] = screen.getAllByRole('combobox')
+      expect(currencySelect).toHaveValue('USD')
+      const [, limit, closeDay, dueDay] = screen.getAllByRole('spinbutton')
+      expect(limit).toHaveValue(5000)
+      expect(closeDay).toHaveValue(8)
+      expect(dueDay).toHaveValue(15)
+    })
+
+    it('keeps currency and card fields and omits balance on a name-only change', () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      renderWithProviders(<AccountDialog {...baseProps} open account={card} />)
+      fireEvent.change(nameInput(), { target: { value: 'Visa Gold' } })
+      fireEvent.submit(nameInput().closest('form')!)
+      const payload = vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
+      expect(payload.name).toBe('Visa Gold')
+      expect(payload.currency).toBe('USD')
+      expect(payload.credit_limit).toBe(5000)
+      expect(payload.statement_close_day).toBe(8)
+      expect(payload.payment_due_day).toBe(15)
+      expect(payload).not.toHaveProperty('balance')
+      expect(payload).not.toHaveProperty('balance_date')
+    })
+  })
+
   describe('edit payload', () => {
     const manualAccount = {
       id: 'acc-1',
