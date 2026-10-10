@@ -726,12 +726,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] All existing tests pass unchanged: `test_transfer_detection.py`, `test_transfer_matching_rules.py`, `test_transfer_api.py`
-- [ ] `propose_pairs(restrict_ids=None)` returns mutual `linked` pairs only and writes nothing (TRF AC 1, 2, 5)
-- [ ] `restrict_ids` limits both legs to the set and reports ambiguous, unmatched and already-linked ids (BTR AC 2-5)
-- [ ] New tests added to `backend/tests/test_transfer_detection.py`
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check . && uv run ty check`
-- [ ] Test count: existing + 8 new pass
+- [x] All existing tests pass unchanged: `test_transfer_detection.py`, `test_transfer_matching_rules.py`, `test_transfer_api.py`
+- [x] `propose_pairs(restrict_ids=None)` returns mutual `linked` pairs only and writes nothing (TRF AC 1, 2, 5)
+- [x] `restrict_ids` limits both legs to the set and reports ambiguous, unmatched and already-linked ids (BTR AC 2-5)
+- [x] New tests added to `backend/tests/test_transfer_detection.py`
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check . && uv run ty check`
+- [x] Test count: existing + 8 new pass
 
 **Tests**: unit
 **Gate**: Full

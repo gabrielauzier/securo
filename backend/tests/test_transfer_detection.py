@@ -11,8 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.transaction import Transaction
+from sqlalchemy import select
+
+from app.models.reconciliation import ReconciliationSuggestion
+from app.services import reconciliation_policy
+from app.services import reconciliation_rule_service as rule_service
 from app.services.transfer_detection_service import (
     detect_transfer_pairs,
+    propose_pairs,
     unlink_transfer_pair,
 )
 
@@ -368,3 +374,183 @@ async def test_both_sides_imported_together(session: AsyncSession, test_user, te
     await session.refresh(debit)
     await session.refresh(credit)
     assert debit.transfer_pair_id == credit.transfer_pair_id
+
+
+# ---------------------------------------------------------------------------
+# propose_pairs (TRF-01 ACs 1, 2, 5, 7; BTR-01 ACs 2-5)
+# ---------------------------------------------------------------------------
+
+
+async def _suggestion_count(session: AsyncSession) -> int:
+    return len((await session.execute(select(ReconciliationSuggestion))).scalars().all())
+
+
+@pytest.mark.asyncio
+async def test_propose_rule_wide_lists_the_mutual_pair_and_writes_nothing(
+    session: AsyncSession, test_user, test_workspace
+):
+    acc1 = await _make_account(session, test_user.id, "Prop A")
+    acc2 = await _make_account(session, test_user.id, "Prop B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 500, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc2.id, 500, "credit", today)
+
+    result = await propose_pairs(session, test_workspace.id)
+
+    assert len(result.pairs) == 1
+    assert {result.pairs[0].a.id, result.pairs[0].b.id} == {debit.id, credit.id}
+    await session.refresh(debit)
+    await session.refresh(credit)
+    assert debit.transfer_pair_id is None
+    assert credit.transfer_pair_id is None
+    assert await _suggestion_count(session) == 0
+
+
+@pytest.mark.asyncio
+async def test_propose_pair_carries_both_legs_and_the_strategy(
+    session: AsyncSession, test_user, test_workspace
+):
+    acc1 = await _make_account(session, test_user.id, "Legs A")
+    acc2 = await _make_account(session, test_user.id, "Legs B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 500, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc2.id, 500, "credit", today)
+
+    pair = (await propose_pairs(session, test_workspace.id)).pairs[0]
+
+    assert (pair.a.id, pair.a.date, pair.a.account_id, pair.a.account_name) == (
+        debit.id, today, acc1.id, "Legs A",
+    )
+    assert (pair.b.id, pair.b.date, pair.b.account_id, pair.b.account_name) == (
+        credit.id, today, acc2.id, "Legs B",
+    )
+    assert pair.a.description == debit.description
+    assert pair.a.amount == Decimal("500")
+    assert pair.b.amount == Decimal("500")
+    assert pair.strategy in {
+        s["id"] for s in reconciliation_policy.MATCH_TRANSFER["strategies"]
+    }
+
+
+@pytest.mark.asyncio
+async def test_propose_rule_wide_skips_ambiguous_and_records_no_suggestion(
+    session: AsyncSession, test_user, test_workspace
+):
+    acc1 = await _make_account(session, test_user.id, "Amb A")
+    acc2 = await _make_account(session, test_user.id, "Amb B")
+    acc3 = await _make_account(session, test_user.id, "Amb C")
+    today = date.today()
+    await _add_txn(session, test_user.id, acc1.id, 80, "debit", today)
+    await _add_txn(session, test_user.id, acc2.id, 80, "debit", today)
+    await _add_txn(session, test_user.id, acc3.id, 80, "credit", today)
+
+    result = await propose_pairs(session, test_workspace.id)
+
+    assert result.pairs == []
+    assert await _suggestion_count(session) == 0
+
+
+@pytest.mark.asyncio
+async def test_propose_returns_empty_when_every_strategy_is_disabled(
+    session: AsyncSession, test_user, test_workspace
+):
+    node = reconciliation_policy.MATCH_TRANSFER["node"]
+    for strategy in reconciliation_policy.MATCH_TRANSFER["strategies"]:
+        await rule_service.upsert_override(
+            session, test_workspace.id, test_user.id, node, strategy["id"],
+            {"enabled": False},
+        )
+    await session.commit()
+    acc1 = await _make_account(session, test_user.id, "Off A")
+    acc2 = await _make_account(session, test_user.id, "Off B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 50, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc2.id, 50, "credit", today)
+
+    for restrict in (None, {debit.id, credit.id}):
+        result = await propose_pairs(session, test_workspace.id, restrict)
+        assert (result.pairs, result.ambiguous, result.unmatched, result.already_linked) == (
+            [], [], [], [],
+        )
+
+
+@pytest.mark.asyncio
+async def test_propose_restricted_pairs_the_selection_and_reports_the_stray(
+    session: AsyncSession, test_user, test_workspace
+):
+    acc1 = await _make_account(session, test_user.id, "Sel A")
+    acc2 = await _make_account(session, test_user.id, "Sel B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 120, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc2.id, 120, "credit", today)
+    stray = await _add_txn(session, test_user.id, acc1.id, 999, "debit", today)
+
+    result = await propose_pairs(
+        session, test_workspace.id, {debit.id, credit.id, stray.id}
+    )
+
+    assert len(result.pairs) == 1
+    assert {result.pairs[0].a.id, result.pairs[0].b.id} == {debit.id, credit.id}
+    assert result.unmatched == [stray.id]
+    assert result.ambiguous == []
+    assert result.already_linked == []
+
+
+@pytest.mark.asyncio
+async def test_propose_restricted_never_uses_a_counterpart_outside_the_selection(
+    session: AsyncSession, test_user, test_workspace
+):
+    acc1 = await _make_account(session, test_user.id, "Out A")
+    acc2 = await _make_account(session, test_user.id, "Out B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 70, "debit", today)
+    await _add_txn(session, test_user.id, acc2.id, 70, "credit", today)
+
+    result = await propose_pairs(session, test_workspace.id, {debit.id})
+
+    assert result.pairs == []
+    assert result.unmatched == [debit.id]
+
+
+@pytest.mark.asyncio
+async def test_propose_restricted_reports_a_contested_counterpart_as_ambiguous(
+    session: AsyncSession, test_user, test_workspace
+):
+    acc1 = await _make_account(session, test_user.id, "Con A")
+    acc2 = await _make_account(session, test_user.id, "Con B")
+    acc3 = await _make_account(session, test_user.id, "Con C")
+    today = date.today()
+    d1 = await _add_txn(session, test_user.id, acc1.id, 90, "debit", today)
+    d2 = await _add_txn(session, test_user.id, acc2.id, 90, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc3.id, 90, "credit", today)
+
+    result = await propose_pairs(
+        session, test_workspace.id, {d1.id, d2.id, credit.id}
+    )
+
+    assert result.pairs == []
+    assert set(result.ambiguous) == {d1.id, d2.id, credit.id}
+    assert result.unmatched == []
+
+
+@pytest.mark.asyncio
+async def test_propose_restricted_lists_already_linked_rows_and_leaves_them(
+    session: AsyncSession, test_user, test_workspace
+):
+    acc1 = await _make_account(session, test_user.id, "Lnk A")
+    acc2 = await _make_account(session, test_user.id, "Lnk B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 60, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc2.id, 60, "credit", today)
+    pair_id = uuid.uuid4()
+    debit.transfer_pair_id = pair_id
+    credit.transfer_pair_id = pair_id
+    await session.commit()
+
+    result = await propose_pairs(session, test_workspace.id, {debit.id, credit.id})
+
+    assert set(result.already_linked) == {debit.id, credit.id}
+    assert result.pairs == []
+    assert result.unmatched == []
+    await session.refresh(debit)
+    assert debit.transfer_pair_id == pair_id
