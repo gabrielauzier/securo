@@ -596,8 +596,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] `max_length=100` on the list
-- [ ] Gate passes: `cd backend && uv run ruff check . && uv run ty check`
+- [x] `max_length=100` on the list
+- [x] Gate passes: `cd backend && uv run ruff check . && uv run ty check`
 
 **Tests**: none
 **Gate**: Build

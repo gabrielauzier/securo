@@ -216,6 +216,11 @@ class BulkCategorizeRequest(BaseModel):
     category_id: Optional[uuid.UUID] = None
 
 
+class BulkIgnoreRequest(BaseModel):
+    transaction_ids: list[uuid.UUID] = Field(max_length=100)
+    ignored: bool
+
+
 class TransactionBulkDeleteRequest(BaseModel):
     transaction_ids: list[uuid.UUID]
 
