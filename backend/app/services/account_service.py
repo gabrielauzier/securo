@@ -392,9 +392,12 @@ async def update_account(
         account.card_brand = None
         account.card_level = None
 
-    # When balance changes, sync the opening_balance transaction
-    if "balance" in update_data:
-        new_balance = update_data["balance"]
+    # The account owns the balance date; the opening_balance transaction
+    # mirrors it (and the amount) so both always carry the same date.
+    if balance_date:
+        account.balance_date = balance_date
+
+    if "balance" in update_data or balance_date:
         existing_opening = await session.execute(
             select(Transaction).where(
                 Transaction.account_id == account_id,
@@ -403,41 +406,38 @@ async def update_account(
         )
         opening_tx = existing_opening.scalar_one_or_none()
 
-        if new_balance != Decimal("0.00"):
-            amount, opening_type = _opening_balance_values(account.type, new_balance)
-            if opening_tx:
-                opening_tx.amount = amount
-                opening_tx.type = opening_type
-                if balance_date:
-                    opening_tx.date = balance_date
+        if "balance" not in update_data:
+            # Date-only update: move the opening transaction if there is one.
+            if opening_tx and balance_date:
+                opening_tx.date = balance_date
                 apply_effective_date(opening_tx, account)
-            else:
-                opening_tx = Transaction(
-                    user_id=account.user_id,
-                    workspace_id=account.workspace_id,
-                    account_id=account_id,
-                    description="Saldo inicial",
-                    amount=amount,
-                    currency=account.currency,
-                    date=balance_date or app_today(),
-                    type=opening_type,
-                    source="opening_balance",
-                )
-                apply_effective_date(opening_tx, account)
-                session.add(opening_tx)
-        elif opening_tx:
-            await session.delete(opening_tx)
-    elif balance_date:
-        existing_opening = await session.execute(
-            select(Transaction).where(
-                Transaction.account_id == account_id,
-                Transaction.source == "opening_balance",
-            )
-        )
-        opening_tx = existing_opening.scalar_one_or_none()
-        if opening_tx:
-            opening_tx.date = balance_date
-            apply_effective_date(opening_tx, account)
+        else:
+            new_balance = update_data["balance"]
+            if new_balance != Decimal("0.00"):
+                opening_date = account.balance_date or app_today()
+                account.balance_date = opening_date
+                amount, opening_type = _opening_balance_values(account.type, new_balance)
+                if opening_tx:
+                    opening_tx.amount = amount
+                    opening_tx.type = opening_type
+                    opening_tx.date = opening_date
+                    apply_effective_date(opening_tx, account)
+                else:
+                    opening_tx = Transaction(
+                        user_id=account.user_id,
+                        workspace_id=account.workspace_id,
+                        account_id=account_id,
+                        description="Saldo inicial",
+                        amount=amount,
+                        currency=account.currency,
+                        date=opening_date,
+                        type=opening_type,
+                        source="opening_balance",
+                    )
+                    apply_effective_date(opening_tx, account)
+                    session.add(opening_tx)
+            elif opening_tx:
+                await session.delete(opening_tx)
 
     if cycle_fields_changed:
         await _recompute_effective_dates(session, account)

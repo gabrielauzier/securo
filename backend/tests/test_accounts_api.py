@@ -1083,3 +1083,71 @@ async def test_create_account_api_rejects_an_invalid_balance_date(
     assert resp.status_code == 422
     listed = await client.get("/api/accounts", headers=auth_headers)
     assert listed.json() == []
+
+
+@pytest.mark.asyncio
+async def test_patch_account_api_balance_date_only_returns_the_new_date(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """ABD-01 AC4 over HTTP: a date-only PATCH stores and returns the date and moves the opening tx."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Patch Date", "checking", "1000.00", opening_day
+    )
+    new_day = _app_today() - _timedelta(days=3)
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}", headers=auth_headers,
+        json={"balance_date": new_day.isoformat()},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["balance_date"] == new_day.isoformat()
+    from sqlalchemy import select as _select
+    opening = (
+        await session.execute(
+            _select(_Transaction).where(
+                _Transaction.account_id == _uuid.UUID(account_id),
+                _Transaction.source == "opening_balance",
+            )
+        )
+    ).scalar_one()
+    assert opening.date == new_day
+
+
+@pytest.mark.asyncio
+async def test_patch_account_api_name_only_keeps_the_balance_date(
+    client: AsyncClient, auth_headers
+):
+    """ABD-01 AC7 over HTTP: a name-only PATCH returns the unchanged date."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Keep Date", "checking", "1000.00", opening_day
+    )
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}", headers=auth_headers, json={"name": "Renamed"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["balance_date"] == opening_day.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_patch_account_api_rejects_an_invalid_balance_date(
+    client: AsyncClient, auth_headers
+):
+    """Edge case: an invalid balance_date on update is rejected with 422 and the stored date is kept."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Bad Patch", "checking", "1000.00", opening_day
+    )
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}", headers=auth_headers,
+        json={"balance_date": "not-a-date"},
+    )
+
+    assert resp.status_code == 422
+    detail = await client.get(f"/api/accounts/{account_id}", headers=auth_headers)
+    assert detail.json()["balance_date"] == opening_day.isoformat()

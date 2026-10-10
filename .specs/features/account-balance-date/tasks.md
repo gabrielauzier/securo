@@ -177,14 +177,14 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Date-only update sets `balance_date` and the existing opening transaction date (AC4), including when no opening transaction exists (date stored, no transaction created)
-- [ ] Non-zero balance without a date keeps the stored date (AC5)
-- [ ] Balance 0 deletes the opening transaction and keeps the date (AC6)
-- [ ] Update without `balance`/`balance_date` leaves the date unchanged (AC7)
-- [ ] Connected account ignores `balance_date` (AC9)
-- [ ] Account and opening transaction dates equal after every write
-- [ ] Tests in `backend/tests/test_account_service.py` and `test_accounts_api.py`
-- [ ] Gate passes: `cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .`
+- [x] Date-only update sets `balance_date` and the existing opening transaction date (AC4), including when no opening transaction exists (date stored, no transaction created)
+- [x] Non-zero balance without a date keeps the stored date (AC5)
+- [x] Balance 0 deletes the opening transaction and keeps the date (AC6)
+- [x] Update without `balance`/`balance_date` leaves the date unchanged (AC7)
+- [x] Connected account ignores `balance_date` (AC9)
+- [x] Account and opening transaction dates equal after every write
+- [x] Tests in `backend/tests/test_account_service.py` and `test_accounts_api.py`
+- [x] Gate passes: `cd backend && .venv/bin/python -m pytest -q && .venv/bin/ruff check .`
 
 **Tests**: integration
 **Gate**: Full

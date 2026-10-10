@@ -419,6 +419,193 @@ async def test_update_account_balance_date_only_updates_opening(session: AsyncSe
 
 
 @pytest.mark.asyncio
+async def test_update_balance_date_only_stores_it_on_account_and_opening(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC4: a date-only update stores the date and moves the existing opening tx to it."""
+    data = AccountCreate(name="Move", type="checking", balance=Decimal("1000.00"), currency="BRL")
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    new_date = app_today() - timedelta(days=20)
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(balance_date=new_date))
+    assert updated is not None
+
+    assert updated.balance_date == new_date
+    opening = await _opening_of(session, account.id)
+    assert opening.date == new_date
+    assert opening.amount == Decimal("1000.00")
+
+
+@pytest.mark.asyncio
+async def test_update_balance_date_only_without_opening_creates_no_transaction(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC4: with no opening tx the date is stored and no transaction is created."""
+    data = AccountCreate(name="Zero", type="checking", balance=Decimal("0.00"), currency="BRL")
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    new_date = app_today() - timedelta(days=12)
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(balance_date=new_date))
+    assert updated is not None
+
+    assert updated.balance_date == new_date
+    assert await _opening_of(session, account.id) is None
+
+
+@pytest.mark.asyncio
+async def test_update_balance_without_date_uses_the_stored_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC5: a non-zero balance and no date keeps the stored date and dates the new opening tx with it."""
+    stored = app_today() - timedelta(days=15)
+    data = AccountCreate(
+        name="Kept", type="checking", balance=Decimal("0.00"), currency="BRL", balance_date=stored,
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(balance=Decimal("700.00")))
+    assert updated is not None
+
+    assert updated.balance_date == stored
+    opening = await _opening_of(session, account.id)
+    assert opening.date == stored
+    assert opening.amount == Decimal("700.00")
+
+
+@pytest.mark.asyncio
+async def test_update_balance_without_date_keeps_stored_date_on_existing_opening(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC5: changing only the amount leaves both the account date and the opening date at the stored date."""
+    stored = app_today() - timedelta(days=15)
+    data = AccountCreate(
+        name="Amount", type="checking", balance=Decimal("100.00"), currency="BRL", balance_date=stored,
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(balance=Decimal("250.00")))
+    assert updated is not None
+
+    assert updated.balance_date == stored
+    opening = await _opening_of(session, account.id)
+    assert opening.date == stored
+    assert opening.amount == Decimal("250.00")
+
+
+@pytest.mark.asyncio
+async def test_update_balance_on_account_with_no_date_stores_today(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC5: an account with no stored date gets today's date and an opening tx dated today."""
+    account = await _make_account(session, test_user.id, "Legacy", balance="0.00")
+    assert account.balance_date is None
+
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(balance=Decimal("40.00")))
+    assert updated is not None
+
+    assert updated.balance_date == app_today()
+    assert (await _opening_of(session, account.id)).date == app_today()
+
+
+@pytest.mark.asyncio
+async def test_update_balance_with_date_sets_account_and_opening_to_the_payload_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC4 + equality rule: balance and date together leave account and opening on the payload date."""
+    data = AccountCreate(name="Both", type="checking", balance=Decimal("100.00"), currency="BRL")
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    new_date = app_today() - timedelta(days=30)
+    updated = await update_account(
+        session, account.id, test_workspace.id,
+        AccountUpdate(balance=Decimal("900.00"), balance_date=new_date),
+    )
+    assert updated is not None
+
+    assert updated.balance_date == new_date
+    opening = await _opening_of(session, account.id)
+    assert opening.date == new_date
+    assert opening.amount == Decimal("900.00")
+
+
+@pytest.mark.asyncio
+async def test_update_balance_realigns_an_opening_tx_that_drifted_from_the_account(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Edge case: the account date is authoritative; the next balance write realigns the opening tx to it."""
+    stored = app_today() - timedelta(days=8)
+    data = AccountCreate(
+        name="Drift", type="checking", balance=Decimal("100.00"), currency="BRL", balance_date=stored,
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+    opening = await _opening_of(session, account.id)
+    opening.date = stored - timedelta(days=40)
+    await session.commit()
+
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(balance=Decimal("120.00")))
+    assert updated is not None
+
+    assert updated.balance_date == stored
+    assert (await _opening_of(session, account.id)).date == stored
+
+
+@pytest.mark.asyncio
+async def test_update_balance_to_zero_keeps_the_balance_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC6: balance 0 deletes the opening tx and keeps the account date."""
+    stored = app_today() - timedelta(days=11)
+    data = AccountCreate(
+        name="ToZero", type="checking", balance=Decimal("500.00"), currency="BRL", balance_date=stored,
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(balance=Decimal("0.00")))
+    assert updated is not None
+
+    assert await _opening_of(session, account.id) is None
+    assert updated.balance_date == stored
+
+
+@pytest.mark.asyncio
+async def test_update_without_balance_or_date_leaves_the_balance_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC7: a name-only update leaves balance_date and the opening tx date unchanged."""
+    stored = app_today() - timedelta(days=21)
+    data = AccountCreate(
+        name="Old", type="checking", balance=Decimal("300.00"), currency="BRL", balance_date=stored,
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    updated = await update_account(session, account.id, test_workspace.id, AccountUpdate(name="New"))
+    assert updated is not None
+
+    assert updated.name == "New"
+    assert updated.balance_date == stored
+    assert (await _opening_of(session, account.id)).date == stored
+
+
+@pytest.mark.asyncio
+async def test_update_connected_account_ignores_balance_date(
+    session: AsyncSession, test_user, test_workspace, test_connection
+):
+    """ABD-01 AC9: a balance_date sent for a bank-connected account is ignored and stays null."""
+    account = await _make_account(
+        session, test_user.id, "Bank", connection_id=test_connection.id, external_id="ext-abd",
+    )
+
+    updated = await update_account(
+        session, account.id, test_workspace.id,
+        AccountUpdate(display_name="Renamed", balance_date=app_today() - timedelta(days=5)),
+    )
+    assert updated is not None
+
+    assert updated.display_name == "Renamed"
+    assert updated.balance_date is None
+
+
+@pytest.mark.asyncio
 async def test_update_bank_connected_raises(session: AsyncSession, test_user, test_workspace, test_connection):
     """Updating a bank-connected account raises ValueError."""
     account = await _make_account(
