@@ -463,15 +463,15 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Duplicate name (any case) raises a conflict error (AC 3); blank/101-char name rejected
-- [ ] Match is order-insensitive and trim-aware, exact on the set (AC 4); no match returns empty (AC 6)
-- [ ] Several matches ordered most recently used first (AC 5)
-- [ ] Operations scoped to the user; other users' mappings invisible (AC 8)
-- [ ] Deleted account → `account_id` null on read (AC 9)
-- [ ] Nubank sample headers round-trip (AC 10)
-- [ ] New test `backend/tests/test_import_mapping_service.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_import_mapping_service.py -q`
-- [ ] Test count: 9 tests pass
+- [x] Duplicate name (any case) raises a conflict error (AC 3); blank/101-char name rejected
+- [x] Match is order-insensitive and trim-aware, exact on the set (AC 4); no match returns empty (AC 6)
+- [x] Several matches ordered most recently used first (AC 5)
+- [x] Operations scoped to the user; other users' mappings invisible (AC 8)
+- [x] Deleted account → `account_id` null on read (AC 9)
+- [x] Nubank sample headers round-trip (AC 10)
+- [x] New test `backend/tests/test_import_mapping_service.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_import_mapping_service.py -q`
+- [x] Test count: 14 tests pass (SPEC_DEVIATION: estimate was 9; parametrized name test and per-user/touch/rename/delete cases added)
 
 **Tests**: unit
 **Gate**: Quick
