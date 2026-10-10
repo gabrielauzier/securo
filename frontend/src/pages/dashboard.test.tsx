@@ -59,6 +59,7 @@ function account(overrides: Partial<Account>): Account {
     balance: 0,
     current_balance: 0,
     previous_balance: null,
+    balance_date: null,
     balance_primary: null,
     currency: 'USD',
     credit_limit: null,

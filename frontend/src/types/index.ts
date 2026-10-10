@@ -173,6 +173,8 @@ export interface Account {
   balance: number
   current_balance: number
   previous_balance: number | null
+  // Date the balance starts counting from; null for bank-connected accounts.
+  balance_date: string | null
   balance_primary: number | null
   currency: string
   credit_limit: number | null

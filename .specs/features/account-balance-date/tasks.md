@@ -263,12 +263,12 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Edit shows the saved date (ABD-04 AC1); no saved date or create shows today (AC2, AC3)
-- [ ] Hint renders under the field (AC4)
-- [ ] Name-only edit still sends no `balance` or `balance_date` (AC5)
-- [ ] `Account.balance_date: string | null` added in `frontend/src/types/index.ts` in the same commit
-- [ ] Existing dialog tests pass unchanged; new tests in `frontend/src/pages/accounts-dialog.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx && npm run typecheck && npm run lint`
+- [x] Edit shows the saved date (ABD-04 AC1); no saved date or create shows today (AC2, AC3)
+- [x] Hint renders under the field (AC4)
+- [x] Name-only edit still sends no `balance` or `balance_date` (AC5)
+- [x] `Account.balance_date: string | null` added in `frontend/src/types/index.ts` in the same commit
+- [x] Existing dialog tests pass unchanged; new tests in `frontend/src/pages/accounts-dialog.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx && npm run typecheck && npm run lint`
 
 **Tests**: unit
 **Gate**: Build

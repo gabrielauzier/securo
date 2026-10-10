@@ -701,14 +701,15 @@ export function AccountDialog({
   const [type, setType] = useState(account?.type ?? 'checking')
   const [balance, setBalance] = useState(account?.balance?.toString() ?? '0')
   const [currency, setCurrency] = useState(account?.currency ?? userCurrency)
-  const [balanceDate, setBalanceDate] = useState(localDateString)
+  const [balanceDate, setBalanceDate] = useState(account?.balance_date ?? localDateString())
   const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
   const [statementCloseDay, setStatementCloseDay] = useState(account?.statement_close_day?.toString() ?? '')
   const [paymentDueDay, setPaymentDueDay] = useState(account?.payment_due_day?.toString() ?? '')
 
   const [formSource, setFormSource] = useState<{ open: boolean; account: typeof account; balanceDate: string } | null>(null)
   if (!formSource || formSource.account !== account || formSource.open !== open) {
-    const initialBalanceDate = localDateString()
+    // Edit shows the date saved on the account; create (or an account with none) shows today.
+    const initialBalanceDate = account?.balance_date ?? localDateString()
     setFormSource({ open, account, balanceDate: initialBalanceDate })
     if (open) {
       setName(account?.name ?? '')
@@ -844,6 +845,9 @@ export function AccountDialog({
                     onChange={setBalanceDate}
                     className="w-full justify-start"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {t('accounts.balanceDateHint')}
+                  </p>
                 </div>
               </div>
               {type === 'credit_card' && (
