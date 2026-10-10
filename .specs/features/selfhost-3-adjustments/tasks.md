@@ -620,12 +620,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Ignore and un-ignore set the explicit state; count excludes rows already in target state (AC 1, 2, 5)
-- [ ] Other-workspace IDs untouched and uncounted (AC 4); empty list returns 0
-- [ ] Pair legs are not cascaded
-- [ ] New test `backend/tests/test_transactions_bulk_ignore.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_transactions_bulk_ignore.py -q`
-- [ ] Test count: 7 tests pass (SPEC_DEVIATION: estimate was 6; the touch-after-import case was added)
+- [x] Ignore and un-ignore set the explicit state; count excludes rows already in target state (AC 1, 2, 5)
+- [x] Other-workspace IDs untouched and uncounted (AC 4); empty list returns 0
+- [x] Pair legs are not cascaded
+- [x] New test `backend/tests/test_transactions_bulk_ignore.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_transactions_bulk_ignore.py -q`
+- [x] Test count: 6 tests pass
 
 **Tests**: unit
 **Gate**: Quick
