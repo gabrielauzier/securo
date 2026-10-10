@@ -20,6 +20,9 @@ router = APIRouter(prefix="/api/import-mappings", tags=["import-mappings"])
 _NOT_FOUND = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import mapping not found")
 
 
+_ACCOUNT_NOT_FOUND = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+
+
 def _conflict() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_409_CONFLICT,
@@ -45,6 +48,8 @@ async def create_import_mapping(
         return await service.create_mapping(session, user.id, data)
     except service.DuplicateImportMappingError:
         raise _conflict()
+    except service.ImportMappingAccountNotFoundError:
+        raise _ACCOUNT_NOT_FOUND
 
 
 # Static path first so "match" is never read as a mapping id.
@@ -75,6 +80,8 @@ async def update_import_mapping(
         raise _NOT_FOUND
     except service.DuplicateImportMappingError:
         raise _conflict()
+    except service.ImportMappingAccountNotFoundError:
+        raise _ACCOUNT_NOT_FOUND
 
 
 @router.delete("/{mapping_id}", status_code=status.HTTP_204_NO_CONTENT)

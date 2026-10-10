@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.import_mapping import ImportMapping
 from app.schemas.import_mapping import ImportMappingCreate, ImportMappingUpdate
+from app.services import account_service, workspace_service
 
 
 class DuplicateImportMappingError(Exception):
@@ -17,6 +18,24 @@ class DuplicateImportMappingError(Exception):
 
 class ImportMappingNotFoundError(Exception):
     """Raised when the mapping does not exist or belongs to another user."""
+
+
+class ImportMappingAccountNotFoundError(Exception):
+    """Raised when the destination account does not exist or is not accessible."""
+
+
+async def _ensure_account_accessible(
+    session: AsyncSession, user_id: uuid.UUID, account_id: uuid.UUID
+) -> None:
+    """The account must belong to a workspace the user is a member of or manages."""
+    workspaces = [
+        *await workspace_service.get_user_workspaces(session, user_id),
+        *await workspace_service.get_managed_workspaces(session, user_id),
+    ]
+    for workspace in workspaces:
+        if await account_service.get_account(session, account_id, workspace.id):
+            return
+    raise ImportMappingAccountNotFoundError()
 
 
 def normalize_headers(headers: list[str]) -> list[str]:
@@ -71,6 +90,8 @@ async def create_mapping(
     session: AsyncSession, user_id: uuid.UUID, data: ImportMappingCreate
 ) -> ImportMapping:
     await _ensure_name_free(session, user_id, data.name)
+    if data.account_id is not None:
+        await _ensure_account_accessible(session, user_id, data.account_id)
     mapping = ImportMapping(
         user_id=user_id,
         name=data.name,
@@ -97,6 +118,8 @@ async def update_mapping(
         mapping.name = changes["name"]
         mapping.name_key = _name_key(changes["name"])
     if "account_id" in changes:
+        if changes["account_id"] is not None:
+            await _ensure_account_accessible(session, user_id, changes["account_id"])
         mapping.account_id = changes["account_id"]
     if changes.get("headers") is not None:
         mapping.headers = normalize_headers(changes["headers"])

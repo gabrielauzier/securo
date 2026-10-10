@@ -190,3 +190,43 @@ async def test_unauthenticated_requests_are_401(client: AsyncClient):
     ]
 
     assert [r.status_code for r in responses] == [401] * 6
+
+
+async def test_create_with_unknown_account_is_404(client: AsyncClient, auth_headers: dict):
+    r = await client.post(URL, json=_body(account_id=str(uuid.uuid4())), headers=auth_headers)
+
+    assert r.status_code == 404
+    assert (await client.get(URL, headers=auth_headers)).json() == []
+
+
+async def test_create_with_another_users_account_is_404(
+    client: AsyncClient, other_auth_headers: dict, test_account: Account
+):
+    r = await client.post(URL, json=_body(account_id=str(test_account.id)), headers=other_auth_headers)
+
+    assert r.status_code == 404
+    assert (await client.get(URL, headers=other_auth_headers)).json() == []
+
+
+async def test_patch_with_unknown_or_foreign_account_is_404_and_keeps_the_account(
+    client: AsyncClient, auth_headers: dict, other_auth_headers: dict, test_account: Account
+):
+    saved = (
+        await client.post(URL, json=_body(account_id=str(test_account.id)), headers=auth_headers)
+    ).json()
+    other_saved = (await client.post(URL, json=_body(), headers=other_auth_headers)).json()
+
+    unknown = await client.patch(
+        f"{URL}/{saved['id']}", json={"account_id": str(uuid.uuid4())}, headers=auth_headers
+    )
+    foreign = await client.patch(
+        f"{URL}/{other_saved['id']}", json={"account_id": str(test_account.id)},
+        headers=other_auth_headers,
+    )
+    cleared = await client.patch(
+        f"{URL}/{saved['id']}", json={"account_id": None}, headers=auth_headers
+    )
+
+    assert (unknown.status_code, foreign.status_code) == (404, 404)
+    assert cleared.status_code == 200
+    assert cleared.json()["account_id"] is None

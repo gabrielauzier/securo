@@ -264,3 +264,23 @@ async def test_deleted_account_reads_back_as_no_account(
     assert [(m.id, m.account_id) for m in listed] == [(mapping_id, None)]
     matches = await svc.match_mappings(session, test_user.id, NUBANK_HEADERS)
     assert [m.account_id for m in matches] == [None]
+
+
+async def test_unknown_or_foreign_account_is_rejected_on_create_and_update(
+    session: AsyncSession, test_user: User, other_user: User, test_account: Account
+):
+    saved = await svc.create_mapping(session, test_user.id, _create())
+
+    with pytest.raises(svc.ImportMappingAccountNotFoundError):
+        await svc.create_mapping(session, test_user.id, _create(name="X", account_id=uuid.uuid4()))
+    with pytest.raises(svc.ImportMappingAccountNotFoundError):
+        await svc.create_mapping(session, other_user.id, _create(name="Y", account_id=test_account.id))
+    with pytest.raises(svc.ImportMappingAccountNotFoundError):
+        await svc.update_mapping(
+            session, test_user.id, saved.id, ImportMappingUpdate(account_id=uuid.uuid4())
+        )
+
+    ok = await svc.update_mapping(
+        session, test_user.id, saved.id, ImportMappingUpdate(account_id=test_account.id)
+    )
+    assert ok.account_id == test_account.id
