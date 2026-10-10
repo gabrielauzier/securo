@@ -1173,6 +1173,7 @@
     "balanceCreditCard": "Geschuldeter Betrag",
     "balanceCreditCardHint": "Gib den Betrag, den du dieser Karte aktuell schuldest, als positiven Wert ein. Lasse das Feld auf 0, wenn du keine Schulden hast.",
     "balanceDate": "Saldodatum",
+    "balanceDateHint": "Transaktionen vor diesem Datum verändern den Saldo nicht.",
     "lastSync": "Letzte Synchr.",
     "multiInstitutionLink_one": "{{provider}} · {{count}} Institut",
     "multiInstitutionLink_other": "{{provider}} · {{count}} Institute",

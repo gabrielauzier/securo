@@ -291,8 +291,8 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Key present in all 15 files (pt-BR source: "Transações anteriores a esta data não alteram o saldo.")
-- [ ] Gate passes: `cd frontend && npx vitest run src/locales && npm run typecheck`
+- [x] Key present in all 15 files (pt-BR source: "Transações anteriores a esta data não alteram o saldo.")
+- [x] Gate passes: `cd frontend && npx vitest run src/locales && npm run typecheck`
 
 **Tests**: none
 **Gate**: Build
