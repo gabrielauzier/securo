@@ -35,7 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, Eye, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
 import type { Transaction, Rule, InstallmentSeriesInput, TransactionApplyScope, TransactionEditPayload, ReconciliationSuggestion } from '@/types'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
 import { PageHeader } from '@/components/page-header'
@@ -82,6 +82,7 @@ function parseHashtags(notes: string | null): string[] {
   return matches ?? []
 }
 
+const BULK_IGNORE_LIMIT = 100
 const HIDE_IGNORED_STORAGE_KEY = 'securo.transactions.hideIgnored'
 
 export default function TransactionsPage() {
@@ -574,6 +575,22 @@ export default function TransactionsPage() {
       toast.error(extractApiError(error))
     },
   })
+
+  const bulkIgnoreMutation = useMutation({
+    mutationFn: ({ ids, ignored }: { ids: string[]; ignored: boolean }) =>
+      transactions.bulkIgnore(ids, ignored),
+    onSuccess: (result) => {
+      invalidateAfterTxMutation()
+      setSelectedIds(new Set())
+      toast.success(t('transactions.bulkIgnoreSuccess', { count: result.updated }))
+    },
+    onError: (error) => {
+      toast.error(extractApiError(error))
+    },
+  })
+  // The API rejects more than 100 ids per request, so over the limit the
+  // ignore actions stay disabled and the hint explains why.
+  const bulkIgnoreOverLimit = selectedIds.size > BULK_IGNORE_LIMIT
 
   const bulkAddTagsMutation = useMutation({
     mutationFn: ({ ids, tags }: { ids: string[]; tags: string[] }) =>
@@ -1798,6 +1815,9 @@ export default function TransactionsPage() {
               onTagInputChange={setBulkTagInput}
               onAddTags={(tags) => bulkAddTagsMutation.mutate({ ids: Array.from(selectedIds), tags })}
               onRemoveTags={(tags) => bulkRemoveTagsMutation.mutate({ ids: Array.from(selectedIds), tags })}
+              ignoreDisabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
+              ignoreHint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
+              onIgnore={(ignored) => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored })}
               onBulkDelete={() => setBulkDeleteConfirmOpen(true)}
               onClear={() => { setSelectedIds(new Set()); setBulkCategory(''); setBulkTagInput('') }}
             />
@@ -1949,6 +1969,35 @@ export default function TransactionsPage() {
                 </Button>
               )
             })()}
+
+            {/* Ignore / Stop ignoring — explicit state, capped at 100 per request */}
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
+              onClick={() => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored: true })}
+              title={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : t('transactions.bulkIgnore')}
+              className="h-8 px-3 shrink-0 text-sm"
+            >
+              <EyeClosed size={15} className="lg:mr-1.5" />
+              <span className="hidden lg:inline">{t('transactions.bulkIgnore')}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
+              onClick={() => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored: false })}
+              title={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : t('transactions.bulkUnignore')}
+              className="h-8 px-3 shrink-0 text-sm"
+            >
+              <Eye size={15} className="lg:mr-1.5" />
+              <span className="hidden lg:inline">{t('transactions.bulkUnignore')}</span>
+            </Button>
+            {bulkIgnoreOverLimit && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {t('transactions.bulkLimitHint')}
+              </span>
+            )}
 
             {/* Bulk Delete */}
             <Button

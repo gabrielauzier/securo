@@ -699,11 +699,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Both actions call the client with the right state and refresh the list; success toast shows the count
-- [ ] Actions disabled with hint when more than 100 are selected
-- [ ] Tests in new `frontend/src/pages/transactions-bulk-ignore.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/transactions-bulk-ignore.test.tsx && npm run lint && npm run typecheck`
-- [ ] Test count: 4 tests pass
+- [x] Both actions call the client with the right state and refresh the list; success toast shows the count
+- [x] Actions disabled with hint when more than 100 are selected
+- [x] Tests in new `frontend/src/pages/transactions-bulk-ignore.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/transactions-bulk-ignore.test.tsx && npm run lint && npm run typecheck`
+- [x] Test count: 4 tests pass
 
 **Tests**: unit
 **Gate**: Build
