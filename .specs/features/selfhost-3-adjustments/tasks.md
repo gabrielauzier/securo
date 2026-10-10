@@ -123,7 +123,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 - [x] Accounts without an opening row are unaffected; with two opening rows the latest date wins
 - [x] New test `backend/tests/test_opening_floor.py` covers each case
 - [x] Gate passes: `cd backend && uv run pytest tests/test_opening_floor.py -q`
-- [x] Test count: 6 tests pass
+- [x] Test count: 7 tests pass (SPEC_DEVIATION: estimate was 6; the touch-after-import case was added)
 
 **Tests**: unit
 **Gate**: Quick
@@ -568,12 +568,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Matching file auto-applies and preselects the account, badge reads "Mapping applied: <name>" (AC 4)
-- [ ] Non-matching file applies nothing and offers saved mappings (AC 6)
-- [ ] Switch and remove controls work (AC 7); save with duplicate name shows the 409 message (AC 3)
-- [ ] Tests in new `frontend/src/pages/import-mapping.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/import-mapping.test.tsx && npm run lint && npm run typecheck`
-- [ ] Test count: 6 tests pass
+- [x] Matching file auto-applies and preselects the account, badge reads "Mapping applied: <name>" (AC 4)
+- [x] Non-matching file applies nothing and offers saved mappings (AC 6)
+- [x] Switch and remove controls work (AC 7); save with duplicate name shows the 409 message (AC 3)
+- [x] Tests in new `frontend/src/pages/import-mapping.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/import-mapping.test.tsx && npm run lint && npm run typecheck`
+- [x] Test count: 7 tests pass (SPEC_DEVIATION: estimate was 6; the touch-after-import case was added)
 
 **Tests**: unit
 **Gate**: Build
@@ -625,7 +625,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 - [ ] Pair legs are not cascaded
 - [ ] New test `backend/tests/test_transactions_bulk_ignore.py`
 - [ ] Gate passes: `cd backend && uv run pytest tests/test_transactions_bulk_ignore.py -q`
-- [ ] Test count: 6 tests pass
+- [ ] Test count: 7 tests pass (SPEC_DEVIATION: estimate was 6; the touch-after-import case was added)
 
 **Tests**: unit
 **Gate**: Quick
