@@ -141,3 +141,71 @@ async def test_transfer_pair_leg_is_not_cascaded(session, ids):
     assert updated == 1
     assert await _flag(session, leg_a) is True
     assert await _flag(session, leg_b) is False
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/transactions/bulk-ignore
+# ---------------------------------------------------------------------------
+
+URL = "/api/transactions/bulk-ignore"
+
+
+async def test_route_returns_the_changed_count(client, auth_headers, session, ids):
+    a = await _tx(session, ids)
+    b = await _tx(session, ids, ignored=True)
+
+    resp = await client.patch(
+        URL, headers=auth_headers, json={"transaction_ids": [str(a), str(b)], "ignored": True}
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"updated": 1}
+    assert await _flag(session, a) is True
+
+
+async def test_route_rejects_more_than_100_ids_and_changes_nothing(
+    client, auth_headers, session, ids
+):
+    tx = await _tx(session, ids)
+    payload = [str(tx)] + [str(uuid.uuid4()) for _ in range(100)]
+
+    resp = await client.patch(
+        URL, headers=auth_headers, json={"transaction_ids": payload, "ignored": True}
+    )
+
+    assert resp.status_code == 422
+    assert await _flag(session, tx) is False
+
+
+async def test_route_accepts_exactly_100_ids(client, auth_headers, ids):
+    payload = [str(uuid.uuid4()) for _ in range(100)]
+
+    resp = await client.patch(
+        URL, headers=auth_headers, json={"transaction_ids": payload, "ignored": True}
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"updated": 0}
+
+
+async def test_route_ignores_ids_from_another_workspace(client, auth_headers, session, ids):
+    foreign = await _tx(session, ids, workspace=ids.other_workspace)
+
+    resp = await client.patch(
+        URL, headers=auth_headers, json={"transaction_ids": [str(foreign)], "ignored": True}
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"updated": 0}
+    assert await _flag(session, foreign) is False
+
+
+async def test_route_rejects_a_read_only_member(client, viewer_auth_headers, session, ids):
+    tx = await _tx(session, ids)
+
+    resp = await client.patch(
+        URL, headers=viewer_auth_headers, json={"transaction_ids": [str(tx)], "ignored": True}
+    )
+
+    assert resp.status_code == 403, resp.text
+    assert await _flag(session, tx) is False

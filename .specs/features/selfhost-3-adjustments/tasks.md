@@ -648,11 +648,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] 200 with `{updated}`; 422 over 100 IDs with no change (AC 3); read-only member rejected (AC 6)
-- [ ] Route declared before `/{transaction_id}` routes
-- [ ] Tests added to `backend/tests/test_transactions_bulk_ignore.py`
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
-- [ ] Test count: existing + 3 new pass
+- [x] 200 with `{updated}`; 422 over 100 IDs with no change (AC 3); read-only member rejected (AC 6)
+- [x] Route declared before `/{transaction_id}` routes
+- [x] Tests added to `backend/tests/test_transactions_bulk_ignore.py`
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
+- [x] Test count: existing + 5 new pass (SPEC_DEVIATION: estimate was 3; added the exactly-100 boundary and the other-workspace case)
 
 **Tests**: integration
 **Gate**: Full
