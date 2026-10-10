@@ -118,12 +118,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Rows dated before the opening date are excluded when cutoff ≥ opening date; same-day rows included
-- [ ] Rows dated up to cutoff all included when cutoff < opening date
-- [ ] Accounts without an opening row are unaffected; with two opening rows the latest date wins
-- [ ] New test `backend/tests/test_opening_floor.py` covers each case
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_opening_floor.py -q`
-- [ ] Test count: 6 tests pass
+- [x] Rows dated before the opening date are excluded when cutoff ≥ opening date; same-day rows included
+- [x] Rows dated up to cutoff all included when cutoff < opening date
+- [x] Accounts without an opening row are unaffected; with two opening rows the latest date wins
+- [x] New test `backend/tests/test_opening_floor.py` covers each case
+- [x] Gate passes: `cd backend && uv run pytest tests/test_opening_floor.py -q`
+- [x] Test count: 6 tests pass
 
 **Tests**: unit
 **Gate**: Quick
