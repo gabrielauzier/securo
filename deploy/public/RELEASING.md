@@ -94,6 +94,7 @@ Pacotes criados pelo workflow podem nascer **privados**. Duas opções:
 
 ## Armadilhas
 - **Release criada pela interface do GitHub:** funciona igual, mas selecione como alvo a branch `prod` (ou o commit), **nunca `main`**.
+- **A imagem contém o código do commit da `prod`, e não necessariamente o de uma release oficial.** Se a `prod` parte de `main`, ela pode estar **à frente** da última release do projeto original (correções e recursos ainda não lançados). Antes de publicar, veja o que muda e, principalmente, se há **migrations novas**, porque elas são de mão única: `git log --oneline <última-tag-oficial>..prod` e `git diff <última-tag-oficial> prod -- backend/alembic/versions`. Sem migration nova, voltar atrás é só trocar a tag; com migration, é preciso restaurar o backup. Para rodar exatamente uma release oficial, parta da tag dela (`git switch -c prod v0.16.3`) ou use direto as imagens oficiais com `SECURO_IMAGE_TAG`.
 - **Apagar uma release não apaga as imagens** publicadas; apague os pacotes/versões à mão se for preciso.
 - **`latest` do seu fork** sempre aponta para a release mais recente do **fork**, que é diferente do `latest` do projeto original.
   Por isso a produção usa uma tag fixa, nunca `latest`.
