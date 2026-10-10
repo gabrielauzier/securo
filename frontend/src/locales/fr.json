@@ -987,6 +987,14 @@
     "bulkUnignore": "Ne plus ignorer",
     "bulkIgnoreSuccess": "{{count}} transactions mises à jour",
     "bulkLimitHint": "Sélectionnez jusqu'à 100 transactions",
+    "bulkTransfer": "Marquer comme virement",
+    "bulkTransferTitle": "Marquer comme virements",
+    "bulkTransferDescription": "Vérifiez les paires trouvées parmi les transactions sélectionnées. Seules les paires cochées sont liées.",
+    "bulkTransferUnmatched": "Aucune contrepartie dans la sélection",
+    "bulkTransferAmbiguous": "Plusieurs contreparties possibles, non appariée",
+    "bulkTransferAlreadyLinked": "Fait déjà partie d'un virement",
+    "bulkTransferConfirm": "Lier les paires sélectionnées",
+    "bulkTransferSuccess": "{{linked}} liées, {{skipped}} ignorées",
     "bulkDelete": "Supprimer la sélection",
     "bulkDeleteTitle": "Supprimer {{count}} transactions ?",
     "bulkDeleteDescription": "Cela supprime définitivement les transactions sélectionnées, y compris les contreparties de virement et leurs pièces jointes. Cette action est irréversible.",
@@ -2879,6 +2887,20 @@
       "invoicesHint": "Comment nous décidons quel paiement règle quelle facture.",
       "recurring": "Règles Récurrentes",
       "recurringHint": "Comment nous décidons qu’un prélèvement est la facture que vous attendiez."
-    }
+    },
+    "applyNow": "Appliquer maintenant",
+    "applyNowTitle": "Appliquer la règle de virement maintenant",
+    "applyNowDescription": "Ces transactions non liées correspondent à la règle. Décochez les paires que vous ne voulez pas lier.",
+    "applyNowConfirm": "Lier les paires sélectionnées",
+    "applyNowSuccess": "{{linked}} liées, {{skipped}} ignorées"
+  },
+  "transferPreview": {
+    "title": "Paires proposées",
+    "strategy": "Règle",
+    "selectedCount": "{{selected}} sur {{total}} paires sélectionnées",
+    "from": "De",
+    "to": "Vers",
+    "empty": "Aucune paire de virement à lier",
+    "selectPair": "Sélectionner la paire"
   }
 }

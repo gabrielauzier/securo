@@ -993,6 +993,14 @@
     "bulkUnignore": "Припинити ігнорувати",
     "bulkIgnoreSuccess": "Оновлено транзакцій: {{count}}",
     "bulkLimitHint": "Виберіть не більше 100 транзакцій",
+    "bulkTransfer": "Позначити як переказ",
+    "bulkTransferTitle": "Позначити як перекази",
+    "bulkTransferDescription": "Перегляньте пари, знайдені серед вибраних транзакцій. Зв'язуються лише позначені пари.",
+    "bulkTransferUnmatched": "У виборі немає зустрічної транзакції",
+    "bulkTransferAmbiguous": "Можливих зустрічних транзакцій кілька, пару не створено",
+    "bulkTransferAlreadyLinked": "Уже є частиною переказу",
+    "bulkTransferConfirm": "Зв'язати вибрані пари",
+    "bulkTransferSuccess": "Зв'язано: {{linked}}, пропущено: {{skipped}}",
     "bulkDelete": "Видалити вибрані",
     "bulkDeleteTitle_one": "Видалити {{count}} транзакцію?",
     "bulkDeleteTitle_few": "Видалити {{count}} транзакції?",
@@ -2894,6 +2902,20 @@
       "invoicesHint": "Як ми визначаємо, який платіж закриває який рахунок.",
       "recurring": "Правила повторюваних",
       "recurringHint": "Як ми визначаємо, що списання — це рахунок, на який ви вже чекали."
-    }
+    },
+    "applyNow": "Застосувати зараз",
+    "applyNowTitle": "Застосувати правило переказів зараз",
+    "applyNowDescription": "Ці незв'язані транзакції відповідають правилу. Зніміть позначку з пар, які не потрібно зв'язувати.",
+    "applyNowConfirm": "Зв'язати вибрані пари",
+    "applyNowSuccess": "Зв'язано: {{linked}}, пропущено: {{skipped}}"
+  },
+  "transferPreview": {
+    "title": "Запропоновані пари",
+    "strategy": "Правило",
+    "selectedCount": "Вибрано пар: {{selected}} з {{total}}",
+    "from": "Звідки",
+    "to": "Куди",
+    "empty": "Немає пар переказів для зв'язування",
+    "selectPair": "Вибрати пару"
   }
 }

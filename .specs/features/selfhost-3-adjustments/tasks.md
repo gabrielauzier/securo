@@ -837,8 +837,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Typed clients for preview/apply (rule) and preview/confirm (bulk); locale keys in all files
-- [ ] Gate passes: `cd frontend && npm run typecheck && npx vitest run src/locales`
+- [x] Typed clients for preview/apply (rule) and preview/confirm (bulk); locale keys in all files
+- [x] Gate passes: `cd frontend && npm run typecheck && npx vitest run src/locales`
 
 **Tests**: none
 **Gate**: Build

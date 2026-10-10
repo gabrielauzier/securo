@@ -1013,6 +1013,14 @@
     "bulkUnignore": "Prestať ignorovať",
     "bulkIgnoreSuccess": "Aktualizované transakcie: {{count}}",
     "bulkLimitHint": "Vyberte najviac 100 transakcií",
+    "bulkTransfer": "Označiť ako prevod",
+    "bulkTransferTitle": "Označiť ako prevody",
+    "bulkTransferDescription": "Skontrolujte páry nájdené medzi vybranými transakciami. Prepoja sa iba označené páry.",
+    "bulkTransferUnmatched": "Vo výbere chýba protiľahlá transakcia",
+    "bulkTransferAmbiguous": "Možných protiľahlých transakcií je viac, nespárované",
+    "bulkTransferAlreadyLinked": "Už je súčasťou prevodu",
+    "bulkTransferConfirm": "Prepojiť vybrané páry",
+    "bulkTransferSuccess": "Prepojené: {{linked}}, preskočené: {{skipped}}",
     "bulkDelete": "Vymazať vybrané",
     "bulkDeleteTitle": "Vymazať {{count}} transakcií?",
     "bulkDeleteTitle_one": "Vymazať {{count}} transakciu?",
@@ -3021,6 +3029,20 @@
       "invoicesHint": "Ako určujeme, ktorá platba vyrovnáva ktorú faktúru.",
       "recurring": "Pravidlá opakovaných",
       "recurringHint": "Ako určujeme, že odpis je účet, ktorý ste už očakávali."
-    }
+    },
+    "applyNow": "Použiť teraz",
+    "applyNowTitle": "Použiť pravidlo prevodov teraz",
+    "applyNowDescription": "Tieto neprepojené transakcie zodpovedajú pravidlu. Zrušte označenie párov, ktoré nechcete prepojiť.",
+    "applyNowConfirm": "Prepojiť vybrané páry",
+    "applyNowSuccess": "Prepojené: {{linked}}, preskočené: {{skipped}}"
+  },
+  "transferPreview": {
+    "title": "Navrhnuté páry",
+    "strategy": "Pravidlo",
+    "selectedCount": "Vybrané páry: {{selected}} z {{total}}",
+    "from": "Z",
+    "to": "Na",
+    "empty": "Žiadne páry prevodov na prepojenie",
+    "selectPair": "Vybrať pár"
   }
 }

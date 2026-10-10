@@ -1011,6 +1011,14 @@
     "bulkIgnoreSuccess_many": "Zaktualizowano {{count}} transakcji",
     "bulkIgnoreSuccess_other": "Zaktualizowano {{count}} transakcji",
     "bulkLimitHint": "Wybierz maksymalnie 100 transakcji",
+    "bulkTransfer": "Oznacz jako transfer",
+    "bulkTransferTitle": "Oznacz jako transfery",
+    "bulkTransferDescription": "Sprawdź pary znalezione wśród zaznaczonych transakcji. Powiązane zostaną tylko zaznaczone pary.",
+    "bulkTransferUnmatched": "Brak transakcji przeciwnej w zaznaczeniu",
+    "bulkTransferAmbiguous": "Więcej niż jedna możliwa transakcja przeciwna, nie sparowano",
+    "bulkTransferAlreadyLinked": "Jest już częścią transferu",
+    "bulkTransferConfirm": "Powiąż zaznaczone pary",
+    "bulkTransferSuccess": "Powiązano: {{linked}}, pominięto: {{skipped}}",
     "bulkDelete": "Usuń zaznaczone",
     "bulkDeleteTitle_one": "Usunąć {{count}} transakcję?",
     "bulkDeleteTitle_few": "Usunąć {{count}} transakcje?",
@@ -2990,6 +2998,20 @@
       "invoicesHint": "Jak ustalamy, która płatność rozlicza którą fakturę.",
       "recurring": "Reguły Cyklicznych",
       "recurringHint": "Jak ustalamy, że obciążenie to rachunek, którego już oczekiwałeś."
-    }
+    },
+    "applyNow": "Zastosuj teraz",
+    "applyNowTitle": "Zastosuj teraz regułę transferów",
+    "applyNowDescription": "Te niepowiązane transakcje pasują do reguły. Odznacz pary, których nie chcesz powiązać.",
+    "applyNowConfirm": "Powiąż zaznaczone pary",
+    "applyNowSuccess": "Powiązano: {{linked}}, pominięto: {{skipped}}"
+  },
+  "transferPreview": {
+    "title": "Proponowane pary",
+    "strategy": "Reguła",
+    "selectedCount": "Zaznaczono {{selected}} z {{total}} par",
+    "from": "Z",
+    "to": "Do",
+    "empty": "Brak par transferów do powiązania",
+    "selectPair": "Zaznacz parę"
   }
 }

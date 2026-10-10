@@ -987,6 +987,14 @@
     "bulkUnignore": "Dejar de ignorar",
     "bulkIgnoreSuccess": "{{count}} transacciones actualizadas",
     "bulkLimitHint": "Selecciona hasta 100 transacciones",
+    "bulkTransfer": "Marcar como transferencia",
+    "bulkTransferTitle": "Marcar como transferencias",
+    "bulkTransferDescription": "Revisa los pares encontrados entre las transacciones seleccionadas. Solo se vinculan los pares marcados.",
+    "bulkTransferUnmatched": "Sin contrapartida en la selección",
+    "bulkTransferAmbiguous": "Más de una contrapartida posible, sin emparejar",
+    "bulkTransferAlreadyLinked": "Ya forma parte de una transferencia",
+    "bulkTransferConfirm": "Vincular pares seleccionados",
+    "bulkTransferSuccess": "{{linked}} vinculados, {{skipped}} omitidos",
     "bulkDelete": "Eliminar seleccionadas",
     "bulkDeleteTitle": "¿Eliminar {{count}} transacciones?",
     "bulkDeleteDescription": "Esto elimina permanentemente las transacciones seleccionadas, incluidas las contrapartes de transferencia y sus adjuntos. No se puede deshacer.",
@@ -2879,6 +2887,20 @@
       "invoicesHint": "Cómo decidimos qué pago salda qué factura.",
       "recurring": "Reglas de Recurrentes",
       "recurringHint": "Cómo decidimos que un cargo es la cuenta que ya esperabas."
-    }
+    },
+    "applyNow": "Aplicar ahora",
+    "applyNowTitle": "Aplicar la regla de transferencias ahora",
+    "applyNowDescription": "Estas transacciones sin vincular cumplen la regla. Desmarca los pares que no quieras vincular.",
+    "applyNowConfirm": "Vincular pares seleccionados",
+    "applyNowSuccess": "{{linked}} vinculados, {{skipped}} omitidos"
+  },
+  "transferPreview": {
+    "title": "Pares propuestos",
+    "strategy": "Regla",
+    "selectedCount": "{{selected}} de {{total}} pares seleccionados",
+    "from": "De",
+    "to": "A",
+    "empty": "No hay pares de transferencia para vincular",
+    "selectPair": "Seleccionar par"
   }
 }

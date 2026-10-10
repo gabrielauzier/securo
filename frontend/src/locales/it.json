@@ -987,6 +987,14 @@
     "bulkUnignore": "Smetti di ignorare",
     "bulkIgnoreSuccess": "{{count}} transazioni aggiornate",
     "bulkLimitHint": "Seleziona fino a 100 transazioni",
+    "bulkTransfer": "Segna come trasferimento",
+    "bulkTransferTitle": "Segna come trasferimenti",
+    "bulkTransferDescription": "Controlla le coppie trovate tra le transazioni selezionate. Vengono collegate solo le coppie spuntate.",
+    "bulkTransferUnmatched": "Nessuna controparte nella selezione",
+    "bulkTransferAmbiguous": "Più di una controparte possibile, non abbinata",
+    "bulkTransferAlreadyLinked": "Fa già parte di un trasferimento",
+    "bulkTransferConfirm": "Collega le coppie selezionate",
+    "bulkTransferSuccess": "{{linked}} collegate, {{skipped}} saltate",
     "bulkDelete": "Elimina selezionate",
     "bulkDeleteTitle": "Eliminare {{count}} transazioni?",
     "bulkDeleteDescription": "Questo elimina definitivamente le transazioni selezionate, incluse le contropartite dei trasferimenti e i loro allegati. Non può essere annullato.",
@@ -2879,6 +2887,20 @@
       "invoicesHint": "Come decidiamo quale pagamento salda quale fattura.",
       "recurring": "Regole Ricorrenti",
       "recurringHint": "Come decidiamo che un addebito è la bolletta che stavi già aspettando."
-    }
+    },
+    "applyNow": "Applica ora",
+    "applyNowTitle": "Applica ora la regola dei trasferimenti",
+    "applyNowDescription": "Queste transazioni non collegate rispettano la regola. Deseleziona le coppie che non vuoi collegare.",
+    "applyNowConfirm": "Collega le coppie selezionate",
+    "applyNowSuccess": "{{linked}} collegate, {{skipped}} saltate"
+  },
+  "transferPreview": {
+    "title": "Coppie proposte",
+    "strategy": "Regola",
+    "selectedCount": "{{selected}} di {{total}} coppie selezionate",
+    "from": "Da",
+    "to": "A",
+    "empty": "Nessuna coppia di trasferimento da collegare",
+    "selectPair": "Seleziona coppia"
   }
 }

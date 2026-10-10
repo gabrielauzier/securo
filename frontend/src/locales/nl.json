@@ -985,6 +985,14 @@
     "bulkUnignore": "Niet meer negeren",
     "bulkIgnoreSuccess": "{{count}} transacties bijgewerkt",
     "bulkLimitHint": "Selecteer maximaal 100 transacties",
+    "bulkTransfer": "Markeren als overboeking",
+    "bulkTransferTitle": "Markeren als overboekingen",
+    "bulkTransferDescription": "Controleer de paren die onder de geselecteerde transacties zijn gevonden. Alleen aangevinkte paren worden gekoppeld.",
+    "bulkTransferUnmatched": "Geen tegenboeking in de selectie",
+    "bulkTransferAmbiguous": "Meer dan één mogelijke tegenboeking, niet gekoppeld",
+    "bulkTransferAlreadyLinked": "Maakt al deel uit van een overboeking",
+    "bulkTransferConfirm": "Geselecteerde paren koppelen",
+    "bulkTransferSuccess": "{{linked}} gekoppeld, {{skipped}} overgeslagen",
     "bulkDelete": "Geselecteerde verwijderen",
     "bulkDeleteTitle": "{{count}} transacties verwijderen?",
     "bulkDeleteDescription": "Hierdoor worden de geselecteerde transacties permanent verwijderd, inclusief de tegenhangers van de overdracht en hun bijlagen. Dit kan niet ongedaan worden gemaakt.",
@@ -2877,6 +2885,20 @@
       "invoicesHint": "Hoe we bepalen welke betaling welke factuur voldoet.",
       "recurring": "Regels voor Terugkerend",
       "recurringHint": "Hoe we bepalen dat een afschrijving de rekening is die je al verwachtte."
-    }
+    },
+    "applyNow": "Nu toepassen",
+    "applyNowTitle": "De overboekingsregel nu toepassen",
+    "applyNowDescription": "Deze niet-gekoppelde transacties voldoen aan de regel. Vink paren uit die je niet wilt koppelen.",
+    "applyNowConfirm": "Geselecteerde paren koppelen",
+    "applyNowSuccess": "{{linked}} gekoppeld, {{skipped}} overgeslagen"
+  },
+  "transferPreview": {
+    "title": "Voorgestelde paren",
+    "strategy": "Regel",
+    "selectedCount": "{{selected}} van {{total}} paren geselecteerd",
+    "from": "Van",
+    "to": "Naar",
+    "empty": "Geen overboekingsparen om te koppelen",
+    "selectPair": "Paar selecteren"
   }
 }
