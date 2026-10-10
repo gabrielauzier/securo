@@ -1698,6 +1698,7 @@ async def test_balance_history_series_restarts_at_the_opening_date(
         session, account.id, test_workspace.id,
         date_from=opening_day - timedelta(days=4), date_to=today,
     )
+    assert history is not None
     by_date = {p["date"]: p["balance"] for p in history}
 
     assert by_date[(opening_day - timedelta(days=4)).isoformat()] == pytest.approx(0.0)
@@ -1719,5 +1720,6 @@ async def test_balance_history_last_point_equals_current_balance(
     )
     listed = next(a for a in await get_accounts(session, test_workspace.id) if a["id"] == account.id)
 
+    assert history is not None
     assert history[-1]["balance"] == pytest.approx(listed["current_balance"])
     assert history[-1]["balance"] == pytest.approx(900.0)
