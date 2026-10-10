@@ -142,6 +142,45 @@ describe('ImportPage saved mappings', () => {
     expect(await screen.findByText(t('import.mappingApplied', { name: 'Nubank' }))).toBeInTheDocument()
     expect(accountOption().selected).toBe(false)
     expect(screen.getByRole('option', { name: t('import.selectAccount') }) as HTMLOptionElement).toHaveProperty('selected', true)
+    // No account was chosen, so the import cannot be submitted until the user picks one.
+    expect(screen.getByRole('button', { name: t('import.importButton', { count: 1 }) })).toBeDisabled()
+  })
+
+  it('applies the inflow and outflow columns of a split-column mapping', async () => {
+    const split = mapping({
+      options: { date_format: null, flip_amount: false, inflow_column: 'Valor', outflow_column: 'Identificador' },
+    })
+    api.mappings.list.mockResolvedValue([split])
+    api.mappings.match.mockResolvedValue([split])
+    const { user } = renderWithProviders(<ImportPage />)
+
+    await uploadCsv(user)
+
+    await screen.findByText(t('import.mappingApplied', { name: 'Nubank' }))
+    await waitFor(() => expect(api.previewImport).toHaveBeenCalledTimes(2))
+    expect(lastPreviewOptions()).toEqual({
+      inflow_column: 'Valor',
+      outflow_column: 'Identificador',
+      column_mapping: NUBANK_COLUMNS,
+    })
+  })
+
+  it('re-previews with the adjusted column after a mapping was applied', async () => {
+    api.mappings.list.mockResolvedValue([mapping()])
+    api.mappings.match.mockResolvedValue([mapping()])
+    const { user } = renderWithProviders(<ImportPage />)
+    await uploadCsv(user)
+    await screen.findByText(t('import.mappingApplied', { name: 'Nubank' }))
+    await waitFor(() => expect(api.previewImport).toHaveBeenCalledTimes(2))
+
+    await user.selectOptions(columnSelect('import.mapDescription'), 'Identificador')
+
+    await waitFor(() => expect(api.previewImport).toHaveBeenCalledTimes(3))
+    expect(lastPreviewOptions()).toEqual({
+      date_format: 'DD/MM/YYYY',
+      flip_amount: true,
+      column_mapping: { ...NUBANK_COLUMNS, description: 'Identificador' },
+    })
   })
 
   it('applies nothing when no mapping matches, and lets the user pick a saved one', async () => {

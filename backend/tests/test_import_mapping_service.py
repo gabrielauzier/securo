@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.models.import_mapping import ImportMapping
 from app.models.user import User
+from app.models.workspace import Workspace
 from app.schemas.import_mapping import (
     ImportMappingCreate,
     ImportMappingOptions,
@@ -284,3 +285,29 @@ async def test_unknown_or_foreign_account_is_rejected_on_create_and_update(
         session, test_user.id, saved.id, ImportMappingUpdate(account_id=test_account.id)
     )
     assert ok.account_id == test_account.id
+
+
+async def test_account_of_a_managed_workspace_is_accepted(
+    session: AsyncSession, test_user: User, other_user: User
+):
+    """The destination account may live in a workspace the user manages without being a member."""
+    workspace = Workspace(
+        id=uuid.uuid4(), name="Managed", kind="personal",
+        created_by_user_id=test_user.id, managed_by_user_id=other_user.id,
+        default_currency="BRL",
+    )
+    session.add(workspace)
+    await session.flush()
+    account = Account(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=workspace.id,
+        name="Managed account", type="checking", balance=0, currency="BRL",
+    )
+    session.add(account)
+    await session.commit()
+    account_id = account.id
+
+    saved = await svc.create_mapping(
+        session, other_user.id, _create(name="Managed", account_id=account_id)
+    )
+
+    assert saved.account_id == account_id

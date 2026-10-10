@@ -1084,6 +1084,24 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F9: Close the remaining small test gaps (S5, A2, A5, P4, IMP AC7, BTR AC1, FM1, FM7)
+
+**What**: Pin the future-cutoff clamp, managed-workspace mapping accounts, the 404 text, rule-wide apply revalidation, restricted pairing bounds, and the adjust-after-apply and split-column import flows.
+**Where**: `backend/tests/test_account_service.py`, `test_dashboard_service.py`, `test_import_mapping_service.py`, `test_import_mappings_api.py`, `test_transfer_detection.py`, `frontend/src/pages/import-mapping.test.tsx`
+**Requirement**: BAL-01, IMP-01, TRF-01, BTR-01
+
+**Done when**:
+
+- [x] Future cutoff is clamped to today in both balance-at helpers (S5)
+- [x] Mapping account in a managed workspace is accepted (A2); 404 detail is Account not found (A5)
+- [x] Rule-wide apply links a pair although an unselected row contests a leg (P4)
+- [x] Restricted propose does not pair rows outside the rule window or amount tolerance (BTR AC1)
+- [x] After a mapping is applied, changing a column re-previews with the changed mapping (IMP AC7); split-column apply (FM7); unavailable account leaves the import disabled (FM1)
+
+**Commit**: `test(coverage): pin clamp, managed access, apply and mapping flows`
+
+---
+
 ## Phase Execution Map
 
 ```

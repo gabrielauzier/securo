@@ -1247,6 +1247,19 @@ async def test_account_balance_at_today_excludes_transactions_before_opening(
 
 
 @pytest.mark.asyncio
+async def test_account_balance_at_future_cutoff_stops_at_today(
+    session: AsyncSession, test_user
+):
+    """BAL AC1: a future cutoff is clamped to today, so a future-dated row is not counted."""
+    account, today, _ = await _floored_manual_account(session, test_user.id)
+    await _add_txn(session, test_user.id, account.id, 300, "debit", today + timedelta(days=3))
+
+    bal = await _account_balance_at(session, account, today + timedelta(days=10))
+
+    assert bal == pytest.approx(900.0)
+
+
+@pytest.mark.asyncio
 async def test_account_balance_at_cutoff_before_opening_includes_earlier_transactions(
     session: AsyncSession, test_user
 ):

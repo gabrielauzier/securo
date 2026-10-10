@@ -1694,6 +1694,20 @@ async def test_balance_at_before_opening_date_includes_earlier_transactions(
 
 
 @pytest.mark.asyncio
+async def test_balance_at_future_cutoff_stops_at_today(session: AsyncSession, test_user):
+    """BAL AC1: the balance is the one up to today; a future cutoff is clamped to it."""
+    from app.services.account_service import _account_balance_at
+    account, today, _opening = await _floor_history_fixture(session, test_user)
+    await _add_txn(session, test_user.id, account.id, 300, "debit", today + timedelta(days=3))
+
+    balance = await _account_balance_at(
+        session, account.id, today + timedelta(days=10), "BRL"
+    )
+
+    assert balance == pytest.approx(900.0)
+
+
+@pytest.mark.asyncio
 async def test_balance_at_or_after_opening_date_excludes_earlier_transactions(
     session: AsyncSession, test_user
 ):

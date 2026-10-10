@@ -498,6 +498,40 @@ async def test_propose_restricted_pairs_the_selection_and_reports_the_stray(
 
 
 @pytest.mark.asyncio
+async def test_propose_restricted_does_not_pair_selected_rows_outside_the_rule_window(
+    session: AsyncSession, test_user, test_workspace
+):
+    """BTR AC1: the window comes from the transfer rule, also for a selection (2 days ships)."""
+    acc1 = await _make_account(session, test_user.id, "Win A")
+    acc2 = await _make_account(session, test_user.id, "Win B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 300, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc2.id, 300, "credit", today + timedelta(days=5))
+
+    result = await propose_pairs(session, test_workspace.id, {debit.id, credit.id})
+
+    assert result.pairs == []
+    assert set(result.unmatched) == {debit.id, credit.id}
+
+
+@pytest.mark.asyncio
+async def test_propose_restricted_does_not_pair_selected_rows_outside_the_amount_tolerance(
+    session: AsyncSession, test_user, test_workspace
+):
+    """BTR AC1: the amount tolerance comes from the transfer rule, also for a selection."""
+    acc1 = await _make_account(session, test_user.id, "Amt A")
+    acc2 = await _make_account(session, test_user.id, "Amt B")
+    today = date.today()
+    debit = await _add_txn(session, test_user.id, acc1.id, 100, "debit", today)
+    credit = await _add_txn(session, test_user.id, acc2.id, 150, "credit", today)
+
+    result = await propose_pairs(session, test_workspace.id, {debit.id, credit.id})
+
+    assert result.pairs == []
+    assert set(result.unmatched) == {debit.id, credit.id}
+
+
+@pytest.mark.asyncio
 async def test_propose_restricted_never_uses_a_counterpart_outside_the_selection(
     session: AsyncSession, test_user, test_workspace
 ):
@@ -591,6 +625,30 @@ async def test_apply_links_the_requested_pairs_and_returns_the_count(
     assert d1.transfer_pair_id == c1.transfer_pair_id
     assert d2.transfer_pair_id == c2.transfer_pair_id
     assert d1.transfer_pair_id != d2.transfer_pair_id
+
+
+@pytest.mark.asyncio
+async def test_apply_links_a_rule_wide_pair_even_if_an_unselected_row_now_contests_a_leg(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Documented rule (spec Assumptions, "Rule-wide apply revalidation"): apply only
+    revalidates against the posted ids, so a row added after the preview that also
+    mirrors a leg does not block a pair the user confirmed."""
+    debit, credit = await _mirrored(session, test_user, "Contest", 100)
+    other = await _make_account(session, test_user.id, "Contest C")
+    contender = await _add_txn(session, test_user.id, other.id, 100, "debit", date.today())
+
+    result = await apply_pairs(session, test_workspace.id, [(debit.id, credit.id)])
+    await session.commit()
+
+    assert result.linked == 1
+    assert result.skipped == []
+    await session.refresh(debit)
+    await session.refresh(credit)
+    await session.refresh(contender)
+    assert debit.transfer_pair_id is not None
+    assert debit.transfer_pair_id == credit.transfer_pair_id
+    assert contender.transfer_pair_id is None
 
 
 @pytest.mark.asyncio

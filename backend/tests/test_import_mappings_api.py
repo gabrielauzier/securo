@@ -196,6 +196,7 @@ async def test_create_with_unknown_account_is_404(client: AsyncClient, auth_head
     r = await client.post(URL, json=_body(account_id=str(uuid.uuid4())), headers=auth_headers)
 
     assert r.status_code == 404
+    assert r.json()["detail"] == "Account not found"
     assert (await client.get(URL, headers=auth_headers)).json() == []
 
 
