@@ -17,6 +17,7 @@ from app.models.reconciliation import ReconciliationSuggestion
 from app.services import reconciliation_policy
 from app.services import reconciliation_rule_service as rule_service
 from app.services.transfer_detection_service import (
+    apply_pairs,
     detect_transfer_pairs,
     propose_pairs,
     unlink_transfer_pair,
@@ -554,3 +555,132 @@ async def test_propose_restricted_lists_already_linked_rows_and_leaves_them(
     assert result.unmatched == []
     await session.refresh(debit)
     assert debit.transfer_pair_id == pair_id
+
+
+# ---------------------------------------------------------------------------
+# apply_pairs (TRF-01 ACs 3, 4, 7; BTR-01 AC 6)
+# ---------------------------------------------------------------------------
+
+
+async def _mirrored(session, user, name: str, amount: float = 100):
+    acc1 = await _make_account(session, user.id, f"{name} A")
+    acc2 = await _make_account(session, user.id, f"{name} B")
+    today = date.today()
+    debit = await _add_txn(session, user.id, acc1.id, amount, "debit", today)
+    credit = await _add_txn(session, user.id, acc2.id, amount, "credit", today)
+    return debit, credit
+
+
+@pytest.mark.asyncio
+async def test_apply_links_the_requested_pairs_and_returns_the_count(
+    session: AsyncSession, test_user, test_workspace
+):
+    d1, c1 = await _mirrored(session, test_user, "Ap1", 100)
+    d2, c2 = await _mirrored(session, test_user, "Ap2", 250)
+
+    result = await apply_pairs(
+        session, test_workspace.id, [(d1.id, c1.id), (d2.id, c2.id)]
+    )
+    await session.commit()
+
+    assert result.linked == 2
+    assert result.skipped == []
+    for tx in (d1, c1, d2, c2):
+        await session.refresh(tx)
+    assert d1.transfer_pair_id is not None
+    assert d1.transfer_pair_id == c1.transfer_pair_id
+    assert d2.transfer_pair_id == c2.transfer_pair_id
+    assert d1.transfer_pair_id != d2.transfer_pair_id
+
+
+@pytest.mark.asyncio
+async def test_apply_skips_a_pair_whose_leg_was_linked_since_the_preview(
+    session: AsyncSession, test_user, test_workspace
+):
+    debit, credit = await _mirrored(session, test_user, "Stale")
+    elsewhere = uuid.uuid4()
+    credit.transfer_pair_id = elsewhere
+    await session.commit()
+
+    result = await apply_pairs(session, test_workspace.id, [(debit.id, credit.id)])
+    await session.commit()
+
+    assert result.linked == 0
+    assert [(s.a, s.b) for s in result.skipped] == [(debit.id, credit.id)]
+    await session.refresh(debit)
+    await session.refresh(credit)
+    assert debit.transfer_pair_id is None
+    assert credit.transfer_pair_id == elsewhere
+
+
+@pytest.mark.asyncio
+async def test_apply_skips_a_pair_whose_leg_was_deleted_since_the_preview(
+    session: AsyncSession, test_user, test_workspace
+):
+    d1, c1 = await _mirrored(session, test_user, "Del1", 100)
+    d2, c2 = await _mirrored(session, test_user, "Del2", 300)
+    await session.delete(c1)
+    await session.commit()
+
+    result = await apply_pairs(
+        session, test_workspace.id, [(d1.id, c1.id), (d2.id, c2.id)]
+    )
+    await session.commit()
+
+    assert result.linked == 1
+    assert [(s.a, s.b) for s in result.skipped] == [(d1.id, c1.id)]
+    await session.refresh(d2)
+    assert d2.transfer_pair_id is not None
+
+
+@pytest.mark.asyncio
+async def test_apply_rejects_a_forged_pair_the_rule_would_not_propose(
+    session: AsyncSession, test_user, test_workspace
+):
+    d1, _c1 = await _mirrored(session, test_user, "Forge1", 100)
+    _d2, c2 = await _mirrored(session, test_user, "Forge2", 777)
+
+    result = await apply_pairs(session, test_workspace.id, [(d1.id, c2.id)])
+    await session.commit()
+
+    assert result.linked == 0
+    assert [(s.a, s.b, s.reason) for s in result.skipped] == [
+        (d1.id, c2.id, "not_proposed")
+    ]
+    await session.refresh(d1)
+    await session.refresh(c2)
+    assert d1.transfer_pair_id is None
+    assert c2.transfer_pair_id is None
+
+
+@pytest.mark.asyncio
+async def test_apply_records_no_suggestions(
+    session: AsyncSession, test_user, test_workspace
+):
+    d1, c1 = await _mirrored(session, test_user, "NoSug1", 100)
+    acc3 = await _make_account(session, test_user.id, "NoSug3")
+    # A second credit of the same size makes the first pair contested
+    # elsewhere, which is exactly what would be recorded as a suggestion
+    # by the detector.
+    await _add_txn(session, test_user.id, acc3.id, 100, "credit", date.today())
+
+    await apply_pairs(session, test_workspace.id, [(d1.id, c1.id)])
+    await session.commit()
+
+    assert await _suggestion_count(session) == 0
+
+
+@pytest.mark.asyncio
+async def test_apply_links_a_leg_only_once_when_requested_twice(
+    session: AsyncSession, test_user, test_workspace
+):
+    debit, credit = await _mirrored(session, test_user, "Twice")
+
+    result = await apply_pairs(
+        session, test_workspace.id,
+        [(debit.id, credit.id), (credit.id, debit.id)],
+    )
+    await session.commit()
+
+    assert result.linked == 1
+    assert len(result.skipped) == 1

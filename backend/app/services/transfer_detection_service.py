@@ -530,6 +530,70 @@ async def detect_transfer_pairs(
     return pairs_created
 
 
+@dataclass
+class SkippedPair:
+    a: uuid.UUID
+    b: uuid.UUID
+    #: `not_found`, `already_linked` or `not_proposed`.
+    reason: str
+
+
+@dataclass
+class ApplyResult:
+    linked: int = 0
+    skipped: list[SkippedPair] = field(default_factory=list)
+
+
+async def apply_pairs(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    pairs: list[tuple[uuid.UUID, uuid.UUID]],
+) -> ApplyResult:
+    """Link the requested pairs that the rule still proposes.
+
+    **The client never gets to say which rows are a transfer.** It says
+    which pairs it was shown, and each one is checked again against the
+    state of the books now: a pair is linked only if the proposal, rerun
+    over the rows involved, still contains it. A leg that was linked,
+    deleted or edited since the preview, or a pair somebody invented, is
+    skipped and reported instead.
+
+    Suggestions are never recorded here, and the caller owns the commit,
+    so every pair in one call lands together.
+    """
+    result = ApplyResult()
+    involved = {leg for pair in pairs for leg in pair}
+    proposal = await propose_pairs(session, workspace_id, restrict_ids=involved)
+    proposed = {frozenset((p.a.id, p.b.id)) for p in proposal.pairs}
+
+    rows = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.workspace_id == workspace_id,
+                Transaction.id.in_(involved),
+            )
+        )
+    ).scalars()
+    by_id = {tx.id: tx for tx in rows}
+
+    for a, b in pairs:
+        tx_a, tx_b = by_id.get(a), by_id.get(b)
+        if tx_a is None or tx_b is None:
+            reason = "not_found"
+        elif tx_a.transfer_pair_id is not None or tx_b.transfer_pair_id is not None:
+            reason = "already_linked"
+        elif frozenset((a, b)) not in proposed:
+            reason = "not_proposed"
+        else:
+            pair_id = uuid.uuid4()
+            tx_a.transfer_pair_id = pair_id
+            tx_b.transfer_pair_id = pair_id
+            result.linked += 1
+            continue
+        result.skipped.append(SkippedPair(a=a, b=b, reason=reason))
+    return result
+
+
 async def unlink_transfer_pair(
     session: AsyncSession,
     workspace_id: uuid.UUID,

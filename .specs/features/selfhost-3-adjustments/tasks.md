@@ -754,13 +754,13 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Valid pairs link and return the count (TRF AC 3, BTR AC 6)
-- [ ] A leg linked or deleted since preview is skipped and reported (TRF AC 4)
-- [ ] No suggestions recorded as a side effect (TRF AC 7)
-- [ ] A forged pair that the rule would not propose is rejected
-- [ ] Tests added to `backend/tests/test_transfer_detection.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_transfer_detection.py -q`
-- [ ] Test count: existing + 5 new pass
+- [x] Valid pairs link and return the count (TRF AC 3, BTR AC 6)
+- [x] A leg linked or deleted since preview is skipped and reported (TRF AC 4)
+- [x] No suggestions recorded as a side effect (TRF AC 7)
+- [x] A forged pair that the rule would not propose is rejected
+- [x] Tests added to `backend/tests/test_transfer_detection.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_transfer_detection.py -q`
+- [x] Test count: existing + 5 new pass
 
 **Tests**: unit
 **Gate**: Quick
