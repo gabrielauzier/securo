@@ -363,11 +363,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Note renders with account name and formatted date when `balance_resets` has entries (AC 2)
-- [ ] No note when the list is empty (AC 3)
-- [ ] Tests added to `frontend/src/pages/reports.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/reports.test.tsx && npm run lint`
-- [ ] Test count: existing + 2 new pass
+- [x] Note renders with account name and formatted date when `balance_resets` has entries (AC 2)
+- [x] No note when the list is empty (AC 3)
+- [x] Tests added to `frontend/src/pages/reports.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/reports.test.tsx && npm run lint`
+- [x] Test count: existing + 2 new pass
 
 **Tests**: unit
 **Gate**: Quick-FE

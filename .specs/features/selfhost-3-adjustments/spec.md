@@ -210,7 +210,7 @@ The first production week of `0.16.3-selfhost.2` exposed two account bugs and fo
 | BAL-01 | P1: Opening balance is a floor | Phase 1 | In progress |
 | BAL-02 | P1: Opening balance is a floor | Phase 1 | In progress |
 | BAL-03 | P1: Opening balance is a floor | Phase 1 | In progress |
-| NWN-01 | P1: Net-worth notice | - | Pending |
+| NWN-01 | P1: Net-worth notice | T8-T11 | Done |
 | IMP-01 | P1: Saved CSV import mappings | - | Pending |
 | IGN-01 | P2: Bulk ignore | - | Pending |
 | TRF-01 | P2: Manual transfer pairing | - | Pending |
