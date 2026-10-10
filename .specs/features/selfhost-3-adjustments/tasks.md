@@ -544,8 +544,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Keys in all 15 locales; parity test passes
-- [ ] Gate passes: `cd frontend && npx vitest run src/locales && npm run typecheck`
+- [x] Keys in all 15 locales; parity test passes
+- [x] Gate passes: `cd frontend && npx vitest run src/locales && npm run typecheck`
 
 **Tests**: none
 **Gate**: Build
