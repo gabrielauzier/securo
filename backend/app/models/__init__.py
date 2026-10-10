@@ -11,6 +11,7 @@ from app.models.rule import Rule
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.budget import Budget
 from app.models.import_log import ImportLog
+from app.models.import_mapping import ImportMapping
 from app.models.asset import Asset
 from app.models.asset_group import AssetGroup
 from app.models.asset_transaction import AssetTransaction
@@ -63,6 +64,7 @@ __all__ = [
     "RecurringTransaction",
     "Budget",
     "ImportLog",
+    "ImportMapping",
     "Asset",
     "AssetGroup",
     "AssetTransaction",

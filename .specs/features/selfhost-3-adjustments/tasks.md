@@ -390,9 +390,9 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Fields as in design (name, name_key, account_id, headers, headers_key, column_mapping, options, last_used_at)
-- [ ] Unique constraint (user_id, name_key); index (user_id, headers_key)
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check . && uv run ty check`
+- [x] Fields as in design (name, name_key, account_id, headers, headers_key, column_mapping, options, last_used_at)
+- [x] Unique constraint (user_id, name_key); index (user_id, headers_key)
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check . && uv run ty check`
 
 **Tests**: none
 **Gate**: Build
