@@ -7,7 +7,7 @@ from decimal import Decimal
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -191,6 +191,42 @@ async def test_confirm_links_the_posted_pairs_and_returns_the_count(
     shared = await _pair_id(session, debit)
     assert shared is not None
     assert await _pair_id(session, credit) == shared
+
+
+async def test_confirm_links_exactly_50_pairs(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace, acc
+):
+    """The pairs cap is inclusive: 50 pairs are accepted and all of them are linked."""
+    pairs = []
+    for n in range(50):
+        amount = f"{100 + n}.00"
+        debit = uuid.uuid4()
+        credit = uuid.uuid4()
+        for tx_id, account, kind in ((debit, acc["A"], "debit"), (credit, acc["B"], "credit")):
+            session.add(
+                Transaction(
+                    id=tx_id, user_id=test_user.id, workspace_id=test_workspace.id,
+                    account_id=account, description=f"{kind} {amount}",
+                    amount=Decimal(amount), currency="BRL", date=TODAY, type=kind,
+                    source="manual",
+                )
+            )
+        pairs.append({"a": str(debit), "b": str(credit)})
+    await session.commit()
+
+    response = await client.post(CONFIRM, json={"pairs": pairs}, headers=auth_headers)
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"linked": 50, "skipped": []}
+    session.expire_all()
+    linked = (
+        await session.execute(
+            select(func.count()).select_from(Transaction).where(
+                Transaction.transfer_pair_id.is_not(None)
+            )
+        )
+    ).scalar_one()
+    assert linked == 100
 
 
 async def test_confirm_skips_a_pair_that_went_stale_since_the_preview(

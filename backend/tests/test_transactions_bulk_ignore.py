@@ -188,6 +188,35 @@ async def test_route_accepts_exactly_100_ids(client, auth_headers, ids):
     assert resp.json() == {"updated": 0}
 
 
+async def test_route_ignores_exactly_100_real_rows(client, auth_headers, session, ids):
+    """Success criterion: a bulk operation acts on 100 transactions in one request."""
+    tx_ids = [uuid.uuid4() for _ in range(100)]
+    session.add_all(
+        Transaction(
+            id=tx_id, user_id=ids.user, workspace_id=ids.workspace, account_id=ids.account,
+            description="X", amount=Decimal("10.00"), date=date(2026, 4, 1),
+            type="debit", source="manual",
+        )
+        for tx_id in tx_ids
+    )
+    await session.commit()
+
+    resp = await client.patch(
+        URL,
+        headers=auth_headers,
+        json={"transaction_ids": [str(i) for i in tx_ids], "ignored": True},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"updated": 100}
+    session.expire_all()
+    flags = (
+        await session.execute(select(Transaction.is_ignored).where(Transaction.id.in_(tx_ids)))
+    ).scalars().all()
+    assert len(flags) == 100
+    assert all(flags)
+
+
 async def test_route_ignores_ids_from_another_workspace(client, auth_headers, session, ids):
     foreign = await _tx(session, ids, workspace=ids.other_workspace)
 

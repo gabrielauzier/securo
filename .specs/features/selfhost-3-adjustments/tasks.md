@@ -1053,6 +1053,22 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F7: Act on the full bulk caps (B7, B9)
+
+**What**: Tests that bulk-ignore 100 real rows and confirm 50 real pairs.
+**Where**: `backend/tests/test_transactions_bulk_ignore.py`, `backend/tests/test_transactions_bulk_transfer.py`
+**Requirement**: IGN-01, BTR-01
+
+**Done when**:
+
+- [x] 100 real rows ignored: updated == 100 and every row ignored (B7)
+- [x] 50 pairs confirmed: linked == 50 and 100 rows paired (B9)
+- [x] Existing over-cap 422 tests untouched
+
+**Commit**: `test(transactions): act on the full bulk caps`
+
+---
+
 ## Phase Execution Map
 
 ```
