@@ -315,9 +315,9 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Notes explain: the date is saved on the account, balances do not change after upgrade, migration `098`, the hint in the dialog
-- [ ] `.specs/STATE.md` has AD-002 (supersedes the storage part of AD-001; AD-001 status `superseded by AD-002` only for storage, keep the rule text)
-- [ ] Full Build gates pass (backend and frontend)
+- [x] Notes explain: the date is saved on the account, balances do not change after upgrade, migration `098`, the hint in the dialog
+- [x] `.specs/STATE.md` has AD-002 (supersedes the storage part of AD-001; AD-001 status `superseded by AD-002` only for storage, keep the rule text)
+- [x] Full Build gates pass (backend and frontend)
 
 **Tests**: none
 **Gate**: Build

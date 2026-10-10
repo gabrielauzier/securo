@@ -131,7 +131,7 @@ The "balance date" chosen in the add/edit account dialog is not stored on the ac
 | -------------- | ----- | ----- | ------ |
 | ABD-01 | P1: Save the balance date on the account | Phase 1 (T1-T5) | Done |
 | ABD-02 | P1: Balance reads use the stored date as the floor | Phase 2 (T6-T7) | Done |
-| ABD-03 | P1: Existing accounts keep their balances after the upgrade | - | Pending |
+| ABD-03 | P1: Existing accounts keep their balances after the upgrade | Phase 1 (T2), Phase 3 (T10) | Done |
 | ABD-04 | P2: The edit dialog shows and explains the saved date | Phase 3 (T8-T9) | Done |
 
 **Coverage:** 4 total, 0 mapped to tasks, 4 unmapped ⚠️ (until tasks are approved)

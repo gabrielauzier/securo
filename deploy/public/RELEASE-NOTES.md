@@ -12,6 +12,10 @@ Parte de `0.16.3` do projeto original. Corrige dois problemas de contas e acresc
   (`docker-compose.prod.yml`), então não há passo manual. Como as migrations não são revertidas, **faça o backup antes** e, para
   voltar atrás, restaure-o junto com a tag anterior (ver [backup/restore.md](backup/restore.md)). A migration só **cria** uma
   tabela nova; nenhum dado existente é alterado.
+- **Também há a migration `098` (coluna `accounts.balance_date`).** Ela roda sozinha ao subir o container, no mesmo
+  `alembic upgrade head`, e vale o mesmo aviso: faça o backup antes. Ela adiciona a coluna e preenche a data das contas manuais
+  com a data do saldo inicial que cada conta já tem, então **nenhum saldo muda depois da atualização**. Contas ligadas a banco e
+  contas sem saldo inicial ficam com a data vazia, como antes. Voltar atrás exige restaurar o backup.
 - Publique como `0.16.3-selfhost.3` (`./deploy/public/release.sh 0.16.3-selfhost.3 --dry-run` e depois sem `--dry-run`).
 
 ### Correções
@@ -38,6 +42,15 @@ Parte de `0.16.3` do projeto original. Corrige dois problemas de contas e acresc
   inicial ele ainda inclui as transações antigas. Por isso, atualizar o saldo de uma conta manualmente pode causar um salto no
   gráfico nessa data. Quando isso acontece, o relatório mostra uma nota dizendo que o saldo da conta foi atualizado manualmente
   naquela data e que a variação reflete essa atualização.
+- **A data do saldo agora fica salva na conta.** Antes, a "Data do saldo" escolhida ao criar ou editar uma conta só existia como a
+  data da transação de saldo inicial, e se perdia quando o saldo era 0. Agora ela é gravada na própria conta (`balance_date`), o
+  diálogo de edição mostra a data salva (ou a de hoje, quando a conta não tem uma) e o piso do saldo passa a ler essa data. A
+  transação de saldo inicial continua existindo e acompanha a data e o valor da conta. Consequências:
+  - Uma conta com saldo 0 e uma data escolhida guarda a data e aplica o piso, sem criar a transação de saldo inicial.
+  - Alterar só a data atualiza a conta e a transação de saldo inicial; editar só o nome não mexe no saldo nem na data.
+  - O aviso do patrimônio líquido passa a usar essa data, mesmo quando a conta não tem transação de saldo inicial.
+  - O diálogo mostra uma dica sob o campo: "Transações anteriores a esta data não alteram o saldo."
+  - Contas ligadas a banco não têm data de saldo própria; o saldo continua vindo do banco.
 
 ### Recursos novos
 - **Mapeamentos de importação CSV salvos.** Na tela de importação, depois de mapear as colunas você pode salvar o mapeamento com
