@@ -16,6 +16,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.app_clock import app_today
 from app.models.account import Account
 from app.models.category import Category
 from app.models.goal import Goal
@@ -213,6 +214,69 @@ async def test_create_account_with_balance_date(session: AsyncSession, test_user
     )
     opening = result.scalar_one()
     assert opening.date == custom_date
+
+
+async def _opening_of(session: AsyncSession, account_id: uuid.UUID):
+    from sqlalchemy import select
+    result = await session.execute(
+        select(Transaction).where(
+            Transaction.account_id == account_id,
+            Transaction.source == "opening_balance",
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+@pytest.mark.asyncio
+async def test_create_account_stores_the_given_balance_date(session: AsyncSession, test_user, test_workspace):
+    """ABD-01 AC1: created with date D stores balance_date = D; the opening tx carries D."""
+    chosen = app_today() - timedelta(days=9)
+    data = AccountCreate(
+        name="Dated", type="checking", balance=Decimal("300.00"),
+        currency="BRL", balance_date=chosen,
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    assert account.balance_date == chosen
+    assert (await _opening_of(session, account.id)).date == chosen
+
+
+@pytest.mark.asyncio
+async def test_create_account_without_balance_date_stores_today(session: AsyncSession, test_user, test_workspace):
+    """ABD-01 AC2: no date sent stores today's date, also on the opening tx."""
+    data = AccountCreate(name="Undated", type="checking", balance=Decimal("300.00"), currency="BRL")
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    assert account.balance_date == app_today()
+    assert (await _opening_of(session, account.id)).date == app_today()
+
+
+@pytest.mark.asyncio
+async def test_create_account_zero_balance_keeps_the_date_without_opening(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC3: balance 0 with date D stores D and creates no opening transaction."""
+    chosen = app_today() - timedelta(days=4)
+    data = AccountCreate(
+        name="Zero Dated", type="checking", balance=Decimal("0.00"),
+        currency="BRL", balance_date=chosen,
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    assert account.balance_date == chosen
+    assert await _opening_of(session, account.id) is None
+
+
+@pytest.mark.asyncio
+async def test_create_account_zero_balance_without_date_stores_today(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC2 + AC3: balance 0 and no date stores today and creates no opening transaction."""
+    data = AccountCreate(name="Zero Undated", type="checking", balance=Decimal("0.00"), currency="BRL")
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    assert account.balance_date == app_today()
+    assert await _opening_of(session, account.id) is None
 
 
 # ---------------------------------------------------------------------------

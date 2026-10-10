@@ -150,11 +150,11 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Create with date D stores D (spec ABD-01 AC1); without a date stores today (AC2)
-- [ ] Balance 0 with a date stores it and creates no opening transaction (AC3)
-- [ ] Opening transaction date equals `account.balance_date` for non-zero balances
-- [ ] Tests in `backend/tests/test_account_service.py` and `test_accounts_api.py` (including 422 on an invalid date)
-- [ ] Gate passes: `cd backend && .venv/bin/python -m pytest tests/test_account_service.py tests/test_accounts_api.py -q`
+- [x] Create with date D stores D (spec ABD-01 AC1); without a date stores today (AC2)
+- [x] Balance 0 with a date stores it and creates no opening transaction (AC3)
+- [x] Opening transaction date equals `account.balance_date` for non-zero balances
+- [x] Tests in `backend/tests/test_account_service.py` and `test_accounts_api.py` (including 422 on an invalid date)
+- [x] Gate passes: `cd backend && .venv/bin/python -m pytest tests/test_account_service.py tests/test_accounts_api.py -q`
 
 **Tests**: unit
 **Gate**: Quick

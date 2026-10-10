@@ -271,6 +271,7 @@ async def create_account(
         name=data.name,
         type=data.type,
         balance=data.balance,
+        balance_date=data.balance_date or app_today(),
         currency=data.currency,
         credit_limit=data.credit_limit if is_cc else None,
         statement_close_day=data.statement_close_day if is_cc else None,
@@ -291,7 +292,7 @@ async def create_account(
             description="Saldo inicial",
             amount=amount,
             currency=data.currency,
-            date=data.balance_date or app_today(),
+            date=account.balance_date,
             type=opening_type,
             source="opening_balance",
         )

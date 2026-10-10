@@ -1037,3 +1037,49 @@ async def test_account_responses_return_the_stored_balance_date(
     assert [a["balance_date"] for a in listed.json() if a["name"] == "Dated"] == [stored.isoformat()]
     detail = await client.get(f"/api/accounts/{account.id}", headers=auth_headers)
     assert detail.json()["balance_date"] == stored.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_create_account_api_returns_the_chosen_balance_date(
+    client: AsyncClient, auth_headers
+):
+    """ABD-01 AC1/AC3 over HTTP: balance 0 with a date returns that date."""
+    chosen = _app_today() - _timedelta(days=6)
+    resp = await client.post(
+        "/api/accounts",
+        headers=auth_headers,
+        json={"name": "Zero", "type": "checking", "balance": "0.00",
+              "currency": "BRL", "balance_date": chosen.isoformat()},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["balance_date"] == chosen.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_create_account_api_without_date_returns_today(
+    client: AsyncClient, auth_headers
+):
+    """ABD-01 AC2 over HTTP: no date sent returns today's date."""
+    resp = await client.post(
+        "/api/accounts",
+        headers=auth_headers,
+        json={"name": "Undated", "type": "checking", "balance": "10.00", "currency": "BRL"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["balance_date"] == _app_today().isoformat()
+
+
+@pytest.mark.asyncio
+async def test_create_account_api_rejects_an_invalid_balance_date(
+    client: AsyncClient, auth_headers
+):
+    """Edge case: an invalid balance_date is rejected with 422 and nothing is created."""
+    resp = await client.post(
+        "/api/accounts",
+        headers=auth_headers,
+        json={"name": "Bad", "type": "checking", "balance": "10.00",
+              "currency": "BRL", "balance_date": "2026-13-45"},
+    )
+    assert resp.status_code == 422
+    listed = await client.get("/api/accounts", headers=auth_headers)
+    assert listed.json() == []
