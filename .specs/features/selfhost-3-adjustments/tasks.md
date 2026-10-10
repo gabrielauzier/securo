@@ -675,8 +675,8 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Client typed; locale keys added to all files in the same commit
-- [ ] Gate passes: `cd frontend && npm run typecheck && npx vitest run src/locales`
+- [x] Client typed; locale keys added to all files in the same commit
+- [x] Gate passes: `cd frontend && npm run typecheck && npx vitest run src/locales`
 
 **Tests**: none
 **Gate**: Build

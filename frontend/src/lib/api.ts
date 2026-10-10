@@ -598,6 +598,13 @@ export const transactions = {
     })
     return data
   },
+  bulkIgnore: async (transactionIds: string[], ignored: boolean): Promise<{ updated: number }> => {
+    const { data } = await api.patch('/transactions/bulk-ignore', {
+      transaction_ids: transactionIds,
+      ignored,
+    })
+    return data
+  },
   bulkAddTags: async (transactionIds: string[], tags: string[]): Promise<{ updated: number }> => {
     const { data } = await api.patch('/transactions/bulk-add-tags', {
       transaction_ids: transactionIds,
