@@ -91,6 +91,14 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("PATCH", "/api/agents/connections/{conn_id}"): "the requester's own LLM credentials",
     ("DELETE", "/api/agents/connections/{conn_id}"): "the requester's own LLM credentials",
     ("POST", "/api/agents/connections/{conn_id}/test"): "probes the requester's own credential",
+    # Saved CSV import mappings are the requester's own, scoped by `user.id`
+    # and never by workspace (per-user by design): the same family as the
+    # agent connections above rather than workspace data.
+    ("POST", "/api/import-mappings"): "the requester's own saved CSV mappings",
+    ("POST", "/api/import-mappings/match"): "looks up the requester's own saved CSV mappings; writes nothing",
+    ("PATCH", "/api/import-mappings/{mapping_id}"): "the requester's own saved CSV mappings",
+    ("DELETE", "/api/import-mappings/{mapping_id}"): "the requester's own saved CSV mappings",
+    ("POST", "/api/import-mappings/{mapping_id}/touch"): "stamps the requester's own saved CSV mapping",
     # Global, not workspace data: FX rates are shared by the whole instance.
     # Any authenticated user may refresh them, and nothing per-workspace is
     # touched. Flagged here so a future rate limit or admin floor is a

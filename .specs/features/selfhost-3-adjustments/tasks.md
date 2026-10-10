@@ -494,10 +494,10 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Happy path, 409 duplicate, 422 invalid name, 404 other user's id, unauthenticated 401
-- [ ] New test `backend/tests/test_import_mappings_api.py`
-- [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
-- [ ] Test count: 8 new tests pass
+- [x] Happy path, 409 duplicate, 422 invalid name, 404 other user's id, unauthenticated 401
+- [x] New test `backend/tests/test_import_mappings_api.py`
+- [x] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
+- [x] Test count: 11 new tests pass (SPEC_DEVIATION: estimate was 8; parametrized name test, match, patch, touch, delete cases)
 
 **Tests**: integration
 **Gate**: Full
@@ -814,7 +814,7 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 - [ ] Confirm links the posted pairs (AC 6); 422 over 100 IDs (AC 7); read-only member rejected (AC 8)
 - [ ] Tests in new `backend/tests/test_transactions_bulk_transfer.py`
 - [ ] Gate passes: `cd backend && uv run pytest -q && uv run ruff check .`
-- [ ] Test count: 8 new tests pass
+- [ ] Test count: 11 new tests pass (SPEC_DEVIATION: estimate was 8; parametrized name test, match, patch, touch, delete cases)
 
 **Tests**: integration
 **Gate**: Full
