@@ -53,6 +53,7 @@ import { TransferDialog } from '@/components/transfer-dialog'
 import { useSidebarState } from '@/contexts/sidebar-state-context'
 import { cn } from '@/lib/utils'
 import { LinkTransferDialog } from '@/components/link-transfer-dialog'
+import { BulkTransferDialog } from '@/components/bulk-transfer-dialog'
 import { BulkAddToGroupDialog, type BulkAddToGroupSubmission } from '@/components/bulk-add-to-group-dialog'
 import { TransactionsFilterBar } from '@/components/transactions-filter-bar'
 import { TransactionCalendarView } from '@/components/transaction-calendar-view'
@@ -208,6 +209,7 @@ export default function TransactionsPage() {
   const [exporting, setExporting] = useState(false)
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [linkTransferDialogOpen, setLinkTransferDialogOpen] = useState(false)
+  const [bulkTransferOpen, setBulkTransferOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
   const grid = useTransactionsGridState()
@@ -1809,6 +1811,9 @@ export default function TransactionsPage() {
               }}
               onOpenGroup={() => setBulkAddToGroupOpen(true)}
               onOpenTransfer={() => setLinkTransferDialogOpen(true)}
+              onMarkTransfer={() => setBulkTransferOpen(true)}
+              markTransferDisabled={bulkIgnoreOverLimit}
+              markTransferHint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
               onCreateRule={selectedSingleTx && !selectedSingleTx.is_shared
                 ? () => handleCreateRuleFromTransaction(selectedSingleTx)
                 : undefined}
@@ -1950,6 +1955,19 @@ export default function TransactionsPage() {
               <span className="hidden lg:inline">{t('transactions.linkAsTransfer')}</span>
             </Button>
 
+            {/* Mark as transfer — pairs the selection automatically, capped at 100 ids */}
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulkIgnoreOverLimit}
+              title={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : t('transactions.bulkTransfer')}
+              onClick={() => setBulkTransferOpen(true)}
+              className="h-8 px-3 shrink-0 text-sm"
+            >
+              <ArrowLeftRight size={15} className="lg:mr-1.5" />
+              <span className="hidden lg:inline">{t('transactions.bulkTransfer')}</span>
+            </Button>
+
             <div className="w-px bg-border/60 self-stretch" />
 
             {/* Create Rule — only when exactly one non-shared transaction is selected */}
@@ -2039,6 +2057,17 @@ export default function TransactionsPage() {
       />
 
       {/* Link Transfer Dialog */}
+      <BulkTransferDialog
+        open={bulkTransferOpen}
+        onClose={() => setBulkTransferOpen(false)}
+        transactionIds={Array.from(selectedIds)}
+        rows={filteredItems}
+        onLinked={() => {
+          invalidateAfterTxMutation()
+          setSelectedIds(new Set())
+        }}
+      />
+
       <LinkTransferDialog
         open={linkTransferDialogOpen}
         onClose={() => setLinkTransferDialogOpen(false)}

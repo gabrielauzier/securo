@@ -916,12 +916,12 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Preview shows pairs and the unmatched/ambiguous/already-linked groups
-- [ ] Confirm refreshes the list and toasts the linked count
-- [ ] Action disabled with hint above 100 selected
-- [ ] Tests in new `frontend/src/pages/transactions-bulk-transfer.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/transactions-bulk-transfer.test.tsx && npm run lint && npm run typecheck`
-- [ ] Test count: 5 tests pass
+- [x] Preview shows pairs and the unmatched/ambiguous/already-linked groups
+- [x] Confirm refreshes the list and toasts the linked count
+- [x] Action disabled with hint above 100 selected
+- [x] Tests in new `frontend/src/pages/transactions-bulk-transfer.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/transactions-bulk-transfer.test.tsx && npm run lint && npm run typecheck`
+- [x] Test count: 5 tests pass
 
 **Tests**: unit
 **Gate**: Build

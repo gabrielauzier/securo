@@ -25,6 +25,9 @@ export type MobileBulkSelectionActionsProps = {
   onCategoryChange: (value: string) => void
   onOpenGroup: () => void
   onOpenTransfer: () => void
+  onMarkTransfer?: () => void
+  markTransferDisabled?: boolean
+  markTransferHint?: string
   onCreateRule?: () => void
   ignoreDisabled?: boolean
   ignoreHint?: string
@@ -105,6 +108,11 @@ function BulkActionItems(props: MobileBulkSelectionActionsProps) {
       <DropdownMenuItem disabled={props.transferDisabled} title={props.transferTitle} onSelect={props.onOpenTransfer}>
         <ArrowLeftRight size={15} />{t('transactions.linkAsTransfer')}
       </DropdownMenuItem>
+      {props.onMarkTransfer && (
+        <DropdownMenuItem disabled={props.markTransferDisabled} title={props.markTransferHint} onSelect={props.onMarkTransfer}>
+          <ArrowLeftRight size={15} />{t('transactions.bulkTransfer')}
+        </DropdownMenuItem>
+      )}
       {props.onCreateRule && <DropdownMenuItem onSelect={props.onCreateRule}><SlidersHorizontal size={15} />{t('transactions.createRule')}</DropdownMenuItem>}
       {props.onIgnore && (
         <>
