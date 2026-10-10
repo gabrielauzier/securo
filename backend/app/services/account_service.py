@@ -20,6 +20,7 @@ from app.services._query_filters import (
     is_confirmed,
     is_inside_provider_snapshot,
     is_not_future,
+    within_opening_floor,
 )
 from app.services.credit_card_service import apply_effective_date, compute_available_credit, get_cycle_dates
 from app.models.category import Category
@@ -73,6 +74,7 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
         .outerjoin(Category, Transaction.category_id == Category.id)
         .where(
             counts_in_current_balance(today),
+            within_opening_floor(today),
             Transaction.is_ignored == False,
             or_(
                 Transaction.category_id.is_(None),
@@ -96,6 +98,7 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
         .outerjoin(Category, Transaction.category_id == Category.id)
         .where(
             Transaction.date <= prev_month_end,
+            within_opening_floor(prev_month_end),
             Transaction.status == "posted",
             Transaction.is_ignored == False,
             or_(

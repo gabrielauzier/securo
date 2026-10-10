@@ -1502,3 +1502,141 @@ def test_clean_logo_url_drops_overlong_urls():
     assert _clean_logo_url("https://long.example/" + "a" * 500) is None
     assert _clean_logo_url("   ") is None
     assert _clean_logo_url(None) is None
+
+
+# ---------------------------------------------------------------------------
+# Opening balance floor (get_accounts)
+# Opening 1000 dated D; entries before D must not move the balance.
+# ---------------------------------------------------------------------------
+
+
+async def _balance_of(session: AsyncSession, workspace_id: uuid.UUID, account_id: uuid.UUID) -> dict:
+    accounts = await get_accounts(session, workspace_id)
+    return next(a for a in accounts if a["id"] == account_id)
+
+
+@pytest.mark.asyncio
+async def test_list_balance_ignores_expense_dated_before_opening(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Opening 1000 on D; expense 200 on D-5 -> current balance stays 1000."""
+    from app.core.app_clock import app_today
+    opening_day = app_today() - timedelta(days=5)
+    account = await _make_account(session, test_user.id, "Floor Before")
+    await _add_txn(session, test_user.id, account.id, 1000, "credit", opening_day, source="opening_balance")
+    await _add_txn(session, test_user.id, account.id, 200, "debit", opening_day - timedelta(days=5))
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    assert acc["current_balance"] == pytest.approx(1000.0)
+
+
+@pytest.mark.asyncio
+async def test_list_balance_counts_expense_dated_after_opening(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Opening 1000 on D; expense 200 on D+5 -> 800."""
+    from app.core.app_clock import app_today
+    opening_day = app_today() - timedelta(days=10)
+    account = await _make_account(session, test_user.id, "Floor After Debit")
+    await _add_txn(session, test_user.id, account.id, 1000, "credit", opening_day, source="opening_balance")
+    await _add_txn(session, test_user.id, account.id, 200, "debit", opening_day + timedelta(days=5))
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    assert acc["current_balance"] == pytest.approx(800.0)
+
+
+@pytest.mark.asyncio
+async def test_list_balance_counts_credit_dated_after_opening(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Opening 1000 on D; credit 200 on D+5 -> 1200."""
+    from app.core.app_clock import app_today
+    opening_day = app_today() - timedelta(days=10)
+    account = await _make_account(session, test_user.id, "Floor After Credit")
+    await _add_txn(session, test_user.id, account.id, 1000, "credit", opening_day, source="opening_balance")
+    await _add_txn(session, test_user.id, account.id, 200, "credit", opening_day + timedelta(days=5))
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    assert acc["current_balance"] == pytest.approx(1200.0)
+
+
+@pytest.mark.asyncio
+async def test_list_balance_counts_expense_dated_on_the_opening_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """A transaction dated exactly D is included: 1000 - 200 = 800."""
+    from app.core.app_clock import app_today
+    opening_day = app_today() - timedelta(days=5)
+    account = await _make_account(session, test_user.id, "Floor Same Day")
+    await _add_txn(session, test_user.id, account.id, 1000, "credit", opening_day, source="opening_balance")
+    await _add_txn(session, test_user.id, account.id, 200, "debit", opening_day)
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    assert acc["current_balance"] == pytest.approx(800.0)
+
+
+@pytest.mark.asyncio
+async def test_list_balance_applies_the_floor_to_credit_cards(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Card with opening debt 1000 on D: a purchase before D is ignored, one after D adds debt."""
+    from app.core.app_clock import app_today
+    opening_day = app_today() - timedelta(days=10)
+    card = await _make_account(session, test_user.id, "Floor Card", acc_type="credit_card")
+    await _add_txn(session, test_user.id, card.id, 1000, "debit", opening_day, source="opening_balance")
+    await _add_txn(session, test_user.id, card.id, 200, "debit", opening_day - timedelta(days=3))
+
+    before = await _balance_of(session, test_workspace.id, card.id)
+    assert before["current_balance"] == pytest.approx(-1000.0)
+
+    await _add_txn(session, test_user.id, card.id, 300, "debit", opening_day + timedelta(days=3))
+
+    after = await _balance_of(session, test_workspace.id, card.id)
+    assert after["current_balance"] == pytest.approx(-1300.0)
+
+
+@pytest.mark.asyncio
+async def test_list_balance_of_connected_account_is_unchanged_by_the_floor(
+    session: AsyncSession, test_user, test_workspace, test_connection
+):
+    """Provider balance 800; its synthetic opening row sits one day before the oldest
+    transaction, so the floor excludes nothing (previous_balance sums every row)."""
+    from app.core.app_clock import app_today
+    today = app_today()
+    prev_month_end = today.replace(day=1) - timedelta(days=1)
+    account = await _make_account(
+        session, test_user.id, "Connected Floor", balance="800.00",
+        connection_id=test_connection.id, external_id="ext-floor",
+    )
+    await _add_txn(session, test_user.id, account.id, 100, "debit", prev_month_end - timedelta(days=10))
+    await _add_txn(session, test_user.id, account.id, 500, "credit", today)
+    await sync_opening_balance_for_connected_account(session, account)
+    await session.commit()
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    # opening = 800 - (500 - 100) = 400; previous = 400 - 100 = 300
+    assert acc["current_balance"] == pytest.approx(800.0)
+    assert acc["previous_balance"] == pytest.approx(300.0)
+
+
+@pytest.mark.asyncio
+async def test_list_previous_balance_applies_the_floor(
+    session: AsyncSession, test_user, test_workspace
+):
+    """previous_balance (end of last month) also skips rows dated before the opening."""
+    from app.core.app_clock import app_today
+    prev_month_end = app_today().replace(day=1) - timedelta(days=1)
+    opening_day = prev_month_end - timedelta(days=3)
+    account = await _make_account(session, test_user.id, "Floor Previous")
+    await _add_txn(session, test_user.id, account.id, 1000, "credit", opening_day, source="opening_balance")
+    await _add_txn(session, test_user.id, account.id, 200, "debit", opening_day - timedelta(days=4))
+    await _add_txn(session, test_user.id, account.id, 50, "debit", opening_day + timedelta(days=1))
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    assert acc["previous_balance"] == pytest.approx(950.0)

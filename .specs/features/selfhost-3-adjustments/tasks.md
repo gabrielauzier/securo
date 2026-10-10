@@ -146,13 +146,13 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Opening 1000 on 10/10 + expense 200 on 05/10 → current balance 1000
-- [ ] Expense 200 on 15/10 → 800; credit 200 on 15/10 → 1200; same-day expense counts
-- [ ] Credit-card account follows the same rule
-- [ ] Connected account fixture returns the same balance as before the change
-- [ ] Tests added to `backend/tests/test_account_service.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_account_service.py tests/test_accounts_api.py -q`
-- [ ] Test count: existing + 6 new pass
+- [x] Opening 1000 on 10/10 + expense 200 on 05/10 → current balance 1000
+- [x] Expense 200 on 15/10 → 800; credit 200 on 15/10 → 1200; same-day expense counts
+- [x] Credit-card account follows the same rule
+- [x] Connected account fixture returns the same balance as before the change
+- [x] Tests added to `backend/tests/test_account_service.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_account_service.py tests/test_accounts_api.py -q`
+- [x] Test count: existing + 6 new pass
 
 **Tests**: unit
 **Gate**: Quick
