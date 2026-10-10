@@ -99,10 +99,10 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Upgrade backfills manual accounts and leaves connected ones and accounts with no opening transaction NULL
-- [ ] Downgrade drops the column
-- [ ] Verified on a scratch Postgres (pgvector image) stamped at 097: upgrade, downgrade, upgrade, with accounts seeded before the upgrade; balances compared before and after (scratch container removed afterwards)
-- [ ] Gate passes: Build (backend)
+- [x] Upgrade backfills manual accounts and leaves connected ones and accounts with no opening transaction NULL
+- [x] Downgrade drops the column
+- [x] Verified on a scratch Postgres (pgvector image) stamped at 097: upgrade, downgrade, upgrade, with accounts seeded before the upgrade; balances compared before and after (scratch container removed afterwards)
+- [x] Gate passes: Build (backend)
 
 **Tests**: none
 **Gate**: Build
