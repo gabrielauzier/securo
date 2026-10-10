@@ -175,11 +175,11 @@ T25 → T26 → T27 → T28 → T29 → T30 → T31 → T32 → T33
 
 **Done when**:
 
-- [ ] Summary `current_balance` equals the list balance for the same fixture
-- [ ] Connected accounts still return the provider balance
-- [ ] Tests added to `backend/tests/test_accounts_api.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_accounts_api.py -q`
-- [ ] Test count: existing + 3 new pass
+- [x] Summary `current_balance` equals the list balance for the same fixture
+- [x] Connected accounts still return the provider balance
+- [x] Tests added to `backend/tests/test_accounts_api.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_accounts_api.py -q`
+- [x] Test count: existing + 3 new pass
 
 **Tests**: integration
 **Gate**: Full

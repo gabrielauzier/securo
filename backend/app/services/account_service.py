@@ -712,6 +712,7 @@ async def get_account_summary(
             ).where(
                 Transaction.account_id == account_id,
                 is_not_future(today),
+                within_opening_floor(today),
                 # Same carve-out as the accounts list: a card's balance is the
                 # debt owed and an authorized purchase is already owed. The
                 # account is loaded here, so branch in Python rather than SQL.

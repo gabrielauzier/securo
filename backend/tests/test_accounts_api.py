@@ -747,3 +747,105 @@ async def test_get_account_bills_rejects_invalid_limit(
         f"/api/accounts/{cc.id}/bills", headers=auth_headers, params={"limit": 0},
     )
     assert resp.status_code == 422  # Query(ge=1) bound
+
+
+# ---------------------------------------------------------------------------
+# Opening balance floor (account summary)
+# ---------------------------------------------------------------------------
+
+from datetime import timedelta as _timedelta  # noqa: E402
+
+from app.core.app_clock import app_today as _app_today  # noqa: E402
+from app.models.transaction import Transaction as _Transaction  # noqa: E402
+
+
+async def _create_account_via_api(client, headers, name, acc_type, balance, balance_date):
+    resp = await client.post(
+        "/api/accounts",
+        headers=headers,
+        json={
+            "name": name,
+            "type": acc_type,
+            "balance": balance,
+            "currency": "BRL",
+            "balance_date": balance_date.isoformat(),
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
+
+
+async def _add_tx(session, test_user, account_id, amount, tx_type, tx_date):
+    session.add(
+        _Transaction(
+            id=_uuid.uuid4(), user_id=test_user.id, account_id=_uuid.UUID(account_id),
+            description="t", amount=_Decimal(str(amount)), date=tx_date, type=tx_type,
+            source="manual", status="posted", currency="BRL",
+        )
+    )
+    await session.commit()
+
+
+async def _list_balance(client, headers, account_id):
+    resp = await client.get("/api/accounts", headers=headers)
+    return next(a for a in resp.json() if a["id"] == account_id)["current_balance"]
+
+
+@pytest.mark.asyncio
+async def test_summary_balance_applies_opening_floor_and_matches_list(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """Opening 1000 on D: expense on D-5 is ignored (1000); expense on D+5 gives 800;
+    the summary equals the accounts list balance in both states."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Floor Summary", "checking", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day - _timedelta(days=5))
+
+    summary = (await client.get(f"/api/accounts/{account_id}/summary", headers=auth_headers)).json()
+    assert summary["current_balance"] == pytest.approx(1000.0)
+    assert summary["current_balance"] == pytest.approx(await _list_balance(client, auth_headers, account_id))
+
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day + _timedelta(days=5))
+
+    summary = (await client.get(f"/api/accounts/{account_id}/summary", headers=auth_headers)).json()
+    assert summary["current_balance"] == pytest.approx(800.0)
+    assert summary["current_balance"] == pytest.approx(await _list_balance(client, auth_headers, account_id))
+
+
+@pytest.mark.asyncio
+async def test_credit_card_summary_balance_applies_opening_floor(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """Card opening debt 1000 on D; purchase before D is ignored, so the summary stays -1000."""
+    opening_day = _app_today() - _timedelta(days=10)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Floor Card Summary", "credit_card", "1000.00", opening_day
+    )
+    await _add_tx(session, test_user, account_id, 200, "debit", opening_day - _timedelta(days=3))
+
+    summary = (await client.get(f"/api/accounts/{account_id}/summary", headers=auth_headers)).json()
+
+    assert summary["current_balance"] == pytest.approx(-1000.0)
+
+
+@pytest.mark.asyncio
+async def test_connected_account_summary_still_returns_provider_balance(
+    client: AsyncClient, auth_headers, session, test_user, test_account
+):
+    """Bank-connected account (stored balance 1500): rows dated before its opening row do not alter it."""
+    today = _app_today()
+    session.add(
+        _Transaction(
+            id=_uuid.uuid4(), user_id=test_user.id, account_id=test_account.id,
+            description="opening", amount=_Decimal("1500"), date=today - _timedelta(days=2),
+            type="credit", source="opening_balance", status="posted", currency="BRL",
+        )
+    )
+    await session.commit()
+    await _add_tx(session, test_user, str(test_account.id), 300, "debit", today - _timedelta(days=9))
+
+    summary = (await client.get(f"/api/accounts/{test_account.id}/summary", headers=auth_headers)).json()
+
+    assert summary["current_balance"] == pytest.approx(1500.0)
