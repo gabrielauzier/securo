@@ -65,6 +65,74 @@ describe('AccountDialog', () => {
     expectCreateDefaults()
   })
 
+  it('resets every field to its default when reopened in create mode', async () => {
+    vi.mocked(baseProps.onSave).mockClear()
+    const { user, rerender } = renderWithProviders(<AccountDialog {...baseProps} open account={null} />)
+    fireEvent.change(nameInput(), { target: { value: 'Previous account' } })
+    fireEvent.change(typeSelect(), { target: { value: 'credit_card' } })
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'USD' } })
+    fireEvent.change(balanceInput(), { target: { value: '123' } })
+    await user.click(screen.getByRole('button', { name: new RegExp(String(new Date().getFullYear())) }))
+    const todayDay = String(new Date().getDate())
+    const otherDay = (await screen.findAllByRole('button', { name: /^\d{1,2}$/ })).find(
+      (btn) => btn.textContent !== todayDay && !btn.hasAttribute('disabled'),
+    )!
+    await user.click(otherDay)
+    const [, creditLimit, closeDay, dueDay] = screen.getAllByRole('spinbutton')
+    fireEvent.change(creditLimit, { target: { value: '5000' } })
+    fireEvent.change(closeDay, { target: { value: '10' } })
+    fireEvent.change(dueDay, { target: { value: '20' } })
+
+    rerender(<AccountDialog {...baseProps} open={false} account={null} />)
+    rerender(<AccountDialog {...baseProps} open account={null} />)
+
+    expectCreateDefaults()
+    expect(screen.getAllByRole('combobox')[1]).toHaveValue('BRL')
+    // The credit-card fields are hidden again; switching the type must show them empty.
+    fireEvent.change(typeSelect(), { target: { value: 'credit_card' } })
+    const [, limitAgain, closeAgain, dueAgain] = screen.getAllByRole('spinbutton')
+    expect(limitAgain).toHaveValue(null)
+    expect(closeAgain).toHaveValue(null)
+    expect(dueAgain).toHaveValue(null)
+    fireEvent.change(nameInput(), { target: { value: 'Fresh' } })
+    fireEvent.submit(nameInput().closest('form')!)
+    const payload = vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
+    const now = new Date()
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+    expect(payload.balance_date).toBe(today)
+    expect(payload.currency).toBe('BRL')
+    expect(payload.balance).toBe(0)
+    expect(payload.credit_limit).toBeNull()
+    expect(payload.statement_close_day).toBeNull()
+    expect(payload.payment_due_day).toBeNull()
+  })
+
+  it('clears the display name when switching from a connected account to create mode', () => {
+    vi.mocked(baseProps.onSave).mockClear()
+    const connected = {
+      id: 'acc-9',
+      name: 'Bank',
+      display_name: 'Nickname',
+      type: 'checking',
+      balance: 10,
+      currency: 'BRL',
+      connection_id: 'conn-1',
+    } as unknown as Account
+    const { rerender } = renderWithProviders(<AccountDialog {...baseProps} open account={connected} />)
+    expect(screen.getByDisplayValue('Nickname')).toBeInTheDocument()
+
+    rerender(<AccountDialog {...baseProps} open={false} account={null} />)
+    rerender(<AccountDialog {...baseProps} open account={null} />)
+    fireEvent.change(nameInput(), { target: { value: 'Fresh' } })
+    fireEvent.submit(nameInput().closest('form')!)
+
+    expect(vi.mocked(baseProps.onSave).mock.calls.at(-1)![0].display_name).toBeNull()
+  })
+
   it('loads the selected account in edit mode', () => {
     const account = {
       id: 'acc-1',

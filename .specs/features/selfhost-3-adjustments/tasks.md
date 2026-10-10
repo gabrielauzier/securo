@@ -1069,6 +1069,21 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F8: Pin every reset field of the new-account dialog (FA4-FA10)
+
+**What**: Dialog test that fills every field, closes, reopens in create mode and asserts all nine fields are back to their defaults.
+**Where**: `frontend/src/pages/accounts-dialog.test.tsx`
+**Requirement**: ACC-01
+
+**Done when**:
+
+- [x] Currency, balance date, credit limit, close day and due day reset on reopen (FA7-FA10, FA5)
+- [x] Display name resets when switching from a connected account to create mode (FA4)
+
+**Commit**: `test(accounts): pin the full dialog reset on reopen`
+
+---
+
 ## Phase Execution Map
 
 ```
