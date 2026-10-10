@@ -1102,6 +1102,22 @@ Fixes from `validation.md` (iteration 1).
 
 ---
 
+### F10: Record the account-detail walk residual (documentation only)
+
+**What**: Log the running-balance walk difference across the opening date as an accepted default pending owner decision.
+**Where**: `spec.md`
+**Requirement**: BAL-02
+
+**Done when**:
+
+- [x] Assumptions row added with Confirmed? n
+- [x] `account-detail.tsx` untouched
+- [x] `validate_spec.py` exit 0
+
+**Commit**: `docs(specs): record account detail walk residual`
+
+---
+
 ## Phase Execution Map
 
 ```
