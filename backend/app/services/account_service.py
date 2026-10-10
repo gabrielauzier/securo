@@ -184,6 +184,7 @@ def serialize_account(
         "masked_number": acc.masked_number,
         "type": acc.type,
         "balance": acc.balance,
+        "balance_date": acc.balance_date,
         "currency": acc.currency,
         "current_balance": resolved_balance,
         "previous_balance": float(previous_balance or 0),

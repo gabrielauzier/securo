@@ -996,3 +996,44 @@ async def test_pre_opening_transaction_stays_listed_but_not_in_balance(
     dates = [t["date"] for t in resp.json()["items"]]
     assert (opening_day - _timedelta(days=5)).isoformat() in dates
     assert await _list_balance(client, auth_headers, account_id) == pytest.approx(1000.0)
+
+
+# ---------------------------------------------------------------------------
+# ABD-01: the account read model carries balance_date
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_account_responses_return_balance_date_null_when_unset(
+    client: AsyncClient, auth_headers, test_account: Account
+):
+    """ABD-01 AC8: balance_date is part of the list and detail responses, null when unset."""
+    listed = await client.get("/api/accounts", headers=auth_headers)
+    assert listed.status_code == 200
+    assert "balance_date" in listed.json()[0]
+    assert listed.json()[0]["balance_date"] is None
+
+    detail = await client.get(f"/api/accounts/{test_account.id}", headers=auth_headers)
+    assert detail.status_code == 200
+    assert "balance_date" in detail.json()
+    assert detail.json()["balance_date"] is None
+
+
+@pytest.mark.asyncio
+async def test_account_responses_return_the_stored_balance_date(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """ABD-01 AC8: a stored date is returned by list and detail as an ISO string."""
+    stored = _app_today() - _timedelta(days=3)
+    account = _Account(
+        id=_uuid.uuid4(), user_id=test_user.id,
+        name="Dated", type="checking", balance=_Decimal("0.00"), currency="BRL",
+        balance_date=stored,
+    )
+    session.add(account)
+    await session.commit()
+
+    listed = await client.get("/api/accounts", headers=auth_headers)
+    assert [a["balance_date"] for a in listed.json() if a["name"] == "Dated"] == [stored.isoformat()]
+    detail = await client.get(f"/api/accounts/{account.id}", headers=auth_headers)
+    assert detail.json()["balance_date"] == stored.isoformat()

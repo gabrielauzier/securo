@@ -55,6 +55,8 @@ class AccountRead(AccountBase):
     # accounts.
     institution_name: Optional[str] = None
     institution_logo_url: Optional[str] = None
+    # Date the stored balance refers to; null when unset (no floor).
+    balance_date: Optional[date] = None
     current_balance: float = 0.0
     previous_balance: Optional[float] = None
     balance_primary: Optional[float] = None

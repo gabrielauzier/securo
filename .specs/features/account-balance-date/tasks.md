@@ -125,9 +125,9 @@ T8 → T9 → T10
 
 **Done when**:
 
-- [ ] `AccountRead` includes `balance_date`; list and detail responses return it (serializer updated in the same commit)
-- [ ] Existing account API tests still pass
-- [ ] Gate passes: Full
+- [x] `AccountRead` includes `balance_date`; list and detail responses return it (serializer updated in the same commit)
+- [x] Existing account API tests still pass
+- [x] Gate passes: Full
 
 **Tests**: integration
 **Gate**: Full
