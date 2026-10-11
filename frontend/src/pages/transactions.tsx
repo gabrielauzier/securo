@@ -35,6 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, Eye, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
 import type { Transaction, Rule, InstallmentSeriesInput, TransactionApplyScope, TransactionEditPayload, ReconciliationSuggestion } from '@/types'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
@@ -84,6 +85,47 @@ function parseHashtags(notes: string | null): string[] {
 }
 
 const BULK_IGNORE_LIMIT = 100
+
+/**
+ * Icon-only action for the bulk selection bar. The tooltip trigger is a span
+ * so the hint still shows while the button is disabled (a disabled button
+ * swallows pointer events), which is when the reason matters most.
+ */
+function BulkIconButton({
+  label,
+  hint,
+  disabled,
+  onClick,
+  children,
+}: {
+  /** Accessible name: always the action itself. */
+  label: string
+  /** Tooltip text when it should say more than the label (e.g. why it is disabled). */
+  hint?: string
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex shrink-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onClick={onClick}
+            aria-label={label}
+            className="h-8 px-3 text-sm"
+          >
+            {children}
+          </Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{hint ?? label}</TooltipContent>
+    </Tooltip>
+  )
+}
 const HIDE_IGNORED_STORAGE_KEY = 'securo.transactions.hideIgnored'
 
 export default function TransactionsPage() {
@@ -1788,6 +1830,11 @@ export default function TransactionsPage() {
       {viewMode === 'list' && selectedIds.size > 0 && (
         <div className={cn(
           "fixed bottom-0 left-0 right-0 z-50",
+          // Opening a dialog locks page scroll and the scrollbar disappears,
+          // which would widen this full-width bar and slide it to the right.
+          // react-remove-scroll offsets elements carrying this class by the
+          // scrollbar width while the lock is on, so the bar stays put.
+          "right-scroll-bar-position",
           "transition-[left] duration-300 ease-in-out motion-reduce:transition-none",
           sidebarCollapsed ? 'lg:left-16' : 'lg:left-60',
         )}>
@@ -1880,17 +1927,13 @@ export default function TransactionsPage() {
 
             {/* Add to group — opens a dialog to configure share type and
                 members. Mirrors the per-tx splits options (issue #156). */}
-            <Button
-              size="sm"
-              variant="ghost"
+            <BulkIconButton
+              label={t('transactions.addToGroup')}
               disabled={bulkAddToGroupMutation.isPending}
               onClick={() => setBulkAddToGroupOpen(true)}
-              title={t('transactions.addToGroup')}
-              className="h-8 px-3 shrink-0 text-sm"
             >
-              <Users size={15} className="lg:mr-1.5" />
-              <span className="hidden lg:inline">{t('transactions.addToGroup')}</span>
-            </Button>
+              <Users size={15} />
+            </BulkIconButton>
 
             <div className="w-px bg-border/60 self-stretch" />
 
@@ -1943,30 +1986,24 @@ export default function TransactionsPage() {
             <div className="w-px bg-border/60 self-stretch" />
 
             {/* Link transfer */}
-            <Button
-              size="sm"
-              variant="ghost"
+            <BulkIconButton
+              label={t('transactions.linkAsTransfer')}
+              hint={linkDisabledTooltip}
               disabled={!canOpenLinkDialog}
-              title={linkDisabledTooltip ?? t('transactions.linkAsTransfer')}
               onClick={() => setLinkTransferDialogOpen(true)}
-              className="h-8 px-3 shrink-0 text-sm"
             >
-              <ArrowLeftRight size={15} className="mr-1.5" />
-              <span className="hidden lg:inline">{t('transactions.linkAsTransfer')}</span>
-            </Button>
+              <ArrowLeftRight size={15} />
+            </BulkIconButton>
 
             {/* Mark as transfer — pairs the selection automatically, capped at 100 ids */}
-            <Button
-              size="sm"
-              variant="ghost"
+            <BulkIconButton
+              label={t('transactions.bulkTransfer')}
+              hint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
               disabled={bulkIgnoreOverLimit}
-              title={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : t('transactions.bulkTransfer')}
               onClick={() => setBulkTransferOpen(true)}
-              className="h-8 px-3 shrink-0 text-sm"
             >
-              <ArrowLeftRight size={15} className="lg:mr-1.5" />
-              <span className="hidden lg:inline">{t('transactions.bulkTransfer')}</span>
-            </Button>
+              <ArrowLeftRight size={15} />
+            </BulkIconButton>
 
             <div className="w-px bg-border/60 self-stretch" />
 
@@ -1975,42 +2012,32 @@ export default function TransactionsPage() {
               const selectedTx = filteredItems.find(tx => selectedIds.has(tx.id))
               if (!selectedTx || selectedTx.is_shared) return null
               return (
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <BulkIconButton
+                  label={t('transactions.createRule')}
                   onClick={() => handleCreateRuleFromTransaction(selectedTx)}
-                  className="h-8 px-3 shrink-0 text-sm"
-                  title={t('transactions.createRule')}
                 >
-                  <SlidersHorizontal size={15} className="lg:mr-1.5" />
-                  <span className="hidden lg:inline">{t('transactions.createRule')}</span>
-                </Button>
+                  <SlidersHorizontal size={15} />
+                </BulkIconButton>
               )
             })()}
 
             {/* Ignore / Stop ignoring — explicit state, capped at 100 per request */}
-            <Button
-              size="sm"
-              variant="ghost"
+            <BulkIconButton
+              label={t('transactions.bulkIgnore')}
+              hint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
               disabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
               onClick={() => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored: true })}
-              title={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : t('transactions.bulkIgnore')}
-              className="h-8 px-3 shrink-0 text-sm"
             >
-              <EyeClosed size={15} className="lg:mr-1.5" />
-              <span className="hidden lg:inline">{t('transactions.bulkIgnore')}</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
+              <EyeClosed size={15} />
+            </BulkIconButton>
+            <BulkIconButton
+              label={t('transactions.bulkUnignore')}
+              hint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
               disabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
               onClick={() => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored: false })}
-              title={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : t('transactions.bulkUnignore')}
-              className="h-8 px-3 shrink-0 text-sm"
             >
-              <Eye size={15} className="lg:mr-1.5" />
-              <span className="hidden lg:inline">{t('transactions.bulkUnignore')}</span>
-            </Button>
+              <Eye size={15} />
+            </BulkIconButton>
             {bulkIgnoreOverLimit && (
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {t('transactions.bulkLimitHint')}

@@ -125,6 +125,18 @@ describe('transactions page bulk ignore (IGN-01)', () => {
     )
   })
 
+  it('keeps the bar offset by the scrollbar width while a dialog locks page scroll', async () => {
+    api.list.mockResolvedValue(listOf(3))
+    const { user } = renderWithProviders(<TransactionsPage />)
+
+    await selectFirstRows(user, 1)
+
+    // react-remove-scroll shifts only elements carrying this class, so without it the
+    // full-width bar widens when the scrollbar disappears and slides to the right.
+    const bar = screen.getByRole('button', { name: t('transactions.bulkIgnore') }).closest('.fixed')
+    expect(bar).toHaveClass('right-scroll-bar-position')
+  })
+
   it('Stop ignoring sends the selected ids with ignored=false', async () => {
     api.list.mockResolvedValue(listOf(3))
     const { user } = renderWithProviders(<TransactionsPage />)
