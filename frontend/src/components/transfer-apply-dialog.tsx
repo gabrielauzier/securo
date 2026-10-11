@@ -62,7 +62,7 @@ export function TransferApplyDialog({ open, onClose }: { open: boolean; onClose:
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) close() }}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-3xl [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle>{t('reconciliation.applyNowTitle')}</DialogTitle>
           <DialogDescription>{t('reconciliation.applyNowDescription')}</DialogDescription>

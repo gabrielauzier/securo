@@ -30,7 +30,7 @@ function IdList({ title, ids, rows }: { title: string; ids: string[]; rows: Tran
           const row = rows.find((tx) => tx.id === id)
           return (
             <li key={id} className="flex justify-between gap-3 px-3 py-1.5">
-              <span className="truncate">{row?.description ?? id}</span>
+              <span className="min-w-0 flex-1 truncate" title={row?.description ?? id}>{row?.description ?? id}</span>
               {row && <span className="shrink-0 text-xs text-muted-foreground">{row.date}</span>}
             </li>
           )
@@ -91,7 +91,7 @@ export function BulkTransferDialog({ open, onClose, transactionIds, rows, onLink
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) close() }}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-3xl [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle>{t('transactions.bulkTransferTitle')}</DialogTitle>
           <DialogDescription>{t('transactions.bulkTransferDescription')}</DialogDescription>

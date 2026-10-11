@@ -149,6 +149,8 @@ describe('transactions page bulk mark as transfer (BTR-01)', () => {
     const dialog = await screen.findByRole('dialog')
     await within(dialog).findByText(t('transactions.bulkTransferUnmatched'), { exact: false })
     expect(api.bulkTransferPreview).toHaveBeenCalledWith(['tx-1', 'tx-2', 'tx-3', 'tx-4', 'tx-5'])
+    // The base dialog caps width at sm:max-w-lg; the pair table and id lists need the wider cap to fit.
+    expect(dialog.className).toContain('sm:max-w-3xl')
     expect(within(dialog).getByText(t('transactions.bulkTransferAmbiguous'), { exact: false })).toBeInTheDocument()
     expect(within(dialog).getByText(t('transactions.bulkTransferAlreadyLinked'), { exact: false })).toBeInTheDocument()
     expect(within(dialog).getByText('Purchase 3')).toBeInTheDocument()

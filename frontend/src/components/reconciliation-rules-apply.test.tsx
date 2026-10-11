@@ -69,6 +69,8 @@ describe('transfer rule apply now (TRF-01)', () => {
 
     expect(await screen.findByText('Sent 1')).toBeInTheDocument()
     expect(screen.getByText('Received 2')).toBeInTheDocument()
+    // The base dialog caps width at sm:max-w-lg; the preview table needs the wider cap to fit.
+    expect(screen.getByRole('dialog').className).toContain('sm:max-w-3xl')
     expect(api.previewTransfers).toHaveBeenCalledTimes(1)
     expect(api.applyTransfers).not.toHaveBeenCalled()
   })
