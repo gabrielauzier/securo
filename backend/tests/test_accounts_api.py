@@ -1221,3 +1221,79 @@ async def test_patch_account_api_rejects_an_invalid_balance_date(
     assert resp.status_code == 422
     detail = await client.get(f"/api/accounts/{account_id}", headers=auth_headers)
     assert detail.json()["balance_date"] == opening_day.isoformat()
+
+
+async def _opening_tx_count(session, account_id):
+    from sqlalchemy import select as _select
+    rows = (
+        await session.execute(
+            _select(_Transaction).where(
+                _Transaction.account_id == _uuid.UUID(account_id),
+                _Transaction.source == "opening_balance",
+            )
+        )
+    ).scalars().all()
+    return len(rows)
+
+
+@pytest.mark.asyncio
+async def test_patch_account_api_zero_balance_with_date_stores_date_and_deletes_opening(
+    client: AsyncClient, auth_headers, session
+):
+    """ABD-01 AC11 over HTTP: balance 0 plus D stores D and deletes the opening tx."""
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Zero Patch", "checking", "500.00", _app_today() - _timedelta(days=20)
+    )
+    assert await _opening_tx_count(session, account_id) == 1
+    new_day = _app_today() - _timedelta(days=4)
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}", headers=auth_headers,
+        json={"balance": "0.00", "balance_date": new_day.isoformat()},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["balance_date"] == new_day.isoformat()
+    assert await _opening_tx_count(session, account_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_patch_account_api_zero_balance_with_date_on_undated_account(
+    client: AsyncClient, auth_headers, session
+):
+    """ABD-01 AC11 over HTTP: NULL date and no opening tx: balance 0 plus D stores D."""
+    created = await client.post(
+        "/api/accounts", headers=auth_headers,
+        json={"name": "Undated Patch", "type": "checking", "balance": "0.00", "currency": "BRL"},
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["balance_date"] is None
+    account_id = created.json()["id"]
+    new_day = _app_today() - _timedelta(days=6)
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}", headers=auth_headers,
+        json={"balance": "0.00", "balance_date": new_day.isoformat()},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["balance_date"] == new_day.isoformat()
+    assert await _opening_tx_count(session, account_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_patch_account_api_null_balance_date_leaves_the_stored_date(
+    client: AsyncClient, auth_headers
+):
+    """ABD-01 AC12: PATCH with balance_date null changes nothing."""
+    stored = _app_today() - _timedelta(days=8)
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Null Patch", "checking", "100.00", stored
+    )
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}", headers=auth_headers, json={"balance_date": None},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["balance_date"] == stored.isoformat()

@@ -399,3 +399,33 @@ Findings from `validation.md` (iteration 1).
 - [x] Gate passes: backend pytest, ruff, ty
 
 **Commit**: `test(reports): keep connected accounts out of the balance reset notice`
+
+### F5: Zero-balance update with a date (WARNING N1, flags P1/P2)
+
+**What**: Spec AC11 (balance 0 plus date stores the date and deletes the opening tx) and AC12 (explicit null date is a documented no-op); tests kill mutant U13.
+**Where**: `spec.md`, `backend/tests/test_account_service.py`, `backend/tests/test_accounts_api.py`
+**Requirement**: ABD-01 AC4/AC6/AC11/AC12
+
+**Done when**:
+
+- [x] spec.md updated and validate_spec exits 0
+- [x] Service and PATCH tests: balance 0 plus D with and without an existing opening tx; null date leaves the stored date
+- [x] Mutant U13 (date ignored when balance is 0) fails the new tests
+- [x] Gate passes: backend pytest, ruff, ty
+
+**Commit**: `test(accounts): cover a zero-balance update that carries a balance date`
+
+### F5: Zero-balance update with a date (WARNING N1, flags P1/P2)
+
+**What**: Spec AC11 (balance 0 plus date stores the date and deletes the opening tx) and AC12 (explicit null date is a documented no-op); tests kill mutant U13.
+**Where**: `spec.md`, `backend/tests/test_account_service.py`, `backend/tests/test_accounts_api.py`
+**Requirement**: ABD-01 AC4/AC6/AC11/AC12
+
+**Done when**:
+
+- [x] spec.md updated and validate_spec exits 0
+- [x] Service and PATCH tests: balance 0 plus D with and without an existing opening tx; null date leaves the stored date
+- [x] Mutant U13 (date ignored when balance is 0) fails the new tests
+- [x] Gate passes: backend pytest, ruff, ty
+
+**Commit**: `test(accounts): cover a zero-balance update that carries a balance date`
