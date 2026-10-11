@@ -385,3 +385,17 @@ Findings from `validation.md` (iteration 1).
 - [x] Gate passes: `pytest tests/test_account_balance_date_migration.py`, ruff, ty
 
 **Commit**: `test(accounts): cover the balance date backfill migration`
+
+### F4: Edge-case and connected-guard coverage (WARNING 3, SUGGESTION 4)
+
+**What**: Pin that a bank-connected account with a stored `balance_date` is not listed as a balance reset. The reworded sequential-write edge case is covered by `test_sequential_writes_keep_account_and_opening_dates_equal`, added with F1.
+**Where**: `backend/tests/test_report_service.py`
+**Requirement**: ABD-01 AC9, ABD-02 AC6/AC7
+
+**Done when**:
+
+- [x] A connected account with a non-NULL `balance_date` is not listed by `_find_balance_resets` (mutant dropping the `connection_id` guard is killed)
+- [x] Sequential writes keep account and opening dates equal after each write
+- [x] Gate passes: backend pytest, ruff, ty
+
+**Commit**: `test(reports): keep connected accounts out of the balance reset notice`

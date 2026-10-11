@@ -3009,6 +3009,38 @@ async def test_net_worth_report_connected_account_is_not_a_reset(
 
 
 @pytest.mark.asyncio
+async def test_net_worth_report_connected_account_with_a_saved_date_is_not_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC9 / ABD-02 AC6: a bank-connected account is never listed, even if its
+    balance_date were set, because the provider stays the source of the balance."""
+    today = date.today()
+    conn = BankConnection(
+        id=uuid.uuid4(), user_id=test_user.id, provider="test",
+        external_id="ext-reset-dated", institution_name="Bank",
+        credentials={}, status="active",
+        last_sync_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(conn)
+    await session.flush()
+    account = Account(
+        id=uuid.uuid4(), user_id=test_user.id, connection_id=conn.id,
+        name="Connected Dated", type="checking", balance=Decimal("500"), currency="BRL",
+        balance_date=today - timedelta(days=10),
+    )
+    session.add(account)
+    await session.commit()
+    await _create_transaction(session, test_user.id, account.id, 50, "debit", today - timedelta(days=40))
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
 async def test_net_worth_report_lists_saved_date_without_an_opening_row(
     session: AsyncSession, test_user, test_workspace
 ):
