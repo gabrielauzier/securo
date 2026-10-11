@@ -5,6 +5,7 @@ secrets/
 .DS_Store
 .playwright-mcp/
 .claude
+.agents
 .mcp.json
 CLAUDE.md
 docs/plans/
