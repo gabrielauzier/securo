@@ -371,3 +371,17 @@ Findings from `validation.md` (iteration 1).
 - [x] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx && npm run typecheck && npm run lint`
 
 **Commit**: `fix(accounts): send the balance date on create only when it matters`
+
+### F3: Automated test for the migration 098 backfill (WARNING 2)
+
+**What**: Run the real `upgrade()`/`downgrade()` of migration 098 against sqlite with seeded accounts.
+**Where**: `backend/tests/test_account_balance_date_migration.py`
+**Requirement**: ABD-03 AC1-AC3
+
+**Done when**:
+
+- [x] Latest opening date wins; one opening row; no opening row stays NULL; connected stays NULL; downgrade drops the column
+- [x] Mutants killed (max to min, dropped connection filter, dropped source filter)
+- [x] Gate passes: `pytest tests/test_account_balance_date_migration.py`, ruff, ty
+
+**Commit**: `test(accounts): cover the balance date backfill migration`
