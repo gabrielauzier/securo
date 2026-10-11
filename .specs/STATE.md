@@ -21,10 +21,10 @@
 ## Handoff
 
 - **Feature**: .specs/features/account-balance-date
-- **Phase / Task**: Done (T1-T10), pending feature-level validation
-- **Completed**: T1-T10
+- **Phase / Task**: Done (T1-T10 + verification fixes F1-F6), validation.md PASS
+- **Completed**: T1-T10, F1-F6
 - **In-progress** (file:line): none
-- **Next step**: Verifier run (validation.md), then the owner reviews the branch; push, tag and deploy are not authorized yet
+- **Next step**: owner reviews the branch and opens the PR (not pushed yet); it is stacked on feat/selfhost-3-adjustments (PR #2), so merge #2 first or target that branch
 - **Blockers**: none
 - **Uncommitted files**: .gitignore, frontend/package-lock.json (pre-existing, not ours)
 - **Branch**: feat/account-balance-date
