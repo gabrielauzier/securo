@@ -275,15 +275,56 @@ async def test_create_account_zero_balance_keeps_the_date_without_opening(
 
 
 @pytest.mark.asyncio
-async def test_create_account_zero_balance_without_date_stores_today(
+async def test_create_account_zero_balance_without_date_leaves_it_null(
     session: AsyncSession, test_user, test_workspace
 ):
-    """ABD-01 AC2 + AC3: balance 0 and no date stores today and creates no opening transaction."""
+    """ABD-01 AC10: balance 0 and no date leaves balance_date NULL and creates no opening transaction."""
     data = AccountCreate(name="Zero Undated", type="checking", balance=Decimal("0.00"), currency="BRL")
     account = await create_account(session, test_workspace.id, test_user.id, data)
 
-    assert account.balance_date == app_today()
+    assert account.balance_date is None
     assert await _opening_of(session, account.id) is None
+
+
+@pytest.mark.asyncio
+async def test_create_account_explicit_null_date_counts_as_not_sent(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC10: an explicit null balance_date with balance 0 behaves as not sent."""
+    data = AccountCreate(
+        name="Zero Null", type="checking", balance=Decimal("0.00"), currency="BRL", balance_date=None
+    )
+    account = await create_account(session, test_workspace.id, test_user.id, data)
+
+    assert account.balance_date is None
+
+
+@pytest.mark.asyncio
+async def test_sequential_writes_keep_account_and_opening_dates_equal(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Edge case: after each of two sequential writes the account and its opening tx share the date."""
+    first = app_today() - timedelta(days=8)
+    second = app_today() - timedelta(days=3)
+    account = await create_account(
+        session, test_workspace.id, test_user.id,
+        AccountCreate(name="Seq", type="checking", balance=Decimal("100.00"), currency="BRL"),
+    )
+
+    updated = await update_account(
+        session, account.id, test_workspace.id,
+        AccountUpdate(balance=Decimal("200.00"), balance_date=first),
+    )
+    assert updated is not None
+    assert updated.balance_date == first
+    assert (await _opening_of(session, account.id)).date == first
+
+    updated = await update_account(
+        session, account.id, test_workspace.id, AccountUpdate(balance_date=second)
+    )
+    assert updated is not None
+    assert updated.balance_date == second
+    assert (await _opening_of(session, account.id)).date == second
 
 
 # ---------------------------------------------------------------------------

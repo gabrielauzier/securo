@@ -29,13 +29,13 @@ The "balance date" chosen in the add/edit account dialog is not stored on the ac
 | --------------------- | -------------- | --------- | ---------- |
 | Where the date lives | New nullable column `accounts.balance_date` (DATE) | Survives balance 0, date-only edits and re-creation of the synthetic row | y |
 | `NULL` meaning | No floor (sum every countable transaction) | Matches pre-B2 behavior for accounts with no opening date | y |
-| Saldo 0 with a chosen date | Date is saved and the floor applies; no opening transaction is created | Owner approved the proposal (Q1) | y |
+| Saldo 0 with a chosen date | An explicitly chosen date is saved and the floor applies; no opening transaction is created | Owner approved the proposal (Q1) | y |
 | Edit without touching the date | The stored date is kept; it changes only when the user changes it | Owner approved (Q2) | y |
 | Backfill | Manual accounts get the latest `opening_balance` transaction date; others stay NULL | Same date the floor uses today, so displayed balances do not change (Q3) | y |
 | Bank-connected accounts | `balance_date` stays NULL and is ignored | Owner approved (Q4) | y |
 | Future date | Accepted; the floor takes effect when the date arrives (a cutoff before it reads full history) | Owner approved (Q5) | y |
 | Account vs opening transaction | The account is the source of truth; every write updates both in the same commit | Avoids drift | y |
-| Create with no date sent | Default is today (`app_today()`) | Current behavior | y |
+| Create with no date sent | Non-zero balance: today (`app_today()`) with the opening transaction dated today. Balance 0: `balance_date` stays NULL (no floor, as in the previous release); an explicit null counts as not sent | Owner decision after verification: a default floor on a zero-balance account silently dropped imported history | y |
 | Floor read path | `within_opening_floor(cutoff)` keeps its signature and reads `Account.balance_date` through a correlated scalar subquery on `accounts` (no new joins in callers) | Smallest change for the 10 existing call sites | y |
 
 **Open questions:** none - all resolved or logged above.
@@ -53,8 +53,9 @@ The "balance date" chosen in the add/edit account dialog is not stored on the ac
 **Acceptance Criteria**:
 
 1. WHEN a manual account is created with a balance date D THEN the system SHALL store `balance_date = D` on the account.
-2. WHEN a manual account is created without a balance date THEN the system SHALL store `balance_date` as today's date.
+2. WHEN a manual account is created without a balance date and with a non-zero balance THEN the system SHALL store `balance_date` as today's date and SHALL create the opening-balance transaction dated today.
 3. WHEN a manual account is created with balance 0 and a date D THEN the system SHALL store `balance_date = D` and SHALL NOT create an opening-balance transaction.
+10. WHEN a manual account is created with balance 0 and no balance date THEN the system SHALL leave `balance_date` NULL and SHALL NOT create an opening-balance transaction.
 4. WHEN a manual account is updated with a new balance date D THEN the system SHALL store `balance_date = D` and SHALL set the existing opening-balance transaction's date to D.
 5. WHEN a manual account is updated with a balance (non-zero) and no date THEN the system SHALL keep the stored `balance_date` and SHALL create or update the opening-balance transaction dated at that stored date (today if the account has none).
 6. WHEN a manual account is updated to balance 0 THEN the system SHALL delete the opening-balance transaction and SHALL keep `balance_date`.
@@ -77,6 +78,7 @@ The "balance date" chosen in the add/edit account dialog is not stored on the ac
 1. WHILE an account has `balance_date` D the system SHALL count, in the accounts-list balance and `previous_balance`, the account summary current balance and window opening balance, the balance history, and dashboard, goal and report snapshots, only transactions dated on or after D when the cutoff is on or after D.
 2. WHEN the cutoff is before D THEN the system SHALL include every countable transaction up to the cutoff.
 3. WHILE `balance_date` is null the system SHALL sum every countable transaction.
+8. WHILE `balance_date` is null, transactions of any date (e.g. imported history) SHALL count in the balance.
 4. WHILE an account has `balance_date` D and no opening-balance transaction the system SHALL still apply the floor (balance 0 at D).
 5. WHEN `balance_date` changes THEN the next balance read SHALL reflect the new floor.
 6. WHERE the account is bank-connected the system SHALL return the same balances as before this change.
@@ -111,6 +113,7 @@ The "balance date" chosen in the add/edit account dialog is not stored on the ac
 3. WHEN the create dialog opens THEN the system SHALL show today's date.
 4. The dialog SHALL show a hint under the field that transactions before this date do not change the balance.
 5. WHEN the user changes only the account name THEN the system SHALL NOT send `balance` or `balance_date`.
+7. WHEN the create dialog is submitted with balance 0 and an untouched date THEN the system SHALL NOT send `balance_date`; WHEN the date was changed, or the balance is non-zero, THEN the system SHALL send the date shown.
 6. The hint SHALL exist in all supported locales.
 
 **Independent Test**: Open edit for an account with date 10/10: the field shows 10/10.
@@ -120,7 +123,7 @@ The "balance date" chosen in the add/edit account dialog is not stored on the ac
 ## Edge Cases
 
 - IF `balance_date` is sent as an invalid date THEN the system SHALL reject it with HTTP 422.
-- WHEN two requests update the same account concurrently THEN the last committed write SHALL win and the account and its opening transaction SHALL still carry the same date.
+- WHEN an account is written twice in sequence THEN the account and its opening transaction SHALL carry the same date after each write.
 - WHEN the opening-balance transaction exists with a different date than the account THEN the system SHALL treat the account's `balance_date` as authoritative.
 
 ---

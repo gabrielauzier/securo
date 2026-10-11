@@ -1093,6 +1093,53 @@ async def test_create_account_api_without_date_returns_today(
 
 
 @pytest.mark.asyncio
+async def test_create_account_api_zero_balance_without_date_leaves_it_null(
+    client: AsyncClient, auth_headers
+):
+    """ABD-01 AC10 over HTTP: balance 0 and no date returns a null balance_date."""
+    resp = await client.post(
+        "/api/accounts",
+        headers=auth_headers,
+        json={"name": "Zero", "type": "checking", "balance": "0", "currency": "BRL"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["balance_date"] is None
+
+
+@pytest.mark.asyncio
+async def test_zero_balance_account_without_date_counts_imported_history(
+    client: AsyncClient, auth_headers
+):
+    """ABD-02 AC8: a balance-0 account created without a date has no floor, so a
+    credit dated 30 days ago and a debit today both count (1000 - 10 = 990)."""
+    resp = await client.post(
+        "/api/accounts",
+        headers=auth_headers,
+        json={"name": "History", "type": "checking", "balance": "0", "currency": "BRL"},
+    )
+    assert resp.status_code == 201, resp.text
+    account_id = resp.json()["id"]
+    assert resp.json()["balance_date"] is None
+
+    today = _app_today()
+    for amount, tx_type, tx_date in (
+        ("1000.00", "credit", today - _timedelta(days=30)),
+        ("10.00", "debit", today),
+    ):
+        tx = await client.post(
+            "/api/transactions",
+            headers=auth_headers,
+            json={"account_id": account_id, "description": "t", "amount": amount,
+                  "date": tx_date.isoformat(), "type": tx_type},
+        )
+        assert tx.status_code == 201, tx.text
+
+    assert _Decimal(str(await _list_balance(client, auth_headers, account_id))) == _Decimal("990")
+    detail = await client.get(f"/api/accounts/{account_id}", headers=auth_headers)
+    assert detail.json()["balance_date"] is None
+
+
+@pytest.mark.asyncio
 async def test_create_account_api_rejects_an_invalid_balance_date(
     client: AsyncClient, auth_headers
 ):

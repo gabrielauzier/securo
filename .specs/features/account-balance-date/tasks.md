@@ -336,3 +336,24 @@ Phase 3:  T8 → T9 → T10
 ```
 
 10 tasks in 3 phases: packed as 2 batches (Phase 1 = 5 tasks; Phases 2+3 = 5 tasks).
+
+---
+
+## Verification Fixes
+
+Findings from `validation.md` (iteration 1).
+
+### F1: Zero-balance create must not add a floor (CRITICAL gap 1)
+
+**What**: Per the owner decision, create stores a date only when the request carries one or the balance is non-zero; otherwise `balance_date` stays NULL. Spec updated first.
+**Where**: `spec.md`, `backend/app/services/account_service.py`, `backend/tests/test_account_service.py`, `backend/tests/test_accounts_api.py`
+**Requirement**: ABD-01 AC2/AC3/AC10, ABD-02 AC8
+
+**Done when**:
+
+- [x] spec.md updated (ABD-01 AC2/AC3/AC10, ABD-02 AC8, assumptions, edge case) and validate_spec exits 0
+- [x] Balance-0 create without a date leaves `balance_date` NULL; explicit date with balance 0 stores it; non-zero without a date stores today
+- [x] API regression: balance-0 account, 1000 credit 30 days ago + 10 debit today gives balance 990
+- [x] Gate passes: backend pytest, ruff, ty
+
+**Commit**: `fix(accounts): leave the balance date empty on a zero-balance create`

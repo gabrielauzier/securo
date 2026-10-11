@@ -265,13 +265,24 @@ async def create_account(
     data: AccountCreate,
 ) -> Account:
     is_cc = data.type == "credit_card"
+    # A floor is created only when the user chose a date or opened the account
+    # with a balance. A zero-balance account without a chosen date keeps
+    # balance_date NULL so imported history still counts (an explicit null in
+    # the payload counts as not sent).
+    explicit_date = data.balance_date if "balance_date" in data.model_fields_set else None
+    if explicit_date is not None:
+        opening_date = explicit_date
+    elif data.balance != Decimal("0.00"):
+        opening_date = app_today()
+    else:
+        opening_date = None
     account = Account(
         user_id=user_id,
         workspace_id=workspace_id,
         name=data.name,
         type=data.type,
         balance=data.balance,
-        balance_date=data.balance_date or app_today(),
+        balance_date=opening_date,
         currency=data.currency,
         credit_limit=data.credit_limit if is_cc else None,
         statement_close_day=data.statement_close_day if is_cc else None,
