@@ -429,3 +429,20 @@ Findings from `validation.md` (iteration 1).
 - [x] Gate passes: backend pytest, ruff, ty
 
 **Commit**: `test(accounts): cover a zero-balance update that carries a balance date`
+
+### F6: Future date, report window end and credit-card coverage (N7, N8, N9)
+
+**What**: Spec AC13 (future date accepted on create and update; reads before it see full history), the day-after-window-end case of the reset notice, and credit-card variants of the date tests; kills mutants M11, M13, M8 (M10, M12 by the card tests).
+**Where**: `spec.md`, `backend/tests/test_account_service.py`, `backend/tests/test_accounts_api.py`, `backend/tests/test_report_service.py`
+**Requirement**: ABD-01 AC1/AC4/AC10/AC13, ABD-04 reset notice window
+
+**Done when**:
+
+- [x] spec.md updated and validate_spec exits 0
+- [x] Service and API tests: future date stored on create and update, balance read before it counts history
+- [x] Report test: a balance date the day after the window end is not listed
+- [x] Credit-card create, zero-balance and date-only update tests
+- [x] Mutants M11, M13, M8 fail the new tests
+- [x] Gate passes: backend pytest, ruff, ty
+
+**Commit**: `test(accounts): cover future balance dates, the window end boundary and credit cards`

@@ -249,6 +249,105 @@ async def test_create_account_stores_the_given_balance_date(session: AsyncSessio
 
 
 @pytest.mark.asyncio
+async def test_create_account_accepts_a_future_balance_date(session: AsyncSession, test_user, test_workspace):
+    """ABD-01 AC13 (Q5): a future date is stored as given, not clamped to today."""
+    future = app_today() + timedelta(days=5)
+    account = await create_account(
+        session, test_workspace.id, test_user.id,
+        AccountCreate(name="Future", type="checking", balance=Decimal("300.00"),
+                      currency="BRL", balance_date=future),
+    )
+
+    assert account.balance_date == future
+    assert (await _opening_of(session, account.id)).date == future
+
+
+@pytest.mark.asyncio
+async def test_update_account_accepts_a_future_balance_date(session: AsyncSession, test_user, test_workspace):
+    """ABD-01 AC13 (Q5): a future date on update is stored and moves the opening tx."""
+    account = await create_account(
+        session, test_workspace.id, test_user.id,
+        AccountCreate(name="Future Update", type="checking", balance=Decimal("300.00"),
+                      currency="BRL", balance_date=app_today() - timedelta(days=7)),
+    )
+    future = app_today() + timedelta(days=5)
+
+    updated = await update_account(
+        session, account.id, test_workspace.id, AccountUpdate(balance_date=future)
+    )
+
+    assert updated is not None
+    assert updated.balance_date == future
+    assert (await _opening_of(session, account.id)).date == future
+
+
+@pytest.mark.asyncio
+async def test_balance_read_before_a_future_balance_date_includes_history(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC13 (Q5): the floor is not in effect yet, so today's balance counts every row."""
+    account = await create_account(
+        session, test_workspace.id, test_user.id,
+        AccountCreate(name="Future Read", type="checking", balance=Decimal("0.00"),
+                      currency="BRL", balance_date=app_today() + timedelta(days=5)),
+    )
+    await _add_txn(session, test_user.id, account.id, 100, "credit", app_today() - timedelta(days=3))
+
+    acc = await _balance_of(session, test_workspace.id, account.id)
+
+    assert acc["current_balance"] == pytest.approx(100.0)
+
+
+@pytest.mark.asyncio
+async def test_create_credit_card_stores_the_given_balance_date(session: AsyncSession, test_user, test_workspace):
+    """ABD-01 AC1 for a credit card: explicit date stored; the opening tx carries it."""
+    chosen = app_today() - timedelta(days=9)
+    account = await create_account(
+        session, test_workspace.id, test_user.id,
+        AccountCreate(name="Card Dated", type="credit_card", balance=Decimal("300.00"),
+                      currency="BRL", balance_date=chosen),
+    )
+
+    assert account.balance_date == chosen
+    assert (await _opening_of(session, account.id)).date == chosen
+
+
+@pytest.mark.asyncio
+async def test_create_credit_card_zero_balance_has_no_opening_and_no_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC10 for a credit card: balance 0 without a date leaves balance_date NULL, no opening tx."""
+    account = await create_account(
+        session, test_workspace.id, test_user.id,
+        AccountCreate(name="Card Zero", type="credit_card", balance=Decimal("0.00"), currency="BRL"),
+    )
+
+    assert account.balance_date is None
+    assert await _opening_of(session, account.id) is None
+
+
+@pytest.mark.asyncio
+async def test_update_credit_card_date_only_moves_the_opening_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC4 for a credit card: a date-only update propagates to the opening tx."""
+    account = await create_account(
+        session, test_workspace.id, test_user.id,
+        AccountCreate(name="Card Move", type="credit_card", balance=Decimal("300.00"),
+                      currency="BRL", balance_date=app_today() - timedelta(days=12)),
+    )
+    new_date = app_today() - timedelta(days=4)
+
+    updated = await update_account(
+        session, account.id, test_workspace.id, AccountUpdate(balance_date=new_date)
+    )
+
+    assert updated is not None
+    assert updated.balance_date == new_date
+    assert (await _opening_of(session, account.id)).date == new_date
+
+
+@pytest.mark.asyncio
 async def test_update_to_zero_balance_with_date_stores_date_and_deletes_opening(
     session: AsyncSession, test_user, test_workspace
 ):

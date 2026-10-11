@@ -2886,6 +2886,27 @@ async def test_net_worth_report_ignores_opening_on_window_start_and_after_end(
 
 
 @pytest.mark.asyncio
+async def test_net_worth_report_ignores_opening_the_day_after_window_end(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Window is (start, end]: a balance date one day after the end is outside it."""
+    today = date.today()
+    start = today - timedelta(days=30)
+    end = today - timedelta(days=5)
+    await _seed_reset_account(
+        session, test_user.id, "Day After End", end + timedelta(days=1),
+        earlier_date=end - timedelta(days=5),
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, interval="monthly",
+        start_date=start, end_date=end,
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
 async def test_net_worth_report_lists_opening_exactly_on_window_end(
     session: AsyncSession, test_user, test_workspace
 ):

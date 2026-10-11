@@ -1079,6 +1079,67 @@ async def test_create_account_api_returns_the_chosen_balance_date(
 
 
 @pytest.mark.asyncio
+async def test_create_account_api_accepts_a_future_balance_date(
+    client: AsyncClient, auth_headers
+):
+    """ABD-01 AC13 (Q5) over HTTP: a future date is returned as given."""
+    future = _app_today() + _timedelta(days=5)
+    resp = await client.post(
+        "/api/accounts",
+        headers=auth_headers,
+        json={"name": "Future", "type": "checking", "balance": "100.00",
+              "currency": "BRL", "balance_date": future.isoformat()},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["balance_date"] == future.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_patch_account_api_accepts_a_future_balance_date(
+    client: AsyncClient, auth_headers, session
+):
+    """ABD-01 AC13 (Q5) over HTTP: a future PATCH date is stored and moves the opening tx."""
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Future Patch", "checking", "1000.00", _app_today() - _timedelta(days=10)
+    )
+    future = _app_today() + _timedelta(days=5)
+
+    resp = await client.patch(
+        f"/api/accounts/{account_id}", headers=auth_headers,
+        json={"balance_date": future.isoformat()},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["balance_date"] == future.isoformat()
+    from sqlalchemy import select as _select
+    opening = (
+        await session.execute(
+            _select(_Transaction).where(
+                _Transaction.account_id == _uuid.UUID(account_id),
+                _Transaction.source == "opening_balance",
+            )
+        )
+    ).scalar_one()
+    assert opening.date == future
+
+
+@pytest.mark.asyncio
+async def test_balance_read_before_a_future_balance_date_includes_history_api(
+    client: AsyncClient, auth_headers, session, test_user
+):
+    """ABD-01 AC13 (Q5) over HTTP: list and summary balances count a row dated before the future date."""
+    account_id = await _create_account_via_api(
+        client, auth_headers, "Future Read", "checking", "0.00", _app_today() + _timedelta(days=5)
+    )
+    await _add_tx(session, test_user, account_id, 100, "credit", _app_today() - _timedelta(days=3))
+
+    summary = (await client.get(f"/api/accounts/{account_id}/summary", headers=auth_headers)).json()
+
+    assert summary["current_balance"] == pytest.approx(100.0)
+    assert await _list_balance(client, auth_headers, account_id) == pytest.approx(100.0)
+
+
+@pytest.mark.asyncio
 async def test_create_account_api_without_date_returns_today(
     client: AsyncClient, auth_headers
 ):

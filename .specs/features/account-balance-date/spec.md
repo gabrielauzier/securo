@@ -64,6 +64,7 @@ The "balance date" chosen in the add/edit account dialog is not stored on the ac
 9. WHERE the account is bank-connected the system SHALL keep `balance_date` null and SHALL ignore a `balance_date` sent in a write.
 11. WHEN a manual account is updated with balance 0 and a balance date D THEN the system SHALL store `balance_date = D` and SHALL delete the opening-balance transaction if one exists.
 12. WHEN a manual account is updated with `balance_date` null THEN the system SHALL change nothing about the stored date (an explicit null is a documented no-op, not a clear).
+13. WHEN a manual account is created or updated with a balance date in the future THEN the system SHALL store it as given, and balance reads with a cutoff before that date SHALL include all transactions up to the cutoff.
 
 **Independent Test**: Create an account with balance 0 and a date; read it back: the date is returned.
 
