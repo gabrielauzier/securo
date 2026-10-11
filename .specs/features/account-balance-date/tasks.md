@@ -357,3 +357,17 @@ Findings from `validation.md` (iteration 1).
 - [x] Gate passes: backend pytest, ruff, ty
 
 **Commit**: `fix(accounts): leave the balance date empty on a zero-balance create`
+
+### F2: Create dialog sends a date only when it matters (CRITICAL gap 1, frontend)
+
+**What**: The create payload carries `balance_date` only when the user changed the date or the balance is non-zero.
+**Where**: `frontend/src/pages/accounts.tsx`, `frontend/src/pages/accounts-dialog.test.tsx`
+**Requirement**: ABD-04 AC7
+
+**Done when**:
+
+- [x] Balance 0 with an untouched date sends no `balance_date`; a changed date or a non-zero balance sends the date shown
+- [x] Edit-mode payload rules unchanged
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/accounts-dialog.test.tsx && npm run typecheck && npm run lint`
+
+**Commit**: `fix(accounts): send the balance date on create only when it matters`

@@ -744,15 +744,20 @@ export function AccountDialog({
             const isConnected = !!account?.connection_id
             // Editing: the balance and its date rewrite the opening row, so send
             // them only when the user changed one (a name-only edit must not move it).
+            const dateChanged = balanceDate !== formSource?.balanceDate
+            const balanceValue = parseFloat(balance)
             const balanceTouched =
-              !account ||
-              balance !== (account.balance?.toString() ?? '0') ||
-              balanceDate !== formSource?.balanceDate
+              balance !== (account?.balance?.toString() ?? '0') || dateChanged
+            // Creating: always send the balance, but a date only when the user chose
+            // one or opened the account with a balance (a zero balance with an
+            // untouched date must not set a floor).
+            const sendDate = account ? balanceTouched : dateChanged || balanceValue !== 0
             onSave({
               ...(!isConnected && {
                 name,
                 currency,
-                ...(balanceTouched && { balance: parseFloat(balance), balance_date: balanceDate }),
+                ...((account ? balanceTouched : true) && { balance: balanceValue }),
+                ...(sendDate && { balance_date: balanceDate }),
               }),
               type,
               display_name: displayName.trim() || null,
