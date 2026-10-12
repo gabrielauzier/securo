@@ -5,7 +5,12 @@
 # Credenciais: arquivo ~/.config/securo-backup/r2.env (modo 600), criado por você a partir de
 # deploy/public/backup/r2.env.example. Nunca commitar.
 #
-# OFFSITE_TARGET (opcional) substitui o destino por qualquer caminho aceito pelo rclone,
+# Cada backup vai para a sua própria pasta, dentro do prefixo (R2_PREFIX, padrão "securo"):
+#   <prefixo>/securo-backup-AAAA-MM-DD/  com os 3 arquivos (banco, anexos e .sha256)
+# Backups do mesmo dia (ex.: um manual antes de atualizar e o noturno) dividem a pasta do dia; os
+# nomes dos arquivos levam a hora, então não se sobrescrevem.
+#
+# OFFSITE_TARGET (opcional) substitui o destino (prefixo) por qualquer caminho aceito pelo rclone,
 # inclusive uma pasta local; serve para testar o fluxo sem credenciais.
 set -euo pipefail
 
@@ -16,6 +21,7 @@ die() { log "ERRO: $*"; exit 1; }
 command -v rclone >/dev/null || die "rclone não encontrado (brew install rclone)"
 : "${BACKUP_DIR:?BACKUP_DIR não definido}"
 : "${BACKUP_TS:?BACKUP_TS não definido}"
+[[ "$BACKUP_TS" =~ ^[0-9]{8}-[0-9]{6}$ ]] || die "BACKUP_TS inválido: '$BACKUP_TS' (esperado AAAAMMDD-HHMMSS)"
 
 ENV_FILE="${R2_ENV_FILE:-$HOME/.config/securo-backup/r2.env}"
 if [ -z "${OFFSITE_TARGET:-}" ]; then
@@ -44,22 +50,28 @@ export RCLONE_CONFIG=/dev/null   # ignora qualquer rclone.conf; só vale o que e
 DB="securo-db-${BACKUP_TS}.dump.age"
 ATT="securo-attachments-${BACKUP_TS}.tar.gz.age"
 SUM="securo-${BACKUP_TS}.sha256"
+# Pasta do backup: securo-backup-AAAA-MM-DD (data tirada do carimbo do próprio backup).
+FOLDER="securo-backup-${BACKUP_TS:0:4}-${BACKUP_TS:4:2}-${BACKUP_TS:6:2}"
+DEST_DIR="${OFFSITE_TARGET%/}/${FOLDER}"
 for f in "$DB" "$ATT" "$SUM"; do [ -s "$BACKUP_DIR/$f" ] || die "arquivo local ausente: $BACKUP_DIR/$f"; done
 
 LIST="$(mktemp)"; trap 'rm -f "$LIST"' EXIT
 printf '%s\n' "$DB" "$ATT" "$SUM" > "$LIST"
 
-log "enviando 3 arquivos para $OFFSITE_TARGET ..."
-rclone copy "$BACKUP_DIR" "$OFFSITE_TARGET" --files-from "$LIST" --retries 3 --low-level-retries 5 --quiet
+log "enviando 3 arquivos para $DEST_DIR ..."
+rclone copy "$BACKUP_DIR" "$DEST_DIR" --files-from "$LIST" --retries 3 --low-level-retries 5 --quiet
 
 log "verificando no destino ..."
-rclone check "$BACKUP_DIR" "$OFFSITE_TARGET" --files-from "$LIST" --one-way --quiet \
+rclone check "$BACKUP_DIR" "$DEST_DIR" --files-from "$LIST" --one-way --quiet \
   || die "verificação falhou: o destino não confere com o backup local"
 
-# Retenção remota: só os nomes deste esquema, só nesse prefixo.
+# Retenção remota: só os nomes deste esquema, só nesse prefixo. O padrão sem barra casa em qualquer
+# profundidade, então vale tanto para as pastas por backup quanto para os arquivos soltos de antes.
 log "retenção remota (${KEEP_REMOTE_DAYS} dias) ..."
 rclone delete "$OFFSITE_TARGET" --min-age "${KEEP_REMOTE_DAYS}d" \
   --include 'securo-db-*.dump.age' --include 'securo-attachments-*.tar.gz.age' --include 'securo-*.sha256' \
   --quiet || log "aviso: retenção remota falhou (não é fatal)"
+# Pastas de backup que ficaram vazias (no R2 elas somem sozinhas; num destino local, não).
+rclone rmdirs "$OFFSITE_TARGET" --leave-root --quiet || true
 
-log "ok: backup $BACKUP_TS enviado e verificado"
+log "ok: backup $BACKUP_TS enviado e verificado em $FOLDER"
