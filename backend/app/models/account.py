@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, SmallInteger, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, SmallInteger, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +50,9 @@ class Account(Base):
         UUID(as_uuid=True), ForeignKey("institutions.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+    # Date the stored balance refers to; transactions before it do not move the
+    # balance. Manual accounts only (connected accounts keep it NULL).
+    balance_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     is_closed: Mapped[bool] = mapped_column(Boolean, default=False)
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 

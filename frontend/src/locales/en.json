@@ -981,6 +981,18 @@
     "summaryExcluded": "Excluded",
     "bulkCategorize": "Apply",
     "bulkSuccess": "{{count}} transactions categorized",
+    "bulkIgnore": "Ignore",
+    "bulkUnignore": "Stop ignoring",
+    "bulkIgnoreSuccess": "{{count}} transactions updated",
+    "bulkLimitHint": "Select up to 100 transactions",
+    "bulkTransfer": "Mark as transfer",
+    "bulkTransferTitle": "Mark as transfers",
+    "bulkTransferDescription": "Review the pairs found among the selected transactions. Only checked pairs are linked.",
+    "bulkTransferUnmatched": "No counterpart in the selection",
+    "bulkTransferAmbiguous": "More than one possible counterpart, not paired",
+    "bulkTransferAlreadyLinked": "Already part of a transfer",
+    "bulkTransferConfirm": "Link selected pairs",
+    "bulkTransferSuccess": "{{linked}} linked, {{skipped}} skipped",
     "bulkDelete": "Delete selected",
     "bulkDeleteTitle": "Delete {{count}} transactions?",
     "bulkDeleteDescription": "This permanently deletes the selected transactions, including transfer counterparts and their attachments. This cannot be undone.",
@@ -1161,6 +1173,7 @@
     "balanceCreditCard": "Amount owed",
     "balanceCreditCardHint": "Enter how much you currently owe on this card as a positive number. Leave at 0 if you have no debt.",
     "balanceDate": "Balance date",
+    "balanceDateHint": "Transactions before this date do not change the balance.",
     "lastSync": "Last sync",
     "multiInstitutionLink": "{{provider}} · {{count}} institutions",
     "sync": "Sync",
@@ -1714,6 +1727,16 @@
     "mapPayee": "Payee column",
     "mapExternalId": "Transaction ID column",
     "mapNotes": "Notes column",
+    "mappingApplied": "Mapping applied: {{name}}",
+    "mappingSwitch": "Switch mapping",
+    "mappingPick": "Use a saved mapping",
+    "mappingRemove": "Remove applied mapping",
+    "mappingSave": "Save mapping",
+    "mappingName": "Mapping name",
+    "mappingNamePlaceholder": "E.g. Nubank statement",
+    "mappingSaved": "Mapping saved",
+    "mappingNameDuplicate": "A mapping with this name already exists.",
+    "mappingSaveError": "Could not save the mapping.",
     "description": "Description",
     "errors": {
       "invalid_date": "Invalid Date Format",
@@ -1914,6 +1937,7 @@
   "reports": {
     "section": "Analytics",
     "netWorth": "Net Worth",
+    "balanceResetNote": "The balance of {{account}} was manually updated on {{date}}; the net worth change on that date reflects this update.",
     "trend": "Over Time",
     "breakdown": "Breakdown",
     "noData": "No data available for this period",
@@ -2860,6 +2884,20 @@
       "invoicesHint": "How we decide which payment settles which invoice.",
       "recurring": "Recurring rules",
       "recurringHint": "How we decide that a charge is the bill you were already expecting."
-    }
+    },
+    "applyNow": "Apply now",
+    "applyNowTitle": "Apply the transfer rule now",
+    "applyNowDescription": "These unlinked transactions match the rule. Uncheck any pair you do not want to link.",
+    "applyNowConfirm": "Link selected pairs",
+    "applyNowSuccess": "{{linked}} linked, {{skipped}} skipped"
+  },
+  "transferPreview": {
+    "title": "Proposed pairs",
+    "strategy": "Rule",
+    "selectedCount": "{{selected}} of {{total}} pairs selected",
+    "from": "From",
+    "to": "To",
+    "empty": "No transfer pairs to link",
+    "selectPair": "Select pair"
   }
 }

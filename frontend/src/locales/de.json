@@ -981,6 +981,18 @@
     "summaryExcluded": "Ausgeschlossen",
     "bulkCategorize": "Anwenden",
     "bulkSuccess": "{{count}} Transaktionen kategorisiert",
+    "bulkIgnore": "Ignorieren",
+    "bulkUnignore": "Nicht mehr ignorieren",
+    "bulkIgnoreSuccess": "{{count}} Transaktionen aktualisiert",
+    "bulkLimitHint": "Wähle bis zu 100 Transaktionen aus",
+    "bulkTransfer": "Als Überweisung markieren",
+    "bulkTransferTitle": "Als Überweisungen markieren",
+    "bulkTransferDescription": "Prüfen Sie die Paare, die unter den ausgewählten Transaktionen gefunden wurden. Nur angehakte Paare werden verknüpft.",
+    "bulkTransferUnmatched": "Keine Gegenbuchung in der Auswahl",
+    "bulkTransferAmbiguous": "Mehrere mögliche Gegenbuchungen, nicht gepaart",
+    "bulkTransferAlreadyLinked": "Bereits Teil einer Überweisung",
+    "bulkTransferConfirm": "Ausgewählte Paare verknüpfen",
+    "bulkTransferSuccess": "{{linked}} verknüpft, {{skipped}} übersprungen",
     "bulkDelete": "Auswahl löschen",
     "bulkDeleteTitle": "{{count}} Transaktionen löschen?",
     "bulkDeleteDescription": "Dies löscht die ausgewählten Transaktionen dauerhaft, einschließlich Transfer-Gegenbuchungen und Anhängen. Dies kann nicht rückgängig gemacht werden.",
@@ -1161,6 +1173,7 @@
     "balanceCreditCard": "Geschuldeter Betrag",
     "balanceCreditCardHint": "Gib den Betrag, den du dieser Karte aktuell schuldest, als positiven Wert ein. Lasse das Feld auf 0, wenn du keine Schulden hast.",
     "balanceDate": "Saldodatum",
+    "balanceDateHint": "Transaktionen vor diesem Datum verändern den Saldo nicht.",
     "lastSync": "Letzte Synchr.",
     "multiInstitutionLink_one": "{{provider}} · {{count}} Institut",
     "multiInstitutionLink_other": "{{provider}} · {{count}} Institute",
@@ -1715,6 +1728,16 @@
     "mapPayee": "Spalte Zahlungsempfänger",
     "mapExternalId": "Spalte Transaktions-ID",
     "mapNotes": "Spalte Notizen",
+    "mappingApplied": "Zuordnung angewendet: {{name}}",
+    "mappingSwitch": "Zuordnung wechseln",
+    "mappingPick": "Gespeicherte Zuordnung verwenden",
+    "mappingRemove": "Angewendete Zuordnung entfernen",
+    "mappingSave": "Zuordnung speichern",
+    "mappingName": "Name der Zuordnung",
+    "mappingNamePlaceholder": "z. B. Nubank-Kontoauszug",
+    "mappingSaved": "Zuordnung gespeichert",
+    "mappingNameDuplicate": "Eine Zuordnung mit diesem Namen existiert bereits.",
+    "mappingSaveError": "Die Zuordnung konnte nicht gespeichert werden.",
     "description": "Beschreibung",
     "errors": {
       "invalid_date": "Ungültiges Datumsformat",
@@ -1915,6 +1938,7 @@
   "reports": {
     "section": "Analysen",
     "netWorth": "Nettovermögen",
+    "balanceResetNote": "Der Kontostand von {{account}} wurde am {{date}} manuell aktualisiert; die Veränderung des Nettovermögens an diesem Tag spiegelt diese Aktualisierung wider.",
     "trend": "Im Zeitverlauf",
     "breakdown": "Verteilung",
     "noData": "Keine Daten für diesen Zeitraum verfügbar",
@@ -2861,6 +2885,20 @@
       "invoicesHint": "Wie wir entscheiden, welche Zahlung welche Rechnung begleicht.",
       "recurring": "Regeln für Wiederkehrendes",
       "recurringHint": "Wie wir entscheiden, dass eine Buchung die erwartete Rechnung ist."
-    }
+    },
+    "applyNow": "Jetzt anwenden",
+    "applyNowTitle": "Überweisungsregel jetzt anwenden",
+    "applyNowDescription": "Diese nicht verknüpften Transaktionen entsprechen der Regel. Entfernen Sie den Haken bei Paaren, die Sie nicht verknüpfen möchten.",
+    "applyNowConfirm": "Ausgewählte Paare verknüpfen",
+    "applyNowSuccess": "{{linked}} verknüpft, {{skipped}} übersprungen"
+  },
+  "transferPreview": {
+    "title": "Vorgeschlagene Paare",
+    "strategy": "Regel",
+    "selectedCount": "{{selected}} von {{total}} Paaren ausgewählt",
+    "from": "Von",
+    "to": "Nach",
+    "empty": "Keine Überweisungspaare zum Verknüpfen",
+    "selectPair": "Paar auswählen"
   }
 }

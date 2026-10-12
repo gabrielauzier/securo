@@ -981,6 +981,18 @@
     "summaryExcluded": "बाहर रखे गए",
     "bulkCategorize": "लागू करें",
     "bulkSuccess": "{{count}} लेन-देन वर्गीकृत किए गए",
+    "bulkIgnore": "अनदेखा करें",
+    "bulkUnignore": "अनदेखा करना बंद करें",
+    "bulkIgnoreSuccess": "{{count}} लेन-देन अपडेट किए गए",
+    "bulkLimitHint": "अधिकतम 100 लेन-देन चुनें",
+    "bulkTransfer": "ट्रांसफ़र के रूप में चिह्नित करें",
+    "bulkTransferTitle": "ट्रांसफ़र के रूप में चिह्नित करें",
+    "bulkTransferDescription": "चुने गए लेन-देन में मिली जोड़ियों की समीक्षा करें। केवल चुनी गई जोड़ियाँ ही जोड़ी जाएँगी।",
+    "bulkTransferUnmatched": "चयन में कोई जवाबी लेन-देन नहीं",
+    "bulkTransferAmbiguous": "एक से अधिक संभावित जवाबी लेन-देन, जोड़ी नहीं बनी",
+    "bulkTransferAlreadyLinked": "पहले से किसी ट्रांसफ़र का हिस्सा",
+    "bulkTransferConfirm": "चुनी गई जोड़ियाँ जोड़ें",
+    "bulkTransferSuccess": "{{linked}} जोड़ी गईं, {{skipped}} छोड़ी गईं",
     "bulkDelete": "चयनित हटाएँ",
     "bulkDeleteTitle": "{{count}} लेन-देन हटाएँ?",
     "bulkDeleteDescription": "इससे चयनित लेन-देन स्थायी रूप से हट जाते हैं, इनमें ट्रांसफ़र के दूसरे हिस्से और उनके अटैचमेंट भी शामिल हैं। इसे पूर्ववत नहीं किया जा सकता।",
@@ -1161,6 +1173,7 @@
     "balanceCreditCard": "बकाया राशि",
     "balanceCreditCardHint": "इस कार्ड पर अभी आप पर जितना बकाया है उसे धनात्मक संख्या के रूप में डालें। क़र्ज़ न होने पर 0 पर छोड़ें।",
     "balanceDate": "शेष तिथि",
+    "balanceDateHint": "इस तिथि से पहले के लेन-देन शेष राशि को नहीं बदलते।",
     "lastSync": "आख़िरी सिंक",
     "multiInstitutionLink": "{{provider}} · {{count}} संस्थान",
     "sync": "सिंक करें",
@@ -1714,6 +1727,16 @@
     "mapPayee": "प्राप्तकर्ता कॉलम",
     "mapExternalId": "लेन-देन ID कॉलम",
     "mapNotes": "नोट्स कॉलम",
+    "mappingApplied": "मैपिंग लागू की गई: {{name}}",
+    "mappingSwitch": "मैपिंग बदलें",
+    "mappingPick": "सहेजी गई मैपिंग का उपयोग करें",
+    "mappingRemove": "लागू की गई मैपिंग हटाएँ",
+    "mappingSave": "मैपिंग सहेजें",
+    "mappingName": "मैपिंग का नाम",
+    "mappingNamePlaceholder": "जैसे: Nubank स्टेटमेंट",
+    "mappingSaved": "मैपिंग सहेजी गई",
+    "mappingNameDuplicate": "इस नाम की मैपिंग पहले से मौजूद है।",
+    "mappingSaveError": "मैपिंग सहेजी नहीं जा सकी।",
     "description": "विवरण",
     "errors": {
       "invalid_date": "अमान्य तिथि प्रारूप",
@@ -1914,6 +1937,7 @@
   "reports": {
     "section": "एनालिटिक्स",
     "netWorth": "निवल संपत्ति",
+    "balanceResetNote": "{{account}} का बैलेंस {{date}} को मैन्युअल रूप से अपडेट किया गया था; उस तारीख को निवल संपत्ति में बदलाव इसी अपडेट को दर्शाता है।",
     "trend": "समय के साथ",
     "breakdown": "ब्यौरा",
     "noData": "इस अवधि के लिए कोई डेटा उपलब्ध नहीं",
@@ -2860,6 +2884,20 @@
       "invoicesHint": "हम कैसे तय करते हैं कि कौन सा भुगतान कौन सा चालान चुकाता है।",
       "recurring": "आवर्ती नियम",
       "recurringHint": "हम कैसे तय करते हैं कि कोई शुल्क वही बिल है जिसकी आप पहले से अपेक्षा कर रहे थे।"
-    }
+    },
+    "applyNow": "अभी लागू करें",
+    "applyNowTitle": "ट्रांसफ़र नियम अभी लागू करें",
+    "applyNowDescription": "ये बिना जुड़े लेन-देन नियम से मेल खाते हैं। जिन जोड़ियों को नहीं जोड़ना चाहते, उनका चयन हटाएँ।",
+    "applyNowConfirm": "चुनी गई जोड़ियाँ जोड़ें",
+    "applyNowSuccess": "{{linked}} जोड़ी गईं, {{skipped}} छोड़ी गईं"
+  },
+  "transferPreview": {
+    "title": "प्रस्तावित जोड़ियाँ",
+    "strategy": "नियम",
+    "selectedCount": "{{total}} में से {{selected}} जोड़ियाँ चुनी गईं",
+    "from": "से",
+    "to": "को",
+    "empty": "जोड़ने के लिए कोई ट्रांसफ़र जोड़ी नहीं",
+    "selectPair": "जोड़ी चुनें"
   }
 }

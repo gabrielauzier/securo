@@ -1,5 +1,5 @@
 import type { Category, CategoryGroup } from '@/types'
-import { ArrowLeftRight, Check, MoreHorizontal, SlidersHorizontal, Trash2, Users, X } from 'lucide-react'
+import { ArrowLeftRight, Check, Eye, EyeClosed, MoreHorizontal, SlidersHorizontal, Trash2, Users, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CategorySelect } from '@/components/category-select'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,13 @@ export type MobileBulkSelectionActionsProps = {
   onCategoryChange: (value: string) => void
   onOpenGroup: () => void
   onOpenTransfer: () => void
+  onMarkTransfer?: () => void
+  markTransferDisabled?: boolean
+  markTransferHint?: string
   onCreateRule?: () => void
+  ignoreDisabled?: boolean
+  ignoreHint?: string
+  onIgnore?: (ignored: boolean) => void
   onBulkDelete: () => void
   onTagInputChange: (value: string) => void
   onAddTags: (tags: string[]) => void
@@ -102,7 +108,22 @@ function BulkActionItems(props: MobileBulkSelectionActionsProps) {
       <DropdownMenuItem disabled={props.transferDisabled} title={props.transferTitle} onSelect={props.onOpenTransfer}>
         <ArrowLeftRight size={15} />{t('transactions.linkAsTransfer')}
       </DropdownMenuItem>
+      {props.onMarkTransfer && (
+        <DropdownMenuItem disabled={props.markTransferDisabled} title={props.markTransferHint} onSelect={props.onMarkTransfer}>
+          <ArrowLeftRight size={15} />{t('transactions.bulkTransfer')}
+        </DropdownMenuItem>
+      )}
       {props.onCreateRule && <DropdownMenuItem onSelect={props.onCreateRule}><SlidersHorizontal size={15} />{t('transactions.createRule')}</DropdownMenuItem>}
+      {props.onIgnore && (
+        <>
+          <DropdownMenuItem disabled={props.ignoreDisabled} title={props.ignoreHint} onSelect={() => props.onIgnore?.(true)}>
+            <EyeClosed size={15} />{t('transactions.bulkIgnore')}
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={props.ignoreDisabled} title={props.ignoreHint} onSelect={() => props.onIgnore?.(false)}>
+            <Eye size={15} />{t('transactions.bulkUnignore')}
+          </DropdownMenuItem>
+        </>
+      )}
       <DropdownMenuItem onSelect={props.onBulkDelete} className="text-destructive">
         <Trash2 size={15} />{t('transactions.bulkDelete')}
       </DropdownMenuItem>

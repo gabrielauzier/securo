@@ -238,3 +238,38 @@ describe('Reports page — query failure', () => {
     expect(screen.getByRole('button', { name: t('reports.range6m') })).toHaveClass('bg-primary')
   })
 })
+
+describe('Reports page — net worth balance reset note', () => {
+  it('names each reset account with its formatted date below the chart', async () => {
+    const report = emptyReport('net_worth')
+    report.meta.balance_resets = [
+      { account_id: 'a1', account_name: 'Nubank', date: '2026-09-10' },
+      { account_id: 'a2', account_name: 'Itaú', date: '2026-09-05' },
+    ]
+    api.reports.netWorth.mockResolvedValue(report)
+
+    renderWithProviders(<ReportsPage />)
+
+    const date = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-US')
+    expect(
+      await screen.findByText(
+        t('reports.balanceResetNote', { account: 'Nubank', date: date('2026-09-10') }),
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(t('reports.balanceResetNote', { account: 'Itaú', date: date('2026-09-05') })),
+    ).toBeInTheDocument()
+  })
+
+  it('renders no note when no account was reset', async () => {
+    const report = emptyReport('net_worth')
+    report.meta.balance_resets = []
+    api.reports.netWorth.mockResolvedValue(report)
+
+    renderWithProviders(<ReportsPage />)
+
+    // Wait for the loaded summary so an absent note is not just a pending render.
+    expect((await screen.findAllByText('$1,000.00')).length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('balance-reset-note')).not.toBeInTheDocument()
+  })
+})

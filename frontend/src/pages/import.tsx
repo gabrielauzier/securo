@@ -4,13 +4,14 @@ import { getAccountName, sortAccountsByDisplayName } from '@/lib/account-utils'
 import { useTranslation } from 'react-i18next'
 import { useDisplayLocale, useDateLocale } from '@/hooks/use-display-locale'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { transactions as transactionsApi, accounts as accountsApi, categories as categoriesApi, categoryGroups as categoryGroupsApi } from '@/lib/api'
+import { transactions as transactionsApi, accounts as accountsApi, categories as categoriesApi, categoryGroups as categoryGroupsApi, importMappings as importMappingsApi } from '@/lib/api'
+import type { ImportMapping } from '@/lib/api'
 import { invalidateFinancialQueries } from '@/lib/invalidate-queries'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { ImportPreviewTransaction, ImportReviewTransaction, FailedRow } from '@/types'
-import { Upload, FileText, X, CheckCircle2, AlertCircle, Settings2, Download } from 'lucide-react'
+import { Upload, FileText, X, CheckCircle2, AlertCircle, Settings2, Download, Bookmark } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { PageHeader } from '@/components/page-header'
 import { AssetImportPanel } from '@/components/asset-import-panel'
@@ -82,9 +83,22 @@ function TransactionImportPanel() {
   const [csvOutflowColumn, setCsvOutflowColumn] = useState('')
   const [csvColumnMapping, setCsvColumnMapping] = useState<Record<string, string>>({})
 
+  // Saved mappings: matched once per uploaded file (not on every re-preview).
+  const matchOnPreviewRef = useRef(false)
+  const [appliedMapping, setAppliedMapping] = useState<ImportMapping | null>(null)
+  const [matchedMappings, setMatchedMappings] = useState<ImportMapping[]>([])
+  const [showSaveMapping, setShowSaveMapping] = useState(false)
+  const [mappingName, setMappingName] = useState('')
+  const [mappingNameError, setMappingNameError] = useState<string | null>(null)
+
   const { data: accountsList } = useQuery({
     queryKey: ['accounts'],
     queryFn: () => accountsApi.list(),
+  })
+
+  const { data: savedMappings = [] } = useQuery({
+    queryKey: ['import-mappings'],
+    queryFn: importMappingsApi.list,
   })
 
   const { data: categoriesList = [] } = useQuery({
@@ -109,6 +123,10 @@ function TransactionImportPanel() {
       setFilterUncategorized(false)
       setStatusFilter('all')
       setCurrentPage(1)
+      if (matchOnPreviewRef.current) {
+        matchOnPreviewRef.current = false
+        if (data.csv_columns?.length) void matchAndApplyMapping(data.csv_columns)
+      }
     },
     onError: (error: unknown) => {
       const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -153,6 +171,13 @@ function TransactionImportPanel() {
         ? t('import.importedWithExcluded', { imported: data.imported, skipped: data.skipped ?? 0, excluded: data.excluded ?? 0 })
         : `${data.imported} ${t('import.transactionsImported')}`
       toast.success(msg)
+      if (appliedMapping) {
+        // Recency only orders the mappings; a failed touch must not turn a
+        // finished import into an error.
+        importMappingsApi.touch(appliedMapping.id)
+          .then(() => queryClient.invalidateQueries({ queryKey: ['import-mappings'] }))
+          .catch(() => {})
+      }
       setPreviewData(null)
       setReviewTransactions([])
       setSelectedAccount('')
@@ -176,12 +201,18 @@ function TransactionImportPanel() {
     setCsvOutflowColumn('')
     setCsvColumnMapping({})
     setCsvHeaders([])
+    setAppliedMapping(null)
+    setMatchedMappings([])
+    setShowSaveMapping(false)
+    setMappingName('')
+    setMappingNameError(null)
   }
 
   function processFile(file: File) {
     setFileName(file.name)
     setCurrentFile(file)
     resetCsvOptions()
+    matchOnPreviewRef.current = true
     // CSV headers come back from the preview response (csv_columns), which
     // parses the file server-side and handles any delimiter/quoting.
     previewMutation.mutate({ file })
@@ -226,6 +257,110 @@ function TransactionImportPanel() {
       return next
     })
   }, [rePreview])
+
+  // Set every CSV option at once and re-run the preview with them, so a saved
+  // mapping (or its removal) goes through the same path as manual edits.
+  function applyCsvSetup(setup: {
+    mapping: Record<string, string>
+    dateFormat: string
+    flip: boolean
+    inflow: string
+    outflow: string
+  }) {
+    const split = Boolean(setup.inflow && setup.outflow)
+    setCsvColumnMapping(setup.mapping)
+    setCsvDateFormat(setup.dateFormat)
+    setCsvFlipAmount(setup.flip)
+    setCsvSplitColumns(split)
+    setCsvInflowColumn(setup.inflow)
+    setCsvOutflowColumn(setup.outflow)
+    rePreview({
+      date_format: setup.dateFormat,
+      flip_amount: setup.flip,
+      split,
+      inflow: setup.inflow,
+      outflow: setup.outflow,
+      mapping: setup.mapping,
+    })
+  }
+
+  function applyMapping(mapping: ImportMapping, accounts: { id: string }[]) {
+    setAppliedMapping(mapping)
+    // The account may have been deleted or become unavailable since the
+    // mapping was saved; then the user picks one as usual.
+    if (mapping.account_id && accounts.some((a) => a.id === mapping.account_id)) {
+      setSelectedAccount(mapping.account_id)
+    }
+    applyCsvSetup({
+      mapping: mapping.column_mapping,
+      dateFormat: mapping.options.date_format ?? '',
+      flip: mapping.options.flip_amount,
+      inflow: mapping.options.inflow_column ?? '',
+      outflow: mapping.options.outflow_column ?? '',
+    })
+  }
+
+  async function matchAndApplyMapping(columns: string[]) {
+    try {
+      const matches = await importMappingsApi.match(columns)
+      setMatchedMappings(matches)
+      if (matches.length === 0) return
+      const accounts = await queryClient.ensureQueryData({
+        queryKey: ['accounts'],
+        queryFn: () => accountsApi.list(),
+      })
+      applyMapping(matches[0], accounts)
+    } catch {
+      // Matching is a shortcut: if it fails the manual mapping still works.
+    }
+  }
+
+  function removeAppliedMapping() {
+    setAppliedMapping(null)
+    applyCsvSetup({ mapping: {}, dateFormat: '', flip: false, inflow: '', outflow: '' })
+  }
+
+  const cleanColumnMapping = Object.fromEntries(Object.entries(csvColumnMapping).filter(([, v]) => v))
+  const mappingConfigured =
+    Object.keys(cleanColumnMapping).length > 0 || (csvSplitColumns && !!csvInflowColumn && !!csvOutflowColumn)
+
+  const selectableMappings = [
+    ...matchedMappings,
+    ...savedMappings.filter((m) => !matchedMappings.some((x) => x.id === m.id)),
+  ]
+  if (appliedMapping && !selectableMappings.some((m) => m.id === appliedMapping.id)) {
+    selectableMappings.unshift(appliedMapping)
+  }
+
+  const saveMappingMutation = useMutation({
+    mutationFn: (name: string) => {
+      const split = csvSplitColumns && !!csvInflowColumn && !!csvOutflowColumn
+      return importMappingsApi.create({
+        name,
+        account_id: selectedAccount || null,
+        headers: csvHeaders,
+        column_mapping: cleanColumnMapping,
+        options: {
+          date_format: csvDateFormat || null,
+          flip_amount: csvFlipAmount,
+          inflow_column: split ? csvInflowColumn : null,
+          outflow_column: split ? csvOutflowColumn : null,
+        },
+      })
+    },
+    onSuccess: (created) => {
+      toast.success(t('import.mappingSaved'))
+      queryClient.invalidateQueries({ queryKey: ['import-mappings'] })
+      setAppliedMapping(created)
+      setShowSaveMapping(false)
+      setMappingName('')
+      setMappingNameError(null)
+    },
+    onError: (error: unknown) => {
+      const status = (error as { response?: { status?: number } })?.response?.status
+      setMappingNameError(status === 409 ? t('import.mappingNameDuplicate') : t('import.mappingSaveError'))
+    },
+  })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -424,6 +559,79 @@ function TransactionImportPanel() {
                       {t('import.viewDetails')}
                     </button>
                   </div>
+                </div>
+              )}
+              {isCsvFile && csvHeaders.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {appliedMapping && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 pl-2.5 pr-1.5 py-1 text-xs font-medium text-primary">
+                        <Bookmark size={12} />
+                        {t('import.mappingApplied', { name: appliedMapping.name })}
+                        <button
+                          type="button"
+                          aria-label={t('import.mappingRemove')}
+                          title={t('import.mappingRemove')}
+                          className="rounded-full p-0.5 hover:bg-primary/20 focus:outline-none focus-visible:ring-[2px] focus-visible:ring-ring/30"
+                          onClick={removeAppliedMapping}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+                    {selectableMappings.length > 0 && (
+                      <select
+                        aria-label={appliedMapping ? t('import.mappingSwitch') : t('import.mappingPick')}
+                        className="border border-border rounded-md px-3 py-1.5 text-sm bg-card focus:outline-none focus-visible:ring-ring/30 focus-visible:ring-[2px]"
+                        value={appliedMapping?.id ?? ''}
+                        onChange={(e) => {
+                          const next = selectableMappings.find((m) => m.id === e.target.value)
+                          if (next) applyMapping(next, accountsList ?? [])
+                        }}
+                      >
+                        {!appliedMapping && <option value="">{t('import.mappingPick')}</option>}
+                        {selectableMappings.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                    )}
+                    {mappingConfigured && !showSaveMapping && (
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setShowSaveMapping(true)}>
+                        <Bookmark size={12} />
+                        {t('import.mappingSave')}
+                      </Button>
+                    )}
+                  </div>
+                  {mappingConfigured && showSaveMapping && (
+                    <form
+                      className="space-y-1"
+                      onSubmit={(e) => {
+                        e.preventDefault()
+                        const name = mappingName.trim()
+                        if (!name) return
+                        setMappingNameError(null)
+                        saveMappingMutation.mutate(name)
+                      }}
+                    >
+                      <Label htmlFor="mapping-name" className="text-xs text-muted-foreground block">{t('import.mappingName')}</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          id="mapping-name"
+                          type="text"
+                          maxLength={100}
+                          value={mappingName}
+                          placeholder={t('import.mappingNamePlaceholder')}
+                          onChange={(e) => { setMappingName(e.target.value); setMappingNameError(null) }}
+                          className="flex-1 min-w-[12rem] border border-border rounded-md px-3 py-1.5 text-sm bg-card focus:outline-none focus-visible:ring-ring/30 focus-visible:ring-[2px]"
+                        />
+                        <Button type="submit" size="sm" disabled={!mappingName.trim() || saveMappingMutation.isPending}>
+                          {t('common.save')}
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => { setShowSaveMapping(false); setMappingNameError(null) }}>
+                          {t('common.cancel')}
+                        </Button>
+                      </div>
+                      {mappingNameError && <p role="alert" className="text-xs text-rose-600">{mappingNameError}</p>}
+                    </form>
+                  )}
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

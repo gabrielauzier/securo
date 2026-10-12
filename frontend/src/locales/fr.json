@@ -983,6 +983,18 @@
     "summaryExcluded": "Exclues",
     "bulkCategorize": "Appliquer",
     "bulkSuccess": "{{count}} transactions catégorisées",
+    "bulkIgnore": "Ignorer",
+    "bulkUnignore": "Ne plus ignorer",
+    "bulkIgnoreSuccess": "{{count}} transactions mises à jour",
+    "bulkLimitHint": "Sélectionnez jusqu'à 100 transactions",
+    "bulkTransfer": "Marquer comme virement",
+    "bulkTransferTitle": "Marquer comme virements",
+    "bulkTransferDescription": "Vérifiez les paires trouvées parmi les transactions sélectionnées. Seules les paires cochées sont liées.",
+    "bulkTransferUnmatched": "Aucune contrepartie dans la sélection",
+    "bulkTransferAmbiguous": "Plusieurs contreparties possibles, non appariée",
+    "bulkTransferAlreadyLinked": "Fait déjà partie d'un virement",
+    "bulkTransferConfirm": "Lier les paires sélectionnées",
+    "bulkTransferSuccess": "{{linked}} liées, {{skipped}} ignorées",
     "bulkDelete": "Supprimer la sélection",
     "bulkDeleteTitle": "Supprimer {{count}} transactions ?",
     "bulkDeleteDescription": "Cela supprime définitivement les transactions sélectionnées, y compris les contreparties de virement et leurs pièces jointes. Cette action est irréversible.",
@@ -1163,6 +1175,7 @@
     "balanceCreditCard": "Montant dû",
     "balanceCreditCardHint": "Saisissez le montant que vous devez actuellement sur cette carte, sous forme de nombre positif. Laissez à 0 si vous n'avez pas de dette.",
     "balanceDate": "Date du solde",
+    "balanceDateHint": "Les transactions antérieures à cette date ne modifient pas le solde.",
     "lastSync": "Dernière synchronisation",
     "multiInstitutionLink_one": "{{provider}} · {{count}} établissement",
     "multiInstitutionLink_many": "{{provider}} · {{count}} établissements",
@@ -1718,6 +1731,16 @@
     "mapPayee": "Colonne du bénéficiaire",
     "mapExternalId": "Colonne d'ID de transaction",
     "mapNotes": "Colonne des notes",
+    "mappingApplied": "Mappage appliqué : {{name}}",
+    "mappingSwitch": "Changer de mappage",
+    "mappingPick": "Utiliser un mappage enregistré",
+    "mappingRemove": "Retirer le mappage appliqué",
+    "mappingSave": "Enregistrer le mappage",
+    "mappingName": "Nom du mappage",
+    "mappingNamePlaceholder": "Ex. : relevé Nubank",
+    "mappingSaved": "Mappage enregistré",
+    "mappingNameDuplicate": "Un mappage portant ce nom existe déjà.",
+    "mappingSaveError": "Impossible d'enregistrer le mappage.",
     "description": "Description",
     "errors": {
       "invalid_date": "Format de date invalide",
@@ -1918,6 +1941,7 @@
   "reports": {
     "section": "Analyses",
     "netWorth": "Valeur nette",
+    "balanceResetNote": "Le solde de {{account}} a été mis à jour manuellement le {{date}} ; la variation du patrimoine à cette date reflète cette mise à jour.",
     "trend": "Dans le temps",
     "breakdown": "Répartition",
     "noData": "Aucune donnée disponible pour cette période",
@@ -2864,6 +2888,20 @@
       "invoicesHint": "Comment nous décidons quel paiement règle quelle facture.",
       "recurring": "Règles Récurrentes",
       "recurringHint": "Comment nous décidons qu’un prélèvement est la facture que vous attendiez."
-    }
+    },
+    "applyNow": "Appliquer maintenant",
+    "applyNowTitle": "Appliquer la règle de virement maintenant",
+    "applyNowDescription": "Ces transactions non liées correspondent à la règle. Décochez les paires que vous ne voulez pas lier.",
+    "applyNowConfirm": "Lier les paires sélectionnées",
+    "applyNowSuccess": "{{linked}} liées, {{skipped}} ignorées"
+  },
+  "transferPreview": {
+    "title": "Paires proposées",
+    "strategy": "Règle",
+    "selectedCount": "{{selected}} sur {{total}} paires sélectionnées",
+    "from": "De",
+    "to": "Vers",
+    "empty": "Aucune paire de virement à lier",
+    "selectPair": "Sélectionner la paire"
   }
 }

@@ -370,6 +370,41 @@ export const categoryGroups = {
 }
 
 // Bank Connections
+export interface TransferLeg {
+  id: string
+  date: string
+  account_id: string
+  account_name: string | null
+  description: string
+  amount: number | string
+  currency: string
+  type: 'debit' | 'credit'
+}
+
+/** `a` is the debit leg and `b` the credit leg. */
+export interface ProposedTransferPair {
+  a: TransferLeg
+  b: TransferLeg
+  strategy: string | null
+}
+
+export interface TransferPreview {
+  pairs: ProposedTransferPair[]
+  ambiguous: string[]
+  unmatched: string[]
+  already_linked: string[]
+}
+
+export interface TransferPairRef {
+  a: string
+  b: string
+}
+
+export interface TransferApplyResult {
+  linked: number
+  skipped: { a: string; b: string; reason: string }[]
+}
+
 export const connections = {
   list: async (): Promise<BankConnection[]> => {
     const { data } = await api.get('/connections')
@@ -445,6 +480,14 @@ export const connections = {
   },
   delete: async (id: string): Promise<void> => {
     await api.delete(`/connections/${id}`)
+  },
+  previewTransfers: async (): Promise<TransferPreview> => {
+    const { data } = await api.get('/connections/transfers/preview')
+    return data
+  },
+  applyTransfers: async (pairs: TransferPairRef[]): Promise<TransferApplyResult> => {
+    const { data } = await api.post('/connections/transfers/apply', { pairs })
+    return data
   },
 }
 
@@ -596,6 +639,23 @@ export const transactions = {
       transaction_ids: transactionIds,
       category_id: categoryId,
     })
+    return data
+  },
+  bulkIgnore: async (transactionIds: string[], ignored: boolean): Promise<{ updated: number }> => {
+    const { data } = await api.patch('/transactions/bulk-ignore', {
+      transaction_ids: transactionIds,
+      ignored,
+    })
+    return data
+  },
+  bulkTransferPreview: async (transactionIds: string[]): Promise<TransferPreview> => {
+    const { data } = await api.post('/transactions/bulk-transfer/preview', {
+      transaction_ids: transactionIds,
+    })
+    return data
+  },
+  bulkTransfer: async (pairs: TransferPairRef[]): Promise<TransferApplyResult> => {
+    const { data } = await api.post('/transactions/bulk-transfer', { pairs })
     return data
   },
   bulkAddTags: async (transactionIds: string[], tags: string[]): Promise<{ updated: number }> => {
@@ -1555,6 +1615,62 @@ export const importLogs = {
   },
   delete: async (id: string): Promise<void> => {
     await api.delete(`/import-logs/${id}`)
+  },
+}
+
+// Saved CSV import mappings (per user)
+export interface ImportMappingOptions {
+  date_format: string | null
+  flip_amount: boolean
+  inflow_column: string | null
+  outflow_column: string | null
+}
+
+export interface ImportMapping {
+  id: string
+  name: string
+  account_id: string | null
+  headers: string[]
+  /** Securo field -> CSV column, as sent to the import preview. */
+  column_mapping: Record<string, string>
+  options: ImportMappingOptions
+  last_used_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ImportMappingInput {
+  name: string
+  account_id?: string | null
+  headers: string[]
+  column_mapping: Record<string, string>
+  options?: Partial<ImportMappingOptions>
+}
+
+export const importMappings = {
+  list: async (): Promise<ImportMapping[]> => {
+    const { data } = await api.get('/import-mappings')
+    return data
+  },
+  create: async (input: ImportMappingInput): Promise<ImportMapping> => {
+    const { data } = await api.post('/import-mappings', input)
+    return data
+  },
+  update: async (id: string, input: Partial<ImportMappingInput>): Promise<ImportMapping> => {
+    const { data } = await api.patch(`/import-mappings/${id}`, input)
+    return data
+  },
+  remove: async (id: string): Promise<void> => {
+    await api.delete(`/import-mappings/${id}`)
+  },
+  /** Saved mappings whose header set equals `headers`, most recently used first. */
+  match: async (headers: string[]): Promise<ImportMapping[]> => {
+    const { data } = await api.post('/import-mappings/match', { headers })
+    return data.matches
+  },
+  touch: async (id: string): Promise<ImportMapping> => {
+    const { data } = await api.post(`/import-mappings/${id}/touch`)
+    return data
   },
 }
 

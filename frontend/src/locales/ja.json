@@ -981,6 +981,18 @@
     "summaryExcluded": "除外",
     "bulkCategorize": "適用",
     "bulkSuccess": "{{count}}件の取引を分類しました",
+    "bulkIgnore": "無視する",
+    "bulkUnignore": "無視を解除",
+    "bulkIgnoreSuccess": "{{count}} 件の取引を更新しました",
+    "bulkLimitHint": "選択できるのは最大 100 件です",
+    "bulkTransfer": "振替としてマーク",
+    "bulkTransferTitle": "振替としてマーク",
+    "bulkTransferDescription": "選択した取引の中から見つかったペアを確認してください。チェックしたペアのみが紐付けされます。",
+    "bulkTransferUnmatched": "選択内に対応する取引がありません",
+    "bulkTransferAmbiguous": "対応候補が複数あるため、ペアにしませんでした",
+    "bulkTransferAlreadyLinked": "すでに振替の一部です",
+    "bulkTransferConfirm": "選択したペアを紐付け",
+    "bulkTransferSuccess": "{{linked}} 件を紐付け、{{skipped}} 件をスキップしました",
     "bulkDelete": "選択を削除",
     "bulkDeleteTitle": "{{count}}件の取引を削除しますか?",
     "bulkDeleteDescription": "選択した取引を、振替の相手取引や添付ファイルを含めて完全に削除します。この操作は取り消せません。",
@@ -1161,6 +1173,7 @@
     "balanceCreditCard": "未払い金額",
     "balanceCreditCardHint": "このカードの現在の未払い金額を正の数で入力してください。未払いがなければ0のままにします。",
     "balanceDate": "残高の基準日",
+    "balanceDateHint": "この日付より前の取引は残高に影響しません。",
     "lastSync": "最終同期",
     "multiInstitutionLink": "{{provider}} · {{count}}機関",
     "sync": "同期",
@@ -1714,6 +1727,16 @@
     "mapPayee": "取引相手列",
     "mapExternalId": "取引ID列",
     "mapNotes": "メモ列",
+    "mappingApplied": "マッピングを適用しました: {{name}}",
+    "mappingSwitch": "マッピングを切り替え",
+    "mappingPick": "保存済みのマッピングを使う",
+    "mappingRemove": "適用中のマッピングを解除",
+    "mappingSave": "マッピングを保存",
+    "mappingName": "マッピング名",
+    "mappingNamePlaceholder": "例: Nubankの明細",
+    "mappingSaved": "マッピングを保存しました",
+    "mappingNameDuplicate": "この名前のマッピングは既に存在します。",
+    "mappingSaveError": "マッピングを保存できませんでした。",
     "description": "摘要",
     "errors": {
       "invalid_date": "無効な日付形式",
@@ -1914,6 +1937,7 @@
   "reports": {
     "section": "分析",
     "netWorth": "純資産",
+    "balanceResetNote": "{{account}} の残高は {{date}} に手動で更新されました。この日の純資産の変動はその更新を反映しています。",
     "trend": "推移",
     "breakdown": "内訳",
     "noData": "この期間のデータはありません",
@@ -2860,6 +2884,20 @@
       "invoicesHint": "どの入金がどの請求書を消し込むかを判断する方法。",
       "recurring": "定期のルール",
       "recurringHint": "ある引き落としが予定していた支払いだと判断する方法。"
-    }
+    },
+    "applyNow": "今すぐ適用",
+    "applyNowTitle": "振替ルールを今すぐ適用",
+    "applyNowDescription": "これらの未紐付けの取引はルールに一致しています。紐付けたくないペアのチェックを外してください。",
+    "applyNowConfirm": "選択したペアを紐付け",
+    "applyNowSuccess": "{{linked}} 件を紐付け、{{skipped}} 件をスキップしました"
+  },
+  "transferPreview": {
+    "title": "提案されたペア",
+    "strategy": "ルール",
+    "selectedCount": "{{total}} 件中 {{selected}} 件のペアを選択",
+    "from": "From",
+    "to": "To",
+    "empty": "紐付ける振替ペアはありません",
+    "selectPair": "ペアを選択"
   }
 }

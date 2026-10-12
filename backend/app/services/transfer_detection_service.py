@@ -47,9 +47,10 @@ reason we will not say so on our own.
 """
 import uuid
 from collections import defaultdict
-from datetime import timedelta
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -203,25 +204,31 @@ async def _pool(
     ]
 
 
-async def detect_transfer_pairs(
+@dataclass
+class _Decided:
+    """What the engine said about every row worth asking about.
+
+    The shared half of proposing and linking: both need the same pool,
+    the same neighbours and the same answers, and only differ in what
+    they do with them afterwards.
+    """
+
+    decisions: dict[uuid.UUID, tuple[Decision, Movement, Transaction]]
+
+
+async def _decide(
     session: AsyncSession,
     workspace_id: uuid.UUID,
-    candidate_ids: Optional[list[uuid.UUID]] = None,
-) -> int:
-    """Link the transfers this workspace's rules are sure about.
+    new_ids: Optional[set[uuid.UUID]] = None,
+    restrict_ids: Optional[set[uuid.UUID]] = None,
+) -> Optional[_Decided]:
+    """Ask the engine about every row that could be half of a transfer.
 
-    `candidate_ids` narrows the work to rows that just arrived, and
-    carries one rule of its own: **a pair may only form when at least one
-    leg is new.** Without it a sync would keep reconsidering years of
-    unpaired history and pairing two old rows on the strength of a rule
-    somebody edited this morning, which is a change nobody asked for
-    arriving at a moment nobody is watching.
-
-    Rows outside `candidate_ids` are still *examined*, because that is
-    the only way to ask whether they have a competing claim. They are
-    simply never paired with each other.
-
-    Returns the number of pairs created.
+    `None` when the workspace's rule has every strategy turned off.
+    `new_ids` is the sync's "rows that just arrived" narrowing (which rows
+    to examine); `restrict_ids` is a different thing, the pool itself
+    being limited to a selection so a counterpart outside it is never a
+    candidate.
     """
     policy = await rule_service.resolve(session, workspace_id, NODE)
     strategies = _enabled(policy)
@@ -229,7 +236,7 @@ async def detect_transfer_pairs(
         # Every rule turned off is a supported answer, and the one the
         # old code could not give: this workspace pairs its transfers by
         # hand.
-        return 0
+        return None
 
     scope = policy.get("scope", {})
     # Loaded before the pool, because what counts as a leg at all depends
@@ -247,8 +254,10 @@ async def detect_transfer_pairs(
     pool = await _pool(
         session, workspace_id, ignored, scope.get("exclude_legs", []), accounts
     )
+    if restrict_ids is not None:
+        pool = [tx for tx in pool if tx.id in restrict_ids]
     if len(pool) < 2:
-        return 0
+        return _Decided(decisions={})
 
     window = _widest_window(policy)
     ratio = _widest_amount_ratio(policy)
@@ -272,14 +281,6 @@ async def detect_transfer_pairs(
                         continue
                 found.append(other)
         return found
-
-    # **An empty list is not the same as no list.** `None` means "look at
-    # everything"; `[]` means "a sync just ran and brought nothing new",
-    # which is the one case where there is certainly nothing to do.
-    # Collapsing the two sent a quiet sync off to reconsider the whole
-    # workspace and pair two rows that had both been sitting there for
-    # months, which is exactly what restricting to new rows prevents.
-    new_ids = None if candidate_ids is None else set(candidate_ids)
 
     # Which rows to ask about. Everything when this is a full run;
     # otherwise the new rows plus whatever could contest them, because a
@@ -309,12 +310,16 @@ async def detect_transfer_pairs(
             continue
         decisions[tx.id] = (decision, movement, tx)
 
-    def involves_new(a: uuid.UUID, b: uuid.UUID) -> bool:
-        return new_ids is None or a in new_ids or b in new_ids
+    return _Decided(decisions=decisions)
 
-    # Pass one: the pairs both sides agree on.
+
+def _mutual_pairs(
+    decisions: dict[uuid.UUID, tuple[Decision, Movement, Transaction]],
+    involves_new: Callable[[uuid.UUID, uuid.UUID], bool],
+) -> list[tuple[Transaction, Transaction, Decision]]:
+    """The pairs both sides agree on. Decides, never writes."""
     paired: set[uuid.UUID] = set()
-    pairs_created = 0
+    found: list[tuple[Transaction, Transaction, Decision]] = []
     for tx_id, (decision, _movement, tx) in decisions.items():
         expectation = decision.expectation
         if decision.port != "linked" or tx_id in paired or expectation is None:
@@ -334,10 +339,169 @@ async def detect_transfer_pairs(
             # queue is where that gets settled.
             continue
 
+        paired.update({tx_id, other_id})
+        found.append((tx, other_tx, decision))
+    return found
+
+
+@dataclass
+class ProposedLeg:
+    """One side of a proposed pair, with what a person needs to judge it."""
+
+    id: uuid.UUID
+    date: date
+    account_id: uuid.UUID
+    account_name: Optional[str]
+    description: str
+    amount: Decimal
+    currency: str
+    type: str
+
+
+@dataclass
+class ProposedPair:
+    """Two rows the rule would link. `a` is the debit, `b` the credit."""
+
+    a: ProposedLeg
+    b: ProposedLeg
+    strategy: Optional[str]
+
+
+@dataclass
+class ProposalResult:
+    pairs: list[ProposedPair] = field(default_factory=list)
+    #: Selected rows that had a counterpart nobody could settle on.
+    ambiguous: list[uuid.UUID] = field(default_factory=list)
+    #: Selected rows with no valid counterpart in the selection.
+    unmatched: list[uuid.UUID] = field(default_factory=list)
+    #: Selected rows that already belong to a transfer pair.
+    already_linked: list[uuid.UUID] = field(default_factory=list)
+
+
+def _leg(tx: Transaction, accounts: dict[uuid.UUID, Account]) -> ProposedLeg:
+    account = accounts.get(tx.account_id)
+    return ProposedLeg(
+        id=tx.id,
+        date=tx.date,
+        account_id=tx.account_id,
+        account_name=account.name if account else None,
+        description=tx.description,
+        amount=abs(Decimal(tx.amount)),
+        currency=tx.currency,
+        type=tx.type,
+    )
+
+
+async def propose_pairs(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    restrict_ids: Optional[set[uuid.UUID]] = None,
+) -> ProposalResult:
+    """The pairs the rule is sure about, without writing anything.
+
+    With `restrict_ids=None` the whole workspace is considered and only
+    mutual `linked` pairs come back; nothing that is merely a suggestion
+    is proposed, and no suggestion is recorded.
+
+    With a set, **both legs must belong to it**: a counterpart outside the
+    selection is not a candidate. The rest of the selection is sorted
+    into rows already linked, rows with a contested counterpart
+    (`ambiguous`) and rows with none (`unmatched`). Ids from another
+    workspace appear in none of them.
+    """
+    decided = await _decide(session, workspace_id, restrict_ids=restrict_ids)
+    if decided is None:
+        return ProposalResult()
+
+    accounts = {
+        account.id: account
+        for account in (
+            await session.execute(
+                select(Account).where(Account.workspace_id == workspace_id)
+            )
+        ).scalars()
+    }
+    found = _mutual_pairs(decided.decisions, lambda _a, _b: True)
+    result = ProposalResult()
+    for tx, other_tx, decision in found:
+        debit, credit = (tx, other_tx) if tx.type == "debit" else (other_tx, tx)
+        result.pairs.append(
+            ProposedPair(
+                a=_leg(debit, accounts),
+                b=_leg(credit, accounts),
+                strategy=decision.strategy,
+            )
+        )
+    result.pairs.sort(key=lambda p: (p.a.date, str(p.a.id)))
+
+    if restrict_ids is None:
+        return result
+
+    rows = (
+        await session.execute(
+            select(Transaction.id, Transaction.transfer_pair_id).where(
+                Transaction.workspace_id == workspace_id,
+                Transaction.id.in_(restrict_ids),
+            )
+        )
+    ).all()
+    paired = {tx.id for tx, other, _d in found} | {other.id for _t, other, _d in found}
+    for tx_id, pair_id in sorted(rows, key=lambda row: str(row[0])):
+        if pair_id is not None:
+            result.already_linked.append(tx_id)
+        elif tx_id in paired:
+            continue
+        elif tx_id in decided.decisions:
+            result.ambiguous.append(tx_id)
+        else:
+            result.unmatched.append(tx_id)
+    return result
+
+
+async def detect_transfer_pairs(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    candidate_ids: Optional[list[uuid.UUID]] = None,
+) -> int:
+    """Link the transfers this workspace's rules are sure about.
+
+    `candidate_ids` narrows the work to rows that just arrived, and
+    carries one rule of its own: **a pair may only form when at least one
+    leg is new.** Without it a sync would keep reconsidering years of
+    unpaired history and pairing two old rows on the strength of a rule
+    somebody edited this morning, which is a change nobody asked for
+    arriving at a moment nobody is watching.
+
+    Rows outside `candidate_ids` are still *examined*, because that is
+    the only way to ask whether they have a competing claim. They are
+    simply never paired with each other.
+
+    Returns the number of pairs created.
+    """
+    # **An empty list is not the same as no list.** `None` means "look at
+    # everything"; `[]` means "a sync just ran and brought nothing new",
+    # which is the one case where there is certainly nothing to do.
+    # Collapsing the two sent a quiet sync off to reconsider the whole
+    # workspace and pair two rows that had both been sitting there for
+    # months, which is exactly what restricting to new rows prevents.
+    new_ids = None if candidate_ids is None else set(candidate_ids)
+
+    decided = await _decide(session, workspace_id, new_ids=new_ids)
+    if decided is None:
+        return 0
+    decisions = decided.decisions
+
+    def involves_new(a: uuid.UUID, b: uuid.UUID) -> bool:
+        return new_ids is None or a in new_ids or b in new_ids
+
+    # Pass one: the pairs both sides agree on.
+    paired: set[uuid.UUID] = set()
+    pairs_created = 0
+    for tx, other_tx, _decision in _mutual_pairs(decisions, involves_new):
         pair_id = uuid.uuid4()
         tx.transfer_pair_id = pair_id
         other_tx.transfer_pair_id = pair_id
-        paired.update({tx_id, other_id})
+        paired.update({tx.id, other_tx.id})
         pairs_created += 1
 
     # Pass two: everything that looked like a transfer and was not certain.
@@ -366,6 +530,70 @@ async def detect_transfer_pairs(
         )
 
     return pairs_created
+
+
+@dataclass
+class SkippedPair:
+    a: uuid.UUID
+    b: uuid.UUID
+    #: `not_found`, `already_linked` or `not_proposed`.
+    reason: str
+
+
+@dataclass
+class ApplyResult:
+    linked: int = 0
+    skipped: list[SkippedPair] = field(default_factory=list)
+
+
+async def apply_pairs(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    pairs: list[tuple[uuid.UUID, uuid.UUID]],
+) -> ApplyResult:
+    """Link the requested pairs that the rule still proposes.
+
+    **The client never gets to say which rows are a transfer.** It says
+    which pairs it was shown, and each one is checked again against the
+    state of the books now: a pair is linked only if the proposal, rerun
+    over the rows involved, still contains it. A leg that was linked,
+    deleted or edited since the preview, or a pair somebody invented, is
+    skipped and reported instead.
+
+    Suggestions are never recorded here, and the caller owns the commit,
+    so every pair in one call lands together.
+    """
+    result = ApplyResult()
+    involved = {leg for pair in pairs for leg in pair}
+    proposal = await propose_pairs(session, workspace_id, restrict_ids=involved)
+    proposed = {frozenset((p.a.id, p.b.id)) for p in proposal.pairs}
+
+    rows = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.workspace_id == workspace_id,
+                Transaction.id.in_(involved),
+            )
+        )
+    ).scalars()
+    by_id = {tx.id: tx for tx in rows}
+
+    for a, b in pairs:
+        tx_a, tx_b = by_id.get(a), by_id.get(b)
+        if tx_a is None or tx_b is None:
+            reason = "not_found"
+        elif tx_a.transfer_pair_id is not None or tx_b.transfer_pair_id is not None:
+            reason = "already_linked"
+        elif frozenset((a, b)) not in proposed:
+            reason = "not_proposed"
+        else:
+            pair_id = uuid.uuid4()
+            tx_a.transfer_pair_id = pair_id
+            tx_b.transfer_pair_id = pair_id
+            result.linked += 1
+            continue
+        result.skipped.append(SkippedPair(a=a, b=b, reason=reason))
+    return result
 
 
 async def unlink_transfer_pair(

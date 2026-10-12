@@ -28,7 +28,17 @@ from app.schemas.bank_connection import (
     ReconnectTokenResponse,
 )
 from app.services import connection_service
-from app.services.transfer_detection_service import detect_transfer_pairs, unlink_transfer_pair
+from app.schemas.transfer_pairing import (
+    TransferApplyRead,
+    TransferApplyRequest,
+    TransferPreviewRead,
+)
+from app.services.transfer_detection_service import (
+    apply_pairs,
+    detect_transfer_pairs,
+    propose_pairs,
+    unlink_transfer_pair,
+)
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
@@ -271,6 +281,29 @@ async def detect_transfers(
     pairs_created = await detect_transfer_pairs(session, ctx.workspace.id)
     await session.commit()
     return {"pairs_created": pairs_created}
+
+
+@router.get("/transfers/preview", response_model=TransferPreviewRead)
+async def preview_transfers(
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """The pairs the transfer rule would link right now. Writes nothing."""
+    return await propose_pairs(session, ctx.workspace.id)
+
+
+@router.post("/transfers/apply", response_model=TransferApplyRead)
+async def apply_transfers(
+    data: TransferApplyRequest,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Link the chosen pairs that the rule still proposes; skip the rest."""
+    result = await apply_pairs(
+        session, ctx.workspace.id, [(p.a, p.b) for p in data.pairs]
+    )
+    await session.commit()
+    return result
 
 
 @router.delete("/transfers/{pair_id}", status_code=status.HTTP_204_NO_CONTENT)

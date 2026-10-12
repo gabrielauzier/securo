@@ -2736,3 +2736,389 @@ async def test_custom_dates_override_indian_yearly_ytd(
         assert service.call_args.kwargs['financial_year_start_month'] == 4
     finally:
         app.dependency_overrides.pop(current_workspace, None)
+
+
+# ---------------------------------------------------------------------------
+# get_net_worth_report: balance resets inside the window (NWN-01)
+# ---------------------------------------------------------------------------
+
+
+async def _seed_reset_account(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    name: str,
+    opening_date: date | None,
+    earlier_date: date | None = None,
+    earlier_ignored: bool = False,
+) -> Account:
+    account = await _create_manual_account(session, user_id, name)
+    if opening_date is not None:
+        # AD-002: the notice reads the account's saved date, which the service
+        # keeps equal to its opening row.
+        account.balance_date = opening_date
+        await session.commit()
+        await _create_transaction(
+            session, user_id, account.id, 1000, "credit", opening_date, source="opening_balance"
+        )
+    if earlier_date is not None:
+        txn = await _create_transaction(session, user_id, account.id, 200, "debit", earlier_date)
+        if earlier_ignored:
+            txn.is_ignored = True
+            await session.commit()
+    return account
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_lists_account_reset_inside_window(
+    session: AsyncSession, test_user, test_workspace
+):
+    today = date.today()
+    opening = today - timedelta(days=10)
+    account = await _seed_reset_account(
+        session, test_user.id, "Reset Acc", opening, earlier_date=today - timedelta(days=40)
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert [(r.account_id, r.account_name, r.date) for r in report.meta.balance_resets] == [
+        (str(account.id), "Reset Acc", opening.isoformat())
+    ]
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_skips_accounts_without_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    today = date.today()
+    # No transaction before the opening date.
+    await _seed_reset_account(session, test_user.id, "Clean", today - timedelta(days=10))
+    # Opening date before the window starts, with an even earlier transaction.
+    await _seed_reset_account(
+        session, test_user.id, "Old Opening", today - timedelta(days=200),
+        earlier_date=today - timedelta(days=300),
+    )
+    # The only earlier transaction is ignored.
+    await _seed_reset_account(
+        session, test_user.id, "Ignored Earlier", today - timedelta(days=10),
+        earlier_date=today - timedelta(days=40), earlier_ignored=True,
+    )
+    # No opening transaction at all.
+    await _seed_reset_account(
+        session, test_user.id, "No Opening", None, earlier_date=today - timedelta(days=40)
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_resets_honor_collection_filter(
+    session: AsyncSession, test_user, test_workspace
+):
+    today = date.today()
+    opening = today - timedelta(days=10)
+    earlier = today - timedelta(days=40)
+    kept = await _seed_reset_account(session, test_user.id, "Kept", opening, earlier_date=earlier)
+    await _seed_reset_account(session, test_user.id, "Filtered Out", opening, earlier_date=earlier)
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly",
+        account_ids=[kept.id],
+    )
+
+    assert [r.account_name for r in report.meta.balance_resets] == ["Kept"]
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_resets_use_one_grouped_lookup(
+    session: AsyncSession, test_user, test_workspace, monkeypatch
+):
+    today = date.today()
+    for i in range(3):
+        await _seed_reset_account(
+            session, test_user.id, f"Many {i}", today - timedelta(days=10),
+            earlier_date=today - timedelta(days=40),
+        )
+    calls = []
+    original = report_service._find_balance_resets
+
+    async def spy(*args, **kwargs):
+        calls.append(1)
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(report_service, "_find_balance_resets", spy)
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert len(calls) == 1
+    assert len(report.meta.balance_resets) == 3
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_ignores_opening_on_window_start_and_after_end(
+    session: AsyncSession, test_user, test_workspace
+):
+    today = date.today()
+    start = today - timedelta(days=30)
+    # Opening exactly on the window start is not inside the window.
+    await _seed_reset_account(
+        session, test_user.id, "On Start", start, earlier_date=start - timedelta(days=5)
+    )
+    # Opening after the report end date is not inside the window.
+    await _seed_reset_account(
+        session, test_user.id, "After End", today + timedelta(days=5),
+        earlier_date=today - timedelta(days=5),
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, interval="monthly",
+        start_date=start, end_date=today,
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_ignores_opening_the_day_after_window_end(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Window is (start, end]: a balance date one day after the end is outside it."""
+    today = date.today()
+    start = today - timedelta(days=30)
+    end = today - timedelta(days=5)
+    await _seed_reset_account(
+        session, test_user.id, "Day After End", end + timedelta(days=1),
+        earlier_date=end - timedelta(days=5),
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, interval="monthly",
+        start_date=start, end_date=end,
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_lists_opening_exactly_on_window_end(
+    session: AsyncSession, test_user, test_workspace
+):
+    """Window is (start, end]: an opening dated on the end date is inside it."""
+    today = date.today()
+    start = today - timedelta(days=30)
+    end = today - timedelta(days=5)
+    account = await _seed_reset_account(
+        session, test_user.id, "On End", end, earlier_date=end - timedelta(days=5)
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, interval="monthly",
+        start_date=start, end_date=end,
+    )
+
+    assert [(r.account_id, r.date) for r in report.meta.balance_resets] == [
+        (str(account.id), end.isoformat())
+    ]
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_transaction_on_opening_day_is_not_earlier_history(
+    session: AsyncSession, test_user, test_workspace
+):
+    today = date.today()
+    opening = today - timedelta(days=10)
+    await _seed_reset_account(
+        session, test_user.id, "Same Day", opening, earlier_date=opening
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_two_openings_use_the_latest_date(
+    session: AsyncSession, test_user, test_workspace
+):
+    """The latest opening row is the floor; the older one is neither the reset date
+    nor earlier history."""
+    today = date.today()
+    start = today - timedelta(days=30)
+    old_opening = today - timedelta(days=40)
+    new_opening = today - timedelta(days=10)
+    account = await _seed_reset_account(
+        session, test_user.id, "Two Openings", new_opening,
+        earlier_date=today - timedelta(days=50),
+    )
+    await _create_transaction(
+        session, test_user.id, account.id, 500, "credit", old_opening, source="opening_balance"
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, interval="monthly",
+        start_date=start, end_date=today,
+    )
+
+    assert [(r.account_id, r.date) for r in report.meta.balance_resets] == [
+        (str(account.id), new_opening.isoformat())
+    ]
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_older_opening_row_is_not_earlier_history(
+    session: AsyncSession, test_user, test_workspace
+):
+    today = date.today()
+    start = today - timedelta(days=30)
+    account = await _seed_reset_account(
+        session, test_user.id, "Only Openings", today - timedelta(days=10)
+    )
+    await _create_transaction(
+        session, test_user.id, account.id, 500, "credit", today - timedelta(days=40),
+        source="opening_balance",
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, interval="monthly",
+        start_date=start, end_date=today,
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_connected_account_is_not_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    today = date.today()
+    conn = BankConnection(
+        id=uuid.uuid4(), user_id=test_user.id, provider="test",
+        external_id="ext-reset", institution_name="Bank",
+        credentials={}, status="active",
+        last_sync_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(conn)
+    await session.flush()
+    account = Account(
+        id=uuid.uuid4(), user_id=test_user.id, connection_id=conn.id,
+        name="Connected", type="checking", balance=Decimal("500"), currency="BRL",
+    )
+    session.add(account)
+    await session.commit()
+    # Synthetic opening row sits before the oldest synced transaction.
+    await _create_transaction(
+        session, test_user.id, account.id, 100, "credit",
+        today - timedelta(days=100), source="opening_balance",
+    )
+    await _create_transaction(session, test_user.id, account.id, 50, "debit", today - timedelta(days=40))
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_connected_account_with_a_saved_date_is_not_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-01 AC9 / ABD-02 AC6: a bank-connected account is never listed, even if its
+    balance_date were set, because the provider stays the source of the balance."""
+    today = date.today()
+    conn = BankConnection(
+        id=uuid.uuid4(), user_id=test_user.id, provider="test",
+        external_id="ext-reset-dated", institution_name="Bank",
+        credentials={}, status="active",
+        last_sync_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(conn)
+    await session.flush()
+    account = Account(
+        id=uuid.uuid4(), user_id=test_user.id, connection_id=conn.id,
+        name="Connected Dated", type="checking", balance=Decimal("500"), currency="BRL",
+        balance_date=today - timedelta(days=10),
+    )
+    session.add(account)
+    await session.commit()
+    await _create_transaction(session, test_user.id, account.id, 50, "debit", today - timedelta(days=40))
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_lists_saved_date_without_an_opening_row(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-02 AC7: the notice follows Account.balance_date, with no opening transaction."""
+    today = date.today()
+    saved = today - timedelta(days=10)
+    account = await _create_manual_account(session, test_user.id, "Zero Dated")
+    account.balance_date = saved
+    await session.commit()
+    await _create_transaction(
+        session, test_user.id, account.id, 200, "debit", today - timedelta(days=40)
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert [(r.account_id, r.date) for r in report.meta.balance_resets] == [
+        (str(account.id), saved.isoformat())
+    ]
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_account_without_saved_date_is_not_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-02 AC3/AC7: a NULL balance_date lists nothing, even with an opening row."""
+    today = date.today()
+    account = await _create_manual_account(session, test_user.id, "No Date")
+    await _create_transaction(
+        session, test_user.id, account.id, 1000, "credit", today - timedelta(days=10),
+        source="opening_balance",
+    )
+    await _create_transaction(
+        session, test_user.id, account.id, 200, "debit", today - timedelta(days=40)
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []
+
+
+@pytest.mark.asyncio
+async def test_net_worth_report_saved_date_with_only_ignored_history_is_not_a_reset(
+    session: AsyncSession, test_user, test_workspace
+):
+    """ABD-02 AC7: only non-ignored earlier transactions make a reset."""
+    today = date.today()
+    await _seed_reset_account(
+        session, test_user.id, "Ignored Only", today - timedelta(days=10),
+        earlier_date=today - timedelta(days=40), earlier_ignored=True,
+    )
+
+    report = await get_net_worth_report(
+        session, test_workspace.id, test_user.id, months=3, interval="monthly"
+    )
+
+    assert report.meta.balance_resets == []

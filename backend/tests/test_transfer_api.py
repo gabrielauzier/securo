@@ -1225,3 +1225,139 @@ async def test_get_transfer_pair_404_for_unknown_transaction(client: AsyncClient
         f"/api/transactions/{uuid.uuid4()}/transfer-pair", headers=auth_headers
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Transfer rule on demand: preview and apply (TRF-01)
+# ---------------------------------------------------------------------------
+
+
+async def _mirrored_pair(client, auth_headers, a: Account, b: Account, amount: float):
+    debit = await _create_manual_tx(
+        client, auth_headers, a.id, type="debit", amount=amount, description=f"Out {amount}"
+    )
+    credit = await _create_manual_tx(
+        client, auth_headers, b.id, type="credit", amount=amount, description=f"In {amount}"
+    )
+    return debit, credit
+
+
+@pytest.mark.asyncio
+async def test_transfer_preview_lists_pairs_with_both_legs_and_writes_nothing(
+    client: AsyncClient, auth_headers, test_account: Account, second_account: Account
+):
+    debit, credit = await _mirrored_pair(client, auth_headers, test_account, second_account, 321.00)
+
+    response = await client.get("/api/connections/transfers/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    pairs = response.json()["pairs"]
+    assert len(pairs) == 1
+    pair = pairs[0]
+    assert pair["a"]["id"] == debit["id"]
+    assert pair["b"]["id"] == credit["id"]
+    assert pair["a"]["account_id"] == str(test_account.id)
+    assert pair["a"]["account_name"] == test_account.name
+    assert pair["a"]["description"] == "Out 321.0"
+    assert pair["a"]["date"] == date.today().isoformat()
+    assert Decimal(str(pair["a"]["amount"])) == Decimal("321.00")
+    assert pair["a"]["currency"] == test_account.currency
+    assert pair["strategy"]
+    after = await client.get(f"/api/transactions/{debit['id']}", headers=auth_headers)
+    assert after.json()["transfer_pair_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_transfer_preview_is_empty_when_every_strategy_is_disabled(
+    client: AsyncClient, auth_headers, test_account: Account, second_account: Account
+):
+    await _mirrored_pair(client, auth_headers, test_account, second_account, 55.00)
+    rules = await client.get("/api/reconciliation/rules", headers=auth_headers)
+    assert rules.status_code == 200
+    node = next(n for n in rules.json() if n["node"] == "reconciliation.match_transfer")
+    for rule in node["rules"]:
+        patched = await client.patch(
+            f"/api/reconciliation/rules/reconciliation.match_transfer/{rule['id']}",
+            json={"enabled": False},
+            headers=auth_headers,
+        )
+        assert patched.status_code == 200
+
+    response = await client.get("/api/connections/transfers/preview", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["pairs"] == []
+
+
+@pytest.mark.asyncio
+async def test_transfer_apply_links_only_the_posted_pairs(
+    client: AsyncClient, auth_headers, test_account: Account, second_account: Account
+):
+    d1, c1 = await _mirrored_pair(client, auth_headers, test_account, second_account, 100.00)
+    d2, c2 = await _mirrored_pair(client, auth_headers, test_account, second_account, 250.00)
+
+    response = await client.post(
+        "/api/connections/transfers/apply",
+        json={"pairs": [{"a": d1["id"], "b": c1["id"]}]},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"linked": 1, "skipped": []}
+    linked = (await client.get(f"/api/transactions/{d1['id']}", headers=auth_headers)).json()
+    other = (await client.get(f"/api/transactions/{d2['id']}", headers=auth_headers)).json()
+    assert linked["transfer_pair_id"] is not None
+    assert other["transfer_pair_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_transfer_apply_reports_a_stale_pair_as_skipped(
+    client: AsyncClient, auth_headers, test_account: Account, second_account: Account
+):
+    debit, credit = await _mirrored_pair(client, auth_headers, test_account, second_account, 75.00)
+    first = await client.post(
+        "/api/connections/transfers/apply",
+        json={"pairs": [{"a": debit["id"], "b": credit["id"]}]},
+        headers=auth_headers,
+    )
+    assert first.json()["linked"] == 1
+
+    again = await client.post(
+        "/api/connections/transfers/apply",
+        json={"pairs": [{"a": debit["id"], "b": credit["id"]}]},
+        headers=auth_headers,
+    )
+
+    assert again.status_code == 200
+    body = again.json()
+    assert body["linked"] == 0
+    assert [(s["a"], s["b"]) for s in body["skipped"]] == [(debit["id"], credit["id"])]
+
+
+@pytest.mark.asyncio
+async def test_read_only_member_cannot_apply_transfer_pairs(
+    client: AsyncClient, auth_headers, viewer_auth_headers, test_account: Account, second_account: Account
+):
+    debit, credit = await _mirrored_pair(client, auth_headers, test_account, second_account, 40.00)
+
+    response = await client.post(
+        "/api/connections/transfers/apply",
+        json={"pairs": [{"a": debit["id"], "b": credit["id"]}]},
+        headers=viewer_auth_headers,
+    )
+
+    assert response.status_code == 403
+    after = await client.get(f"/api/transactions/{debit['id']}", headers=auth_headers)
+    assert after.json()["transfer_pair_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_read_only_member_can_preview_transfer_pairs(
+    client: AsyncClient, auth_headers, viewer_auth_headers, test_account: Account, second_account: Account
+):
+    await _mirrored_pair(client, auth_headers, test_account, second_account, 41.00)
+
+    response = await client.get("/api/connections/transfers/preview", headers=viewer_auth_headers)
+
+    assert response.status_code == 200
+    assert len(response.json()["pairs"]) == 1

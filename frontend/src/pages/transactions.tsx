@@ -35,7 +35,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, Eye, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
 import type { Transaction, Rule, InstallmentSeriesInput, TransactionApplyScope, TransactionEditPayload, ReconciliationSuggestion } from '@/types'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
 import { PageHeader } from '@/components/page-header'
@@ -53,6 +54,7 @@ import { TransferDialog } from '@/components/transfer-dialog'
 import { useSidebarState } from '@/contexts/sidebar-state-context'
 import { cn } from '@/lib/utils'
 import { LinkTransferDialog } from '@/components/link-transfer-dialog'
+import { BulkTransferDialog } from '@/components/bulk-transfer-dialog'
 import { BulkAddToGroupDialog, type BulkAddToGroupSubmission } from '@/components/bulk-add-to-group-dialog'
 import { TransactionsFilterBar } from '@/components/transactions-filter-bar'
 import { TransactionCalendarView } from '@/components/transaction-calendar-view'
@@ -82,6 +84,48 @@ function parseHashtags(notes: string | null): string[] {
   return matches ?? []
 }
 
+const BULK_IGNORE_LIMIT = 100
+
+/**
+ * Icon-only action for the bulk selection bar. The tooltip trigger is a span
+ * so the hint still shows while the button is disabled (a disabled button
+ * swallows pointer events), which is when the reason matters most.
+ */
+function BulkIconButton({
+  label,
+  hint,
+  disabled,
+  onClick,
+  children,
+}: {
+  /** Accessible name: always the action itself. */
+  label: string
+  /** Tooltip text when it should say more than the label (e.g. why it is disabled). */
+  hint?: string
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex shrink-0">
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onClick={onClick}
+            aria-label={label}
+            className="h-8 px-3 text-sm"
+          >
+            {children}
+          </Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{hint ?? label}</TooltipContent>
+    </Tooltip>
+  )
+}
 const HIDE_IGNORED_STORAGE_KEY = 'securo.transactions.hideIgnored'
 
 export default function TransactionsPage() {
@@ -207,6 +251,7 @@ export default function TransactionsPage() {
   const [exporting, setExporting] = useState(false)
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [linkTransferDialogOpen, setLinkTransferDialogOpen] = useState(false)
+  const [bulkTransferOpen, setBulkTransferOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
   const grid = useTransactionsGridState()
@@ -574,6 +619,22 @@ export default function TransactionsPage() {
       toast.error(extractApiError(error))
     },
   })
+
+  const bulkIgnoreMutation = useMutation({
+    mutationFn: ({ ids, ignored }: { ids: string[]; ignored: boolean }) =>
+      transactions.bulkIgnore(ids, ignored),
+    onSuccess: (result) => {
+      invalidateAfterTxMutation()
+      setSelectedIds(new Set())
+      toast.success(t('transactions.bulkIgnoreSuccess', { count: result.updated }))
+    },
+    onError: (error) => {
+      toast.error(extractApiError(error))
+    },
+  })
+  // The API rejects more than 100 ids per request, so over the limit the
+  // ignore actions stay disabled and the hint explains why.
+  const bulkIgnoreOverLimit = selectedIds.size > BULK_IGNORE_LIMIT
 
   const bulkAddTagsMutation = useMutation({
     mutationFn: ({ ids, tags }: { ids: string[]; tags: string[] }) =>
@@ -1769,6 +1830,11 @@ export default function TransactionsPage() {
       {viewMode === 'list' && selectedIds.size > 0 && (
         <div className={cn(
           "fixed bottom-0 left-0 right-0 z-50",
+          // Opening a dialog locks page scroll and the scrollbar disappears,
+          // which would widen this full-width bar and slide it to the right.
+          // react-remove-scroll offsets elements carrying this class by the
+          // scrollbar width while the lock is on, so the bar stays put.
+          "right-scroll-bar-position",
           "transition-[left] duration-300 ease-in-out motion-reduce:transition-none",
           sidebarCollapsed ? 'lg:left-16' : 'lg:left-60',
         )}>
@@ -1792,17 +1858,23 @@ export default function TransactionsPage() {
               }}
               onOpenGroup={() => setBulkAddToGroupOpen(true)}
               onOpenTransfer={() => setLinkTransferDialogOpen(true)}
+              onMarkTransfer={() => setBulkTransferOpen(true)}
+              markTransferDisabled={bulkIgnoreOverLimit}
+              markTransferHint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
               onCreateRule={selectedSingleTx && !selectedSingleTx.is_shared
                 ? () => handleCreateRuleFromTransaction(selectedSingleTx)
                 : undefined}
               onTagInputChange={setBulkTagInput}
               onAddTags={(tags) => bulkAddTagsMutation.mutate({ ids: Array.from(selectedIds), tags })}
               onRemoveTags={(tags) => bulkRemoveTagsMutation.mutate({ ids: Array.from(selectedIds), tags })}
+              ignoreDisabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
+              ignoreHint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
+              onIgnore={(ignored) => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored })}
               onBulkDelete={() => setBulkDeleteConfirmOpen(true)}
               onClear={() => { setSelectedIds(new Set()); setBulkCategory(''); setBulkTagInput('') }}
             />
 
-            <div className="hidden w-full items-center gap-1.5 sm:flex">
+            <div className="hidden w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 sm:flex">
             {/* Selection count + net total — stacked vertically so the
                 sum (issue #185) adds no horizontal width to an already
                 crowded bar. The sum is hidden below sm where only the
@@ -1855,17 +1927,13 @@ export default function TransactionsPage() {
 
             {/* Add to group — opens a dialog to configure share type and
                 members. Mirrors the per-tx splits options (issue #156). */}
-            <Button
-              size="sm"
-              variant="ghost"
+            <BulkIconButton
+              label={t('transactions.addToGroup')}
               disabled={bulkAddToGroupMutation.isPending}
               onClick={() => setBulkAddToGroupOpen(true)}
-              title={t('transactions.addToGroup')}
-              className="h-8 px-3 shrink-0 text-sm"
             >
-              <Users size={15} className="lg:mr-1.5" />
-              <span className="hidden lg:inline">{t('transactions.addToGroup')}</span>
-            </Button>
+              <Users size={15} />
+            </BulkIconButton>
 
             <div className="w-px bg-border/60 self-stretch" />
 
@@ -1918,17 +1986,24 @@ export default function TransactionsPage() {
             <div className="w-px bg-border/60 self-stretch" />
 
             {/* Link transfer */}
-            <Button
-              size="sm"
-              variant="ghost"
+            <BulkIconButton
+              label={t('transactions.linkAsTransfer')}
+              hint={linkDisabledTooltip}
               disabled={!canOpenLinkDialog}
-              title={linkDisabledTooltip ?? t('transactions.linkAsTransfer')}
               onClick={() => setLinkTransferDialogOpen(true)}
-              className="h-8 px-3 shrink-0 text-sm"
             >
-              <ArrowLeftRight size={15} className="mr-1.5" />
-              <span className="hidden lg:inline">{t('transactions.linkAsTransfer')}</span>
-            </Button>
+              <ArrowLeftRight size={15} />
+            </BulkIconButton>
+
+            {/* Mark as transfer — pairs the selection automatically, capped at 100 ids */}
+            <BulkIconButton
+              label={t('transactions.bulkTransfer')}
+              hint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
+              disabled={bulkIgnoreOverLimit}
+              onClick={() => setBulkTransferOpen(true)}
+            >
+              <ArrowLeftRight size={15} />
+            </BulkIconButton>
 
             <div className="w-px bg-border/60 self-stretch" />
 
@@ -1937,18 +2012,37 @@ export default function TransactionsPage() {
               const selectedTx = filteredItems.find(tx => selectedIds.has(tx.id))
               if (!selectedTx || selectedTx.is_shared) return null
               return (
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <BulkIconButton
+                  label={t('transactions.createRule')}
                   onClick={() => handleCreateRuleFromTransaction(selectedTx)}
-                  className="h-8 px-3 shrink-0 text-sm"
-                  title={t('transactions.createRule')}
                 >
-                  <SlidersHorizontal size={15} className="lg:mr-1.5" />
-                  <span className="hidden lg:inline">{t('transactions.createRule')}</span>
-                </Button>
+                  <SlidersHorizontal size={15} />
+                </BulkIconButton>
               )
             })()}
+
+            {/* Ignore / Stop ignoring — explicit state, capped at 100 per request */}
+            <BulkIconButton
+              label={t('transactions.bulkIgnore')}
+              hint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
+              disabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
+              onClick={() => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored: true })}
+            >
+              <EyeClosed size={15} />
+            </BulkIconButton>
+            <BulkIconButton
+              label={t('transactions.bulkUnignore')}
+              hint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
+              disabled={bulkIgnoreOverLimit || bulkIgnoreMutation.isPending}
+              onClick={() => bulkIgnoreMutation.mutate({ ids: Array.from(selectedIds), ignored: false })}
+            >
+              <Eye size={15} />
+            </BulkIconButton>
+            {bulkIgnoreOverLimit && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {t('transactions.bulkLimitHint')}
+              </span>
+            )}
 
             {/* Bulk Delete */}
             <Button
@@ -1990,6 +2084,17 @@ export default function TransactionsPage() {
       />
 
       {/* Link Transfer Dialog */}
+      <BulkTransferDialog
+        open={bulkTransferOpen}
+        onClose={() => setBulkTransferOpen(false)}
+        transactionIds={Array.from(selectedIds)}
+        rows={filteredItems}
+        onLinked={() => {
+          invalidateAfterTxMutation()
+          setSelectedIds(new Set())
+        }}
+      />
+
       <LinkTransferDialog
         open={linkTransferDialogOpen}
         onClose={() => setLinkTransferDialogOpen(false)}

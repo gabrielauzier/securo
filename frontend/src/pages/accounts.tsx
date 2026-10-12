@@ -665,7 +665,7 @@ export default function AccountsPage() {
   )
 }
 
-function AccountDialog({
+export function AccountDialog({
   open,
   onClose,
   account,
@@ -701,23 +701,27 @@ function AccountDialog({
   const [type, setType] = useState(account?.type ?? 'checking')
   const [balance, setBalance] = useState(account?.balance?.toString() ?? '0')
   const [currency, setCurrency] = useState(account?.currency ?? userCurrency)
-  const [balanceDate, setBalanceDate] = useState(localDateString)
+  const [balanceDate, setBalanceDate] = useState(account?.balance_date ?? localDateString())
   const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
   const [statementCloseDay, setStatementCloseDay] = useState(account?.statement_close_day?.toString() ?? '')
   const [paymentDueDay, setPaymentDueDay] = useState(account?.payment_due_day?.toString() ?? '')
 
-  const [formSource, setFormSource] = useState<{ account: typeof account } | null>(null)
-  if (!formSource || formSource.account !== account) {
-    setFormSource({ account })
-    setName(account?.name ?? '')
-    setDisplayName(account?.display_name ?? '')
-    setType(account?.type ?? 'checking')
-    setBalance(account?.balance?.toString() ?? '0')
-    setCurrency(account?.currency ?? userCurrency)
-    setBalanceDate(localDateString())
-    setCreditLimit(account?.credit_limit?.toString() ?? '')
-    setStatementCloseDay(account?.statement_close_day?.toString() ?? '')
-    setPaymentDueDay(account?.payment_due_day?.toString() ?? '')
+  const [formSource, setFormSource] = useState<{ open: boolean; account: typeof account; balanceDate: string } | null>(null)
+  if (!formSource || formSource.account !== account || formSource.open !== open) {
+    // Edit shows the date saved on the account; create (or an account with none) shows today.
+    const initialBalanceDate = account?.balance_date ?? localDateString()
+    setFormSource({ open, account, balanceDate: initialBalanceDate })
+    if (open) {
+      setName(account?.name ?? '')
+      setDisplayName(account?.display_name ?? '')
+      setType(account?.type ?? 'checking')
+      setBalance(account?.balance?.toString() ?? '0')
+      setCurrency(account?.currency ?? userCurrency)
+      setBalanceDate(initialBalanceDate)
+      setCreditLimit(account?.credit_limit?.toString() ?? '')
+      setStatementCloseDay(account?.statement_close_day?.toString() ?? '')
+      setPaymentDueDay(account?.payment_due_day?.toString() ?? '')
+    }
   }
 
   return (
@@ -738,8 +742,23 @@ function AccountDialog({
               return Number.isFinite(n) && n >= 1 && n <= 31 ? n : null
             }
             const isConnected = !!account?.connection_id
+            // Editing: the balance and its date rewrite the opening row, so send
+            // them only when the user changed one (a name-only edit must not move it).
+            const dateChanged = balanceDate !== formSource?.balanceDate
+            const balanceValue = parseFloat(balance)
+            const balanceTouched =
+              balance !== (account?.balance?.toString() ?? '0') || dateChanged
+            // Creating: always send the balance, but a date only when the user chose
+            // one or opened the account with a balance (a zero balance with an
+            // untouched date must not set a floor).
+            const sendDate = account ? balanceTouched : dateChanged || balanceValue !== 0
             onSave({
-              ...(!isConnected && { name, balance: parseFloat(balance), balance_date: balanceDate, currency }),
+              ...(!isConnected && {
+                name,
+                currency,
+                ...((account ? balanceTouched : true) && { balance: balanceValue }),
+                ...(sendDate && { balance_date: balanceDate }),
+              }),
               type,
               display_name: displayName.trim() || null,
               ...(isCC && {
@@ -831,6 +850,9 @@ function AccountDialog({
                     onChange={setBalanceDate}
                     className="w-full justify-start"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {t('accounts.balanceDateHint')}
+                  </p>
                 </div>
               </div>
               {type === 'credit_card' && (

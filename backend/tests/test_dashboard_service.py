@@ -65,6 +65,13 @@ async def _add_txn(
     )
     session.add(txn)
     await session.commit()
+    if source == "opening_balance":
+        # AD-002: the floor reads the account's saved date, which the service
+        # keeps in step with its opening row; mirror that for fixtures.
+        owner = await session.get(Account, account_id)
+        if owner is not None and owner.connection_id is None:
+            owner.balance_date = max(owner.balance_date or txn_date, txn_date)
+            await session.commit()
     await session.refresh(txn)
     return txn
 
@@ -1217,3 +1224,137 @@ async def test_balance_at_multi_currency(session, test_user, test_workspace):
 # ---------------------------------------------------------------------------
 # _total_balance_by_currency
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Opening balance floor (dashboard / goal / report snapshots)
+# Opening 1000 on D = today-5; expense 200 on D-3 (before the opening);
+# expense 100 on D+2 (after it).
+# ---------------------------------------------------------------------------
+
+
+async def _floored_manual_account(session: AsyncSession, user_id, name: str = "Floor Dash"):
+    from app.core.app_clock import app_today
+    today = app_today()
+    opening_day = today - timedelta(days=5)
+    account = await _make_account(session, user_id, name)
+    await _add_txn(session, user_id, account.id, 1000, "credit", opening_day, source="opening_balance")
+    await _add_txn(session, user_id, account.id, 200, "debit", opening_day - timedelta(days=3))
+    await _add_txn(session, user_id, account.id, 100, "debit", opening_day + timedelta(days=2))
+    return account, today, opening_day
+
+
+@pytest.mark.asyncio
+async def test_account_balance_at_today_excludes_transactions_before_opening(
+    session: AsyncSession, test_user
+):
+    account, today, _ = await _floored_manual_account(session, test_user.id)
+
+    assert await _account_balance_at(session, account, today) == pytest.approx(900.0)
+
+
+@pytest.mark.asyncio
+async def test_account_balance_at_uses_saved_date_without_an_opening_row(
+    session: AsyncSession, test_user
+):
+    """ABD-02 AC4: balance_date set, no opening transaction -> floor still applies."""
+    from app.core.app_clock import app_today
+    today = app_today()
+    account = await _make_account(session, test_user.id, "Dated No Opening")
+    account.balance_date = today - timedelta(days=5)
+    await session.commit()
+    await _add_txn(session, test_user.id, account.id, 200, "debit", today - timedelta(days=9))
+    await _add_txn(session, test_user.id, account.id, 100, "debit", today - timedelta(days=2))
+
+    assert await _account_balance_at(session, account, today) == pytest.approx(-100.0)
+
+
+@pytest.mark.asyncio
+async def test_account_balance_at_future_cutoff_stops_at_today(
+    session: AsyncSession, test_user
+):
+    """BAL AC1: a future cutoff is clamped to today, so a future-dated row is not counted."""
+    account, today, _ = await _floored_manual_account(session, test_user.id)
+    await _add_txn(session, test_user.id, account.id, 300, "debit", today + timedelta(days=3))
+
+    bal = await _account_balance_at(session, account, today + timedelta(days=10))
+
+    assert bal == pytest.approx(900.0)
+
+
+@pytest.mark.asyncio
+async def test_account_balance_at_cutoff_before_opening_includes_earlier_transactions(
+    session: AsyncSession, test_user
+):
+    account, _today, opening_day = await _floored_manual_account(session, test_user.id)
+
+    bal = await _account_balance_at(session, account, opening_day - timedelta(days=1))
+
+    assert bal == pytest.approx(-200.0)
+
+
+@pytest.mark.asyncio
+async def test_total_balance_snapshots_apply_the_floor_by_cutoff(
+    session: AsyncSession, test_user, test_workspace
+):
+    _account, today, opening_day = await _floored_manual_account(session, test_user.id)
+
+    now = await _total_balance_by_currency(session, test_workspace.id, today)
+    before = await _total_balance_by_currency(
+        session, test_workspace.id, opening_day - timedelta(days=1)
+    )
+
+    assert now["BRL"] == pytest.approx(900.0)
+    assert before["BRL"] == pytest.approx(-200.0)
+
+
+@pytest.mark.asyncio
+async def test_connected_account_snapshots_are_unchanged_by_the_floor(
+    session: AsyncSession, test_user, test_workspace, test_connection
+):
+    """Provider balance 800 with a synthetic opening row one day before the oldest row."""
+    from app.core.app_clock import app_today
+    from app.services.account_service import sync_opening_balance_for_connected_account
+    today = app_today()
+    account = await _make_account(
+        session, test_user.id, "Connected Dash", balance="800.00",
+        connection_id=test_connection.id,
+    )
+    await _add_txn(session, test_user.id, account.id, 100, "debit", today - timedelta(days=20))
+    await _add_txn(session, test_user.id, account.id, 500, "credit", today - timedelta(days=2))
+    await sync_opening_balance_for_connected_account(session, account)
+    await session.commit()
+
+    assert await _account_balance_at(session, account, today) == pytest.approx(800.0)
+    # 800 minus the 500 credit that happened after the cutoff
+    assert await _account_balance_at(session, account, today - timedelta(days=10)) == pytest.approx(300.0)
+    totals = await _total_balance_by_currency(session, test_workspace.id, today - timedelta(days=10))
+    assert totals["BRL"] == pytest.approx(300.0)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_total_equals_sum_of_list_balances_in_mixed_fixture(
+    session: AsyncSession, test_user, test_workspace, test_connection
+):
+    from app.core.app_clock import app_today
+    from app.services.account_service import get_accounts, sync_opening_balance_for_connected_account
+    today = app_today()
+    await _floored_manual_account(session, test_user.id, "Floor Mixed Manual")
+    card = await _make_account(session, test_user.id, "Floor Mixed Card", acc_type="credit_card")
+    await _add_txn(session, test_user.id, card.id, 1000, "debit", today - timedelta(days=8), source="opening_balance")
+    await _add_txn(session, test_user.id, card.id, 200, "debit", today - timedelta(days=12))
+    connected = await _make_account(
+        session, test_user.id, "Floor Mixed Connected", balance="800.00",
+        connection_id=test_connection.id,
+    )
+    await _add_txn(session, test_user.id, connected.id, 100, "debit", today - timedelta(days=20))
+    await _add_txn(session, test_user.id, connected.id, 500, "credit", today - timedelta(days=2))
+    await sync_opening_balance_for_connected_account(session, connected)
+    await session.commit()
+
+    totals = await _total_balance_by_currency(session, test_workspace.id, today)
+    listed = await get_accounts(session, test_workspace.id)
+
+    assert totals["BRL"] == pytest.approx(sum(a["current_balance"] for a in listed))
+    # 900 (manual) + -1000 (card) + 800 (connected)
+    assert totals["BRL"] == pytest.approx(700.0)

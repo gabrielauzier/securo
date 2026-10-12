@@ -1009,6 +1009,18 @@
     "bulkSuccess_few": "{{count}} transakcie kategorizované",
     "bulkSuccess_many": "{{count}} transakcie kategorizované",
     "bulkSuccess_other": "{{count}} transakcií kategorizovaných",
+    "bulkIgnore": "Ignorovať",
+    "bulkUnignore": "Prestať ignorovať",
+    "bulkIgnoreSuccess": "Aktualizované transakcie: {{count}}",
+    "bulkLimitHint": "Vyberte najviac 100 transakcií",
+    "bulkTransfer": "Označiť ako prevod",
+    "bulkTransferTitle": "Označiť ako prevody",
+    "bulkTransferDescription": "Skontrolujte páry nájdené medzi vybranými transakciami. Prepoja sa iba označené páry.",
+    "bulkTransferUnmatched": "Vo výbere chýba protiľahlá transakcia",
+    "bulkTransferAmbiguous": "Možných protiľahlých transakcií je viac, nespárované",
+    "bulkTransferAlreadyLinked": "Už je súčasťou prevodu",
+    "bulkTransferConfirm": "Prepojiť vybrané páry",
+    "bulkTransferSuccess": "Prepojené: {{linked}}, preskočené: {{skipped}}",
     "bulkDelete": "Vymazať vybrané",
     "bulkDeleteTitle": "Vymazať {{count}} transakcií?",
     "bulkDeleteTitle_one": "Vymazať {{count}} transakciu?",
@@ -1213,6 +1225,7 @@
     "balanceCreditCard": "Dlžná suma",
     "balanceCreditCardHint": "Zadaj ako kladné číslo, koľko na tejto karte aktuálne dlhuješ. Ak nemáš dlh, nechaj 0.",
     "balanceDate": "Dátum zostatku",
+    "balanceDateHint": "Transakcie pred týmto dátumom nemenia zostatok.",
     "lastSync": "Posledná synchronizácia",
     "multiInstitutionLink": "{{provider}} · {{count}} inštitúcií",
     "multiInstitutionLink_one": "{{provider}} · {{count}} inštitúcia",
@@ -1830,6 +1843,16 @@
     "mapPayee": "Stĺpec príjemcu",
     "mapExternalId": "Stĺpec ID transakcie",
     "mapNotes": "Stĺpec poznámky",
+    "mappingApplied": "Použité mapovanie: {{name}}",
+    "mappingSwitch": "Zmeniť mapovanie",
+    "mappingPick": "Použiť uložené mapovanie",
+    "mappingRemove": "Odstrániť použité mapovanie",
+    "mappingSave": "Uložiť mapovanie",
+    "mappingName": "Názov mapovania",
+    "mappingNamePlaceholder": "Napr. výpis Nubank",
+    "mappingSaved": "Mapovanie uložené",
+    "mappingNameDuplicate": "Mapovanie s týmto názvom už existuje.",
+    "mappingSaveError": "Mapovanie sa nepodarilo uložiť.",
     "description": "Popis",
     "errors": {
       "invalid_date": "Neplatný formát dátumu",
@@ -2030,6 +2053,7 @@
   "reports": {
     "section": "Analytika",
     "netWorth": "Čisté imanie",
+    "balanceResetNote": "Zostatok účtu {{account}} bol ručne aktualizovaný dňa {{date}}; zmena čistého majetku v tento deň odráža túto aktualizáciu.",
     "trend": "V čase",
     "breakdown": "Rozdelenie",
     "noData": "Pre toto obdobie nie sú dostupné žiadne dáta",
@@ -3006,6 +3030,20 @@
       "invoicesHint": "Ako určujeme, ktorá platba vyrovnáva ktorú faktúru.",
       "recurring": "Pravidlá opakovaných",
       "recurringHint": "Ako určujeme, že odpis je účet, ktorý ste už očakávali."
-    }
+    },
+    "applyNow": "Použiť teraz",
+    "applyNowTitle": "Použiť pravidlo prevodov teraz",
+    "applyNowDescription": "Tieto neprepojené transakcie zodpovedajú pravidlu. Zrušte označenie párov, ktoré nechcete prepojiť.",
+    "applyNowConfirm": "Prepojiť vybrané páry",
+    "applyNowSuccess": "Prepojené: {{linked}}, preskočené: {{skipped}}"
+  },
+  "transferPreview": {
+    "title": "Navrhnuté páry",
+    "strategy": "Pravidlo",
+    "selectedCount": "Vybrané páry: {{selected}} z {{total}}",
+    "from": "Z",
+    "to": "Na",
+    "empty": "Žiadne páry prevodov na prepojenie",
+    "selectPair": "Vybrať pár"
   }
 }

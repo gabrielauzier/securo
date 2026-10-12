@@ -983,6 +983,18 @@
     "summaryExcluded": "Escluso",
     "bulkCategorize": "Applica",
     "bulkSuccess": "{{count}} transazioni categorizzate",
+    "bulkIgnore": "Ignora",
+    "bulkUnignore": "Smetti di ignorare",
+    "bulkIgnoreSuccess": "{{count}} transazioni aggiornate",
+    "bulkLimitHint": "Seleziona fino a 100 transazioni",
+    "bulkTransfer": "Segna come trasferimento",
+    "bulkTransferTitle": "Segna come trasferimenti",
+    "bulkTransferDescription": "Controlla le coppie trovate tra le transazioni selezionate. Vengono collegate solo le coppie spuntate.",
+    "bulkTransferUnmatched": "Nessuna controparte nella selezione",
+    "bulkTransferAmbiguous": "Più di una controparte possibile, non abbinata",
+    "bulkTransferAlreadyLinked": "Fa già parte di un trasferimento",
+    "bulkTransferConfirm": "Collega le coppie selezionate",
+    "bulkTransferSuccess": "{{linked}} collegate, {{skipped}} saltate",
     "bulkDelete": "Elimina selezionate",
     "bulkDeleteTitle": "Eliminare {{count}} transazioni?",
     "bulkDeleteDescription": "Questo elimina definitivamente le transazioni selezionate, incluse le contropartite dei trasferimenti e i loro allegati. Non può essere annullato.",
@@ -1163,6 +1175,7 @@
     "balanceCreditCard": "Importo dovuto",
     "balanceCreditCardHint": "Inserisci quanto devi attualmente su questa carta come numero positivo. Lascia 0 se non hai debiti.",
     "balanceDate": "Data del saldo",
+    "balanceDateHint": "Le transazioni precedenti a questa data non modificano il saldo.",
     "lastSync": "Ultima sincronizzazione",
     "multiInstitutionLink_one": "{{provider}} · {{count}} istituto",
     "multiInstitutionLink_many": "{{provider}} · {{count}} istituti",
@@ -1718,6 +1731,16 @@
     "mapPayee": "Colonna del beneficiario",
     "mapExternalId": "Colonna dell'ID transazione",
     "mapNotes": "Colonna delle note",
+    "mappingApplied": "Mappatura applicata: {{name}}",
+    "mappingSwitch": "Cambia mappatura",
+    "mappingPick": "Usa una mappatura salvata",
+    "mappingRemove": "Rimuovi la mappatura applicata",
+    "mappingSave": "Salva mappatura",
+    "mappingName": "Nome della mappatura",
+    "mappingNamePlaceholder": "Es.: estratto conto Nubank",
+    "mappingSaved": "Mappatura salvata",
+    "mappingNameDuplicate": "Esiste già una mappatura con questo nome.",
+    "mappingSaveError": "Impossibile salvare la mappatura.",
     "description": "Descrizione",
     "errors": {
       "invalid_date": "Formato data non valido",
@@ -1918,6 +1941,7 @@
   "reports": {
     "section": "Analisi",
     "netWorth": "Patrimonio netto",
+    "balanceResetNote": "Il saldo di {{account}} è stato aggiornato manualmente il {{date}}; la variazione del patrimonio in quella data riflette questo aggiornamento.",
     "trend": "Nel tempo",
     "breakdown": "Dettaglio",
     "noData": "Nessun dato disponibile per questo periodo",
@@ -2864,6 +2888,20 @@
       "invoicesHint": "Come decidiamo quale pagamento salda quale fattura.",
       "recurring": "Regole Ricorrenti",
       "recurringHint": "Come decidiamo che un addebito è la bolletta che stavi già aspettando."
-    }
+    },
+    "applyNow": "Applica ora",
+    "applyNowTitle": "Applica ora la regola dei trasferimenti",
+    "applyNowDescription": "Queste transazioni non collegate rispettano la regola. Deseleziona le coppie che non vuoi collegare.",
+    "applyNowConfirm": "Collega le coppie selezionate",
+    "applyNowSuccess": "{{linked}} collegate, {{skipped}} saltate"
+  },
+  "transferPreview": {
+    "title": "Coppie proposte",
+    "strategy": "Regola",
+    "selectedCount": "{{selected}} di {{total}} coppie selezionate",
+    "from": "Da",
+    "to": "A",
+    "empty": "Nessuna coppia di trasferimento da collegare",
+    "selectPair": "Seleziona coppia"
   }
 }

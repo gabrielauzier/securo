@@ -1,8 +1,8 @@
 /**
  * Shared render helper.
  *
- * Almost every component here reads from at least one of three providers:
- * TanStack Query, the router, and i18n. Wiring them per test file drifts, so
+ * Almost every component here reads from at least one of these providers:
+ * TanStack Query, the router, i18n and the tooltip provider (App.tsx mounts it). Wiring them per test file drifts, so
  * they live in one place and `renderWithProviders` is what tests call.
  *
  * i18n is the real instance with the real English bundle, not a stub that
@@ -19,6 +19,7 @@ import userEvent from '@testing-library/user-event'
 
 import i18n from '@/lib/i18n'
 import { SidebarStateProvider } from '@/contexts/sidebar-state-provider'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 /**
  * Retries and caching are useful in the app and only add flake in a test: a
@@ -67,15 +68,17 @@ export function renderWithProviders(
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={queryClient}>
           <SidebarStateProvider>
-            <MemoryRouter initialEntries={[route]}>
-              {path ? (
-                <Routes>
-                  <Route path={path} element={children} />
-                </Routes>
-              ) : (
-                children
-              )}
-            </MemoryRouter>
+            <TooltipProvider>
+              <MemoryRouter initialEntries={[route]}>
+                {path ? (
+                  <Routes>
+                    <Route path={path} element={children} />
+                  </Routes>
+                ) : (
+                  children
+                )}
+              </MemoryRouter>
+            </TooltipProvider>
           </SidebarStateProvider>
         </QueryClientProvider>
       </I18nextProvider>

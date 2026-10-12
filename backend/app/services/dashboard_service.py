@@ -22,6 +22,7 @@ from app.services._query_filters import (
     reporting_date_col,
     viewer_shared_pnl,
     viewer_shared_spending_by_category,
+    within_opening_floor,
 )
 from app.services import invoice_forecast_service
 from app.services.admin_service import get_credit_card_accounting_mode
@@ -1329,6 +1330,7 @@ async def _account_balance_at(
             .where(
                 Transaction.account_id == account.id,
                 Transaction.date <= balance_cutoff,
+                within_opening_floor(balance_cutoff),
                 Transaction.is_ignored == False,
                 *status_filter,
                 or_(
@@ -1392,6 +1394,7 @@ async def _total_balance_by_currency(
     manual_sums = await grouped_sums(
         [account.id for account in manual],
         Transaction.date <= balance_cutoff,
+        within_opening_floor(balance_cutoff),
         *([] if include_pending else [Transaction.status == "posted"]),
     )
 

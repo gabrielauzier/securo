@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDisplayLocale } from '@/hooks/use-display-locale'
+import { useDisplayLocale, useDateLocale } from '@/hooks/use-display-locale'
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart,
@@ -181,6 +181,7 @@ export default function ReportsPage() {
   const { user } = useAuth()
   const userCurrency = user?.preferences?.currency_display ?? 'USD'
   const locale = useDisplayLocale()
+  const dateLocale = useDateLocale()
 
   const customDefaults = defaultCustomRange()
   const [rangeKey, setRangeKey] = useState('1y')
@@ -277,6 +278,7 @@ export default function ReportsPage() {
   const summary = data?.summary
   const trend = data?.trend ?? []
   const meta = data?.meta
+  const balanceResets = meta?.balance_resets ?? []
 
   // For cash flow we split the line at `forecast_start_date` so the past
   // section renders solid and the forward projection renders dashed.
@@ -1039,6 +1041,18 @@ export default function ReportsPage() {
             </p>
           )}
         </div>
+        {meta?.type === 'net_worth' && balanceResets.length > 0 && (
+          <div data-testid="balance-reset-note" className="px-5 pb-4 flex flex-col gap-1">
+            {balanceResets.map((reset) => (
+              <p key={reset.account_id} className="text-xs text-muted-foreground">
+                {t('reports.balanceResetNote', {
+                  account: reset.account_name,
+                  date: new Date(`${reset.date}T00:00:00`).toLocaleDateString(dateLocale),
+                })}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Breakdown: Donut + Grouped Bar */}

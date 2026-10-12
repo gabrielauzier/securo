@@ -25,6 +25,7 @@ from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.account_service import get_account_name
 from app.services.fx_rate_service import convert
 from app.schemas.report import (
+    BalanceReset,
     CategoryTrendItem,
     ReportBreakdown,
     ReportCompositionItem,
@@ -294,6 +295,60 @@ def _date_points(
     return points
 
 
+async def _find_balance_resets(
+    session: AsyncSession,
+    accounts: list[Account],
+    window_start: date,
+    window_end: date,
+) -> list[BalanceReset]:
+    """Accounts whose saved balance date falls inside the window over earlier history.
+
+    The balance floor (AD-001) makes the net worth jump on ``Account.balance_date``
+    (AD-002), so the UI explains it. The date comes from the account itself, so
+    it no longer depends on an opening transaction existing. One grouped query
+    checks the whole candidate list for earlier non-ignored history.
+    """
+    candidates = {
+        account.id: _as_date(account.balance_date)
+        for account in accounts
+        if account.connection_id is None
+        and account.balance_date is not None
+        and window_start < _as_date(account.balance_date) <= window_end
+    }
+    if not candidates:
+        return []
+    with_history = set(
+        (
+            await session.execute(
+                select(Transaction.account_id)
+                .join(Account, Account.id == Transaction.account_id)
+                .where(
+                    Transaction.account_id.in_(list(candidates)),
+                    Transaction.source != "opening_balance",
+                    Transaction.is_ignored.is_(False),
+                    Transaction.date < Account.balance_date,
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        BalanceReset(
+            account_id=str(account.id),
+            account_name=get_account_name(account),
+            date=candidates[account.id].isoformat(),
+        )
+        for account in accounts
+        if account.id in with_history
+    ]
+
+
+def _as_date(value) -> date:
+    return date.fromisoformat(value) if isinstance(value, str) else value
+
+
 async def get_net_worth_report(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -395,6 +450,7 @@ async def get_net_worth_report(
         series_keys=["accounts", "assets", "liabilities"],
         currency=primary_currency,
         interval=interval,
+        balance_resets=await _find_balance_resets(session, accounts, start, axis_end),
     )
 
     # Reuse the selected end date's per-item composition for the response-level

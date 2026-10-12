@@ -9,6 +9,7 @@ from datetime import date
 from typing import Optional
 
 from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.app_clock import app_today
@@ -51,6 +52,31 @@ def is_inside_provider_snapshot():
     in the forecast totals but moves no balance.
     """
     return Transaction.source != "recurring"
+
+
+def within_opening_floor(cutoff: date):
+    """SQL filter: the row counts toward the account balance at ``cutoff``.
+
+    An account's balance starts at the date saved on the account
+    (``Account.balance_date``), so entries dated before it must not move the
+    balance (AD-001, storage per AD-002). Rows dated on that day count. A
+    ``cutoff`` earlier than the saved date reads history as it was, so every
+    row up to the cutoff is kept. Accounts without a saved date (bank-connected
+    ones, or manual accounts that never had one) are not floored.
+    """
+    # Aliased so the subquery never auto-correlates with an outer ``accounts``
+    # in queries that already select from or join the account table.
+    saved = aliased(Account)
+    balance_date = (
+        select(saved.balance_date)
+        .where(saved.id == Transaction.account_id)
+        .scalar_subquery()
+    )
+    return or_(
+        balance_date.is_(None),
+        cutoff < balance_date,
+        Transaction.date >= balance_date,
+    )
 
 
 def counts_in_current_balance(as_of: date):

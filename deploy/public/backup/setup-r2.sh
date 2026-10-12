@@ -68,7 +68,6 @@ ask_valid ACCOUNT_ID "Account ID (32 caracteres hexadecimais)" '^[0-9a-fA-F]{32}
 ask_valid ACCESS_KEY "Access Key ID (32 caracteres hexadecimais)" '^[0-9a-fA-F]{32}$' "esperado 32 caracteres hexadecimais"
 ask_valid SECRET_KEY "Secret Access Key (64 hexadecimais; não aparece ao digitar)" '^[0-9a-fA-F]{64}$' "esperado 64 caracteres hexadecimais" "" hidden
 ask_valid BUCKET "Nome do bucket" '^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$' "3 a 63 caracteres: minúsculas, números e hífen"
-ask_valid PREFIX "Pasta dentro do bucket" '^[A-Za-z0-9._-]{1,64}$' "use letras, números, ponto, hífen ou sublinhado" "securo"
 ask_valid KEEP "Dias de retenção no R2" '^[0-9]{1,4}$' "informe um número de dias" "90"
 if [ "$KEEP" -lt 7 ]; then say "  aviso: retenção muito curta (<7 dias); usando 7."; KEEP=7; fi
 
@@ -83,7 +82,6 @@ trap 'rm -f "$TMP"' EXIT
   echo "R2_ACCESS_KEY_ID='$ACCESS_KEY'"
   echo "R2_SECRET_ACCESS_KEY='$SECRET_KEY'"
   echo "R2_BUCKET='$BUCKET'"
-  echo "R2_PREFIX='$PREFIX'"
   echo "KEEP_REMOTE_DAYS='$KEEP'"
 } > "$TMP"
 chmod 600 "$TMP"
@@ -103,7 +101,7 @@ export RCLONE_CONFIG_R2_ENDPOINT="https://${ACCOUNT_ID}.r2.cloudflarestorage.com
 export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
 PROBE="$(mktemp)"; trap 'rm -f "$PROBE"' EXIT
 echo "teste de credenciais $(date +%s)" > "$PROBE"
-REMOTE="r2:${BUCKET}/${PREFIX}/.setup-test"
+REMOTE="r2:${BUCKET}/.securo-setup-test"
 if rclone copyto "$PROBE" "$REMOTE" --retries 1 --low-level-retries 2 --quiet 2>"$PROBE.err" \
    && rclone cat "$REMOTE" --quiet 2>>"$PROBE.err" | cmp -s - "$PROBE" \
    && rclone deletefile "$REMOTE" --quiet 2>>"$PROBE.err"; then

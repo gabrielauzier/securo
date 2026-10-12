@@ -31,6 +31,12 @@ class ReportDataPoint(BaseModel):
     composition: list[ReportCompositionItem] = []
 
 
+class BalanceReset(BaseModel):
+    account_id: str
+    account_name: str
+    date: str
+
+
 class ReportMeta(BaseModel):
     type: str
     series_keys: list[str]
@@ -39,6 +45,7 @@ class ReportMeta(BaseModel):
     forecast_start_date: str | None = None
     baseline_active: bool = False
     baseline_lookback_days: int | None = None
+    balance_resets: list[BalanceReset] = []
 
 
 class CategoryTrendItem(BaseModel):

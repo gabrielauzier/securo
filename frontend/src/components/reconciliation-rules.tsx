@@ -43,6 +43,7 @@ import { Plus, RotateCcw, Trash2, Zap, HelpCircle, ChevronUp, ChevronDown, Power
 import { cn } from '@/lib/utils'
 import { ACCOUNT_TYPE_CONFIG } from '@/lib/account-type-config'
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog'
+import { TransferApplyDialog } from '@/components/transfer-apply-dialog'
 
 /** Names for the rules we ship. Kept here rather than sent by the API so
  *  they follow the reader's language, and so a rule someone edited does not
@@ -1142,6 +1143,7 @@ export function ReconciliationRules({ canWrite }: { canWrite: boolean }) {
      *  from a button sitting under *Transfers*. */
     node: string
   } | null>(null)
+  const [applyingTransfers, setApplyingTransfers] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const importTarget = useRef<string | null>(null)
 
@@ -1278,6 +1280,20 @@ export function ReconciliationRules({ canWrite }: { canWrite: boolean }) {
                 thresholds. Scoped to this set, so the file says what the
                 heading above it says. */}
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* Runs the rule over what is already there, after a look at
+                  what it would link. Transfers only: the invoice set has
+                  no on-demand pass. */}
+              {canWrite && group.node === TRANSFER_NODE && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 h-8"
+                  onClick={() => setApplyingTransfers(true)}
+                >
+                  <Zap size={12} />
+                  <span className="hidden sm:inline">{t('reconciliation.applyNow')}</span>
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -1502,6 +1518,11 @@ export function ReconciliationRules({ canWrite }: { canWrite: boolean }) {
           if (file) void readFile(file)
           event.target.value = ''
         }}
+      />
+
+      <TransferApplyDialog
+        open={applyingTransfers}
+        onClose={() => setApplyingTransfers(false)}
       />
 
       <DeleteConfirmationDialog

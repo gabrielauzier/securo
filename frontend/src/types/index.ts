@@ -173,6 +173,8 @@ export interface Account {
   balance: number
   current_balance: number
   previous_balance: number | null
+  // Date the balance starts counting from; null for bank-connected accounts.
+  balance_date: string | null
   balance_primary: number | null
   currency: string
   credit_limit: number | null
@@ -1002,6 +1004,12 @@ export interface ReportDataPoint {
   composition?: ReportCompositionItem[]
 }
 
+export interface BalanceReset {
+  account_id: string
+  account_name: string
+  date: string
+}
+
 export interface ReportMeta {
   type: string
   series_keys: string[]
@@ -1010,6 +1018,7 @@ export interface ReportMeta {
   forecast_start_date?: string | null
   baseline_active?: boolean
   baseline_lookback_days?: number | null
+  balance_resets?: BalanceReset[]
 }
 
 export interface ReportCompositionItem {

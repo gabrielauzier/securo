@@ -989,6 +989,18 @@
     "summaryExcluded": "Исключено",
     "bulkCategorize": "Применить",
     "bulkSuccess": "{{count}} транзакций категоризированы",
+    "bulkIgnore": "Игнорировать",
+    "bulkUnignore": "Перестать игнорировать",
+    "bulkIgnoreSuccess": "Обновлено транзакций: {{count}}",
+    "bulkLimitHint": "Выберите не более 100 транзакций",
+    "bulkTransfer": "Отметить как перевод",
+    "bulkTransferTitle": "Отметить как переводы",
+    "bulkTransferDescription": "Проверьте пары, найденные среди выбранных транзакций. Связываются только отмеченные пары.",
+    "bulkTransferUnmatched": "В выборке нет встречной транзакции",
+    "bulkTransferAmbiguous": "Возможных встречных транзакций несколько, пара не создана",
+    "bulkTransferAlreadyLinked": "Уже входит в перевод",
+    "bulkTransferConfirm": "Связать выбранные пары",
+    "bulkTransferSuccess": "Связано: {{linked}}, пропущено: {{skipped}}",
     "bulkDelete": "Удалить выбранные",
     "bulkDeleteTitle_one": "Удалить {{count}} транзакцию?",
     "bulkDeleteTitle_few": "Удалить {{count}} транзакции?",
@@ -1175,6 +1187,7 @@
     "balanceCreditCard": "Задолженность",
     "balanceCreditCardHint": "Введите положительное число — сколько вы должны по этой карте. Оставьте 0, если долга нет.",
     "balanceDate": "Дата баланса",
+    "balanceDateHint": "Транзакции до этой даты не влияют на баланс.",
     "lastSync": "Последняя синхронизация",
     "multiInstitutionLink_one": "{{provider}} · {{count}} учреждение",
     "multiInstitutionLink_few": "{{provider}} · {{count}} учреждения",
@@ -1731,6 +1744,16 @@
     "mapPayee": "Колонка получателя",
     "mapExternalId": "Колонка ID транзакции",
     "mapNotes": "Колонка заметок",
+    "mappingApplied": "Применено сопоставление: {{name}}",
+    "mappingSwitch": "Сменить сопоставление",
+    "mappingPick": "Использовать сохранённое сопоставление",
+    "mappingRemove": "Убрать применённое сопоставление",
+    "mappingSave": "Сохранить сопоставление",
+    "mappingName": "Название сопоставления",
+    "mappingNamePlaceholder": "Напр., выписка Nubank",
+    "mappingSaved": "Сопоставление сохранено",
+    "mappingNameDuplicate": "Сопоставление с таким названием уже существует.",
+    "mappingSaveError": "Не удалось сохранить сопоставление.",
     "description": "Описание",
     "errors": {
       "invalid_date": "Неверный формат даты",
@@ -1931,6 +1954,7 @@
   "reports": {
     "section": "Аналитика",
     "netWorth": "Собственный капитал",
+    "balanceResetNote": "Баланс счёта {{account}} был вручную обновлён {{date}}; изменение чистого капитала в эту дату отражает это обновление.",
     "trend": "Динамика",
     "breakdown": "Разбивка",
     "noData": "Нет данных за этот период",
@@ -2879,6 +2903,20 @@
       "invoicesHint": "Как мы решаем, какой платёж закрывает какой счёт.",
       "recurring": "Правила повторяющихся",
       "recurringHint": "Как мы решаем, что списание — это счёт, который вы уже ждали."
-    }
+    },
+    "applyNow": "Применить сейчас",
+    "applyNowTitle": "Применить правило переводов сейчас",
+    "applyNowDescription": "Эти несвязанные транзакции соответствуют правилу. Снимите отметку с пар, которые не нужно связывать.",
+    "applyNowConfirm": "Связать выбранные пары",
+    "applyNowSuccess": "Связано: {{linked}}, пропущено: {{skipped}}"
+  },
+  "transferPreview": {
+    "title": "Предлагаемые пары",
+    "strategy": "Правило",
+    "selectedCount": "Выбрано пар: {{selected}} из {{total}}",
+    "from": "Откуда",
+    "to": "Куда",
+    "empty": "Нет пар переводов для связывания",
+    "selectPair": "Выбрать пару"
   }
 }

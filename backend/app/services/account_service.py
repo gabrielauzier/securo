@@ -20,6 +20,7 @@ from app.services._query_filters import (
     is_confirmed,
     is_inside_provider_snapshot,
     is_not_future,
+    within_opening_floor,
 )
 from app.services.credit_card_service import apply_effective_date, compute_available_credit, get_cycle_dates
 from app.models.category import Category
@@ -73,6 +74,7 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
         .outerjoin(Category, Transaction.category_id == Category.id)
         .where(
             counts_in_current_balance(today),
+            within_opening_floor(today),
             Transaction.is_ignored == False,
             or_(
                 Transaction.category_id.is_(None),
@@ -96,6 +98,7 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
         .outerjoin(Category, Transaction.category_id == Category.id)
         .where(
             Transaction.date <= prev_month_end,
+            within_opening_floor(prev_month_end),
             Transaction.status == "posted",
             Transaction.is_ignored == False,
             or_(
@@ -181,6 +184,7 @@ def serialize_account(
         "masked_number": acc.masked_number,
         "type": acc.type,
         "balance": acc.balance,
+        "balance_date": acc.balance_date,
         "currency": acc.currency,
         "current_balance": resolved_balance,
         "previous_balance": float(previous_balance or 0),
@@ -261,12 +265,24 @@ async def create_account(
     data: AccountCreate,
 ) -> Account:
     is_cc = data.type == "credit_card"
+    # A floor is created only when the user chose a date or opened the account
+    # with a balance. A zero-balance account without a chosen date keeps
+    # balance_date NULL so imported history still counts (an explicit null in
+    # the payload counts as not sent).
+    explicit_date = data.balance_date if "balance_date" in data.model_fields_set else None
+    if explicit_date is not None:
+        opening_date = explicit_date
+    elif data.balance != Decimal("0.00"):
+        opening_date = app_today()
+    else:
+        opening_date = None
     account = Account(
         user_id=user_id,
         workspace_id=workspace_id,
         name=data.name,
         type=data.type,
         balance=data.balance,
+        balance_date=opening_date,
         currency=data.currency,
         credit_limit=data.credit_limit if is_cc else None,
         statement_close_day=data.statement_close_day if is_cc else None,
@@ -287,7 +303,7 @@ async def create_account(
             description="Saldo inicial",
             amount=amount,
             currency=data.currency,
-            date=data.balance_date or app_today(),
+            date=account.balance_date,
             type=opening_type,
             source="opening_balance",
         )
@@ -387,9 +403,12 @@ async def update_account(
         account.card_brand = None
         account.card_level = None
 
-    # When balance changes, sync the opening_balance transaction
-    if "balance" in update_data:
-        new_balance = update_data["balance"]
+    # The account owns the balance date; the opening_balance transaction
+    # mirrors it (and the amount) so both always carry the same date.
+    if balance_date:
+        account.balance_date = balance_date
+
+    if "balance" in update_data or balance_date:
         existing_opening = await session.execute(
             select(Transaction).where(
                 Transaction.account_id == account_id,
@@ -398,41 +417,38 @@ async def update_account(
         )
         opening_tx = existing_opening.scalar_one_or_none()
 
-        if new_balance != Decimal("0.00"):
-            amount, opening_type = _opening_balance_values(account.type, new_balance)
-            if opening_tx:
-                opening_tx.amount = amount
-                opening_tx.type = opening_type
-                if balance_date:
-                    opening_tx.date = balance_date
+        if "balance" not in update_data:
+            # Date-only update: move the opening transaction if there is one.
+            if opening_tx and balance_date:
+                opening_tx.date = balance_date
                 apply_effective_date(opening_tx, account)
-            else:
-                opening_tx = Transaction(
-                    user_id=account.user_id,
-                    workspace_id=account.workspace_id,
-                    account_id=account_id,
-                    description="Saldo inicial",
-                    amount=amount,
-                    currency=account.currency,
-                    date=balance_date or app_today(),
-                    type=opening_type,
-                    source="opening_balance",
-                )
-                apply_effective_date(opening_tx, account)
-                session.add(opening_tx)
-        elif opening_tx:
-            await session.delete(opening_tx)
-    elif balance_date:
-        existing_opening = await session.execute(
-            select(Transaction).where(
-                Transaction.account_id == account_id,
-                Transaction.source == "opening_balance",
-            )
-        )
-        opening_tx = existing_opening.scalar_one_or_none()
-        if opening_tx:
-            opening_tx.date = balance_date
-            apply_effective_date(opening_tx, account)
+        else:
+            new_balance = update_data["balance"]
+            if new_balance != Decimal("0.00"):
+                opening_date = account.balance_date or app_today()
+                account.balance_date = opening_date
+                amount, opening_type = _opening_balance_values(account.type, new_balance)
+                if opening_tx:
+                    opening_tx.amount = amount
+                    opening_tx.type = opening_type
+                    opening_tx.date = opening_date
+                    apply_effective_date(opening_tx, account)
+                else:
+                    opening_tx = Transaction(
+                        user_id=account.user_id,
+                        workspace_id=account.workspace_id,
+                        account_id=account_id,
+                        description="Saldo inicial",
+                        amount=amount,
+                        currency=account.currency,
+                        date=opening_date,
+                        type=opening_type,
+                        source="opening_balance",
+                    )
+                    apply_effective_date(opening_tx, account)
+                    session.add(opening_tx)
+            elif opening_tx:
+                await session.delete(opening_tx)
 
     if cycle_fields_changed:
         await _recompute_effective_dates(session, account)
@@ -709,6 +725,7 @@ async def get_account_summary(
             ).where(
                 Transaction.account_id == account_id,
                 is_not_future(today),
+                within_opening_floor(today),
                 # Same carve-out as the accounts list: a card's balance is the
                 # debt owed and an authorized purchase is already owed. The
                 # account is loaded here, so branch in Python rather than SQL.
@@ -972,6 +989,9 @@ async def get_account_summary(
                 ), 0)).where(
                     *ob_base_filters,
                     Transaction.date < date_from,
+                    # Same floor as the balance at the day before the window,
+                    # so this seed agrees with current_balance (BAL-02 AC6).
+                    within_opening_floor(date_from - timedelta(days=1)),
                     Transaction.status.in_(("posted", "pending")),
                 )
             )
@@ -1008,13 +1028,17 @@ async def _account_balance_at(
     account_currency: str = "",
 ) -> float:
     """Get balance for a single account at a specific date.
-    Excludes ignored transactions from the balance calculation."""
+    Excludes ignored transactions from the balance calculation. From the
+    account's opening date onward, rows dated before it no longer count;
+    a cutoff before the opening date reads the history as it was."""
+    effective_cutoff = min(cutoff, app_today())
     result = await session.execute(
         select(func.coalesce(func.sum(_signed_amount_expr(account_currency)), 0))
         .outerjoin(Category, Transaction.category_id == Category.id)
         .where(
             Transaction.account_id == account_id,
-            Transaction.date <= min(cutoff, app_today()),
+            Transaction.date <= effective_cutoff,
+            within_opening_floor(effective_cutoff),
             Transaction.status == "posted",
             Transaction.is_ignored == False,
             or_(
@@ -1060,11 +1084,25 @@ async def _account_daily_balance_series(
     )
     deltas = {row[0]: float(row[1] or 0) for row in result.all()}
 
+    # The balance restarts from the opening row on its date: rows before it
+    # are history up to the day before, and drop out from that day on.
+    opening_result = await session.execute(
+        select(func.max(Transaction.date)).where(
+            Transaction.account_id == account_id,
+            Transaction.source == "opening_balance",
+        )
+    )
+    opening_date = opening_result.scalar()
+    if opening_date is not None and opening_date > app_today():
+        opening_date = None
+
     # Build daily series
     series = []
     balance = start_balance
     current = date_from
     while current <= date_to:
+        if current == opening_date:
+            balance = 0.0
         balance += deltas.get(current, 0)
         series.append({"date": current.isoformat(), "balance": round(balance, 2)})
         current += timedelta(days=1)

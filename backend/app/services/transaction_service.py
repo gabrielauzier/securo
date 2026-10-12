@@ -1647,6 +1647,31 @@ async def bulk_update_category(
     return cast(CursorResult, result).rowcount
 
 
+async def bulk_set_ignored(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    transaction_ids: list[uuid.UUID],
+    ignored: bool,
+) -> int:
+    """Set `is_ignored` to an explicit state; returns rows whose state changed.
+
+    Selected rows only: transfer pair legs are not cascaded, like the single toggle.
+    """
+    if not transaction_ids:
+        return 0
+    result = await session.execute(
+        update(Transaction)
+        .where(
+            Transaction.id.in_(transaction_ids),
+            Transaction.workspace_id == workspace_id,
+            Transaction.is_ignored != ignored,
+        )
+        .values(is_ignored=ignored)
+    )
+    await session.commit()
+    return cast(CursorResult, result).rowcount
+
+
 _TAG_CHAR_CLASS = r"[\wÀ-ž-]"
 
 
