@@ -5,7 +5,7 @@ Mudanças de cada versão publicada a partir do fork, da mais nova para a mais a
 
 ## 0.16.3-selfhost.3
 
-Parte de `0.16.3` do projeto original. Corrige dois problemas de contas e acrescenta quatro recursos que tiravam trabalho manual.
+Parte de `0.16.3` do projeto original. Corrige dois problemas de contas, acrescenta quatro recursos que tiravam trabalho manual, melhora a barra de ações da lista de transações e muda a forma como os backups são organizados no R2.
 
 ### Antes de atualizar
 - **Esta versão traz uma migration nova (`097`, tabela `import_mappings`).** O backend roda `alembic upgrade head` sozinho ao subir
@@ -77,6 +77,38 @@ Parte de `0.16.3` do projeto original. Corrige dois problemas de contas e acresc
   pertence a uma transferência (não é alterado). Até **100** transações por vez; a confirmação revalida cada par antes de ligar.
   Exige permissão de escrita.
 
+### Interface
+- **Barra de ações da seleção em ícones com dica.** Na lista de transações, as ações em lote "Adicionar ao grupo", "Vincular como
+  transferência", "Marcar como transferência", "Criar regra", "Ignorar" e "Parar de ignorar" viraram botões só com ícone e uma dica
+  (tooltip) com o nome. A dica também aparece nos botões desabilitados e explica o motivo (por exemplo, o limite de 100 transações
+  ou um par inválido para vincular).
+- **A barra não se mexe mais ao abrir um diálogo.** Antes, abrir "Adicionar ao grupo" ou "Vincular transferência" fazia a barra
+  deslizar para a direita (a barra de rolagem some e a barra de ações, de largura total, se alargava). Agora ela permanece no lugar.
+- **Diálogos de transferência cabem na tela.** "Aplicar a regra de transferência agora" e "Marcar como transferências" extrapolavam
+  a largura (a tabela de pares e o texto da lista "sem contrapartida" saíam do diálogo). Eles passaram a usar a largura que o
+  conteúdo precisa, e descrições longas são truncadas com a descrição completa na dica.
+
+### Backups e operação
+- **Backups no R2 em uma pasta por dia**, na raiz do bucket (`securo-backup-AAAA-MM-DD/`); veja "Antes de atualizar" para o passo de
+  atualizar a cópia do script usada pelo agendamento. A retenção de 90 dias continua valendo para as pastas novas e para os
+  arquivos antigos soltos em `securo/`, e nenhum outro objeto do bucket é tocado.
+- **Script para restaurar um backup de produção no banco de desenvolvimento**
+  ([`backup/restore-to-dev.sh`](backup/restore-to-dev.sh)), para testar mudanças contra dados reais antes de publicar. Ele só atua
+  no projeto de dev (recusa qualquer coisa de `securo-prod`), não grava o dump em claro no disco, confere o `.sha256`, deixa o backend
+  aplicar as migrations novas e mantém o Celery parado para o dev não sincronizar contas bancárias reais. Use `--dry-run` primeiro;
+  detalhes em [backup/restore.md](backup/restore.md), seção 6. Não afeta a produção.
+
 ### Banco de dados
 - Migration `097_import_mappings`: cria `import_mappings` (por usuário; ao apagar o usuário os mapeamentos vão junto; ao apagar
-  a conta de destino, o mapeamento fica sem conta). Nenhuma outra tabela muda.
+  a conta de destino, o mapeamento fica sem conta).
+- Migration `098_account_balance_date`: adiciona `accounts.balance_date` (data, pode ser vazia) e a preenche, nas contas manuais, com
+  a data mais recente da transação de saldo inicial; o downgrade apenas remove a coluna.
+- Nenhuma outra tabela muda, e nenhum saldo exibido muda com o upgrade.
+
+### Limitações conhecidas
+- No detalhe da conta, o saldo corrente do gráfico soma todas as linhas da janela; se a janela cruzar a data do saldo inicial, o
+  último ponto pode diferir do saldo atual da conta (que segue a regra do piso).
+- Criar uma conta com saldo 0 e **sem** escolher a data não cria piso (a data fica vazia): transações antigas importadas depois
+  continuam entrando no saldo. O piso só existe quando você escolhe uma data ou informa um saldo diferente de 0.
+- As traduções das novas mensagens nos idiomas além do português do Brasil foram geradas automaticamente e não foram revisadas por
+  falantes nativos.
