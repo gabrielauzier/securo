@@ -1225,6 +1225,7 @@
     "balanceCreditCard": "Dlžná suma",
     "balanceCreditCardHint": "Zadaj ako kladné číslo, koľko na tejto karte aktuálne dlhuješ. Ak nemáš dlh, nechaj 0.",
     "balanceDate": "Dátum zostatku",
+    "balanceDateHint": "Transakcie pred týmto dátumom nemenia zostatok.",
     "lastSync": "Posledná synchronizácia",
     "multiInstitutionLink": "{{provider}} · {{count}} inštitúcií",
     "multiInstitutionLink_one": "{{provider}} · {{count}} inštitúcia",

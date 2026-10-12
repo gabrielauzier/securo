@@ -1175,6 +1175,7 @@
     "balanceCreditCard": "Montant dû",
     "balanceCreditCardHint": "Saisissez le montant que vous devez actuellement sur cette carte, sous forme de nombre positif. Laissez à 0 si vous n'avez pas de dette.",
     "balanceDate": "Date du solde",
+    "balanceDateHint": "Les transactions antérieures à cette date ne modifient pas le solde.",
     "lastSync": "Dernière synchronisation",
     "multiInstitutionLink_one": "{{provider}} · {{count}} établissement",
     "multiInstitutionLink_many": "{{provider}} · {{count}} établissements",

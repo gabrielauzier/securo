@@ -97,13 +97,8 @@ describe('AccountDialog', () => {
     fireEvent.change(nameInput(), { target: { value: 'Fresh' } })
     fireEvent.submit(nameInput().closest('form')!)
     const payload = vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
-    const now = new Date()
-    const today = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('-')
-    expect(payload.balance_date).toBe(today)
+    // Balance 0 with an untouched date sets no floor (ABD-04 AC7).
+    expect(payload).not.toHaveProperty('balance_date')
     expect(payload.currency).toBe('BRL')
     expect(payload.balance).toBe(0)
     expect(payload.credit_limit).toBeNull()
@@ -154,16 +149,60 @@ describe('AccountDialog', () => {
     fireEvent.change(nameInput(), { target: { value: 'Fresh' } })
     fireEvent.submit(nameInput().closest('form')!)
     const payload = vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
-    const now = new Date()
-    const today = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('-')
     expect(payload.currency).toBe('BRL')
     expect(payload.display_name).toBeNull()
     expect(payload.balance).toBe(0)
-    expect(payload.balance_date).toBe(today)
+    // Balance 0 with an untouched date sets no floor (ABD-04 AC7).
+    expect(payload).not.toHaveProperty('balance_date')
+  })
+
+  describe('create payload balance date (ABD-04 AC7)', () => {
+    const todayString = () => {
+      const now = new Date()
+      return [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+      ].join('-')
+    }
+
+    function submitCreate() {
+      fireEvent.change(nameInput(), { target: { value: 'Fresh' } })
+      fireEvent.submit(nameInput().closest('form')!)
+      return vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
+    }
+
+    it('sends no balance_date for balance 0 with an untouched date', () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      renderWithProviders(<AccountDialog {...baseProps} open account={null} />)
+      const payload = submitCreate()
+      expect(payload.balance).toBe(0)
+      expect(payload).not.toHaveProperty('balance_date')
+    })
+
+    it('sends the chosen date for balance 0 when the date was changed', async () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      const { user } = renderWithProviders(<AccountDialog {...baseProps} open account={null} />)
+      await user.click(screen.getByRole('button', { name: new RegExp(String(new Date().getFullYear())) }))
+      const todayDay = String(new Date().getDate())
+      const otherDay = (await screen.findAllByRole('button', { name: /^\d{1,2}$/ })).find(
+        (btn) => btn.textContent !== todayDay && !btn.hasAttribute('disabled'),
+      )!
+      await user.click(otherDay)
+      const payload = submitCreate()
+      expect(payload.balance).toBe(0)
+      expect(payload.balance_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(payload.balance_date).not.toBe(todayString())
+    })
+
+    it('sends the date shown (today) for a non-zero balance with an untouched date', () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      renderWithProviders(<AccountDialog {...baseProps} open account={null} />)
+      fireEvent.change(balanceInput(), { target: { value: '250' } })
+      const payload = submitCreate()
+      expect(payload.balance).toBe(250)
+      expect(payload.balance_date).toBe(todayString())
+    })
   })
 
   describe('edit mode of a manual USD credit card', () => {
@@ -252,6 +291,77 @@ describe('AccountDialog', () => {
       const payload = submit()
       expect(payload.balance).toBe(250.5)
       expect(payload.balance_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+  })
+
+  describe('saved balance date', () => {
+    const savedAccount = {
+      id: 'acc-dated',
+      name: 'Dated',
+      type: 'savings',
+      balance: 250.5,
+      balance_date: '2023-03-07',
+      currency: 'BRL',
+      connection_id: null,
+    } as unknown as Account
+    const undatedAccount = { ...savedAccount, id: 'acc-undated', balance_date: null } as unknown as Account
+
+    // The trigger shows the date in the display locale, so match the parts, not the order.
+    const dateTrigger = () => screen.getAllByRole('button').find((b) => /\d.*\d.*\d/.test(b.textContent ?? ''))!
+
+    function submit() {
+      fireEvent.submit(nameInput().closest('form')!)
+      return vi.mocked(baseProps.onSave).mock.calls.at(-1)![0]
+    }
+
+    it('shows the saved date when editing (ABD-04 AC1)', () => {
+      renderWithProviders(<AccountDialog {...baseProps} open account={savedAccount} />)
+      const text = dateTrigger().textContent ?? ''
+      expect(text).toMatch(/2023/)
+      expect(text).toMatch(/(^|\D)0?7(\D|$)/)
+      expect(text).toMatch(/(^|\D)0?3(\D|$)/)
+    })
+
+    it('shows today when the edited account has no saved date (AC2)', () => {
+      renderWithProviders(<AccountDialog {...baseProps} open account={undatedAccount} />)
+      expect(dateTrigger().textContent).toMatch(new RegExp(String(new Date().getFullYear())))
+      expect(dateTrigger().textContent).not.toMatch(/2023/)
+    })
+
+    it('shows today in create mode (AC3)', () => {
+      renderWithProviders(<AccountDialog {...baseProps} open account={null} />)
+      expect(dateTrigger().textContent).toMatch(new RegExp(String(new Date().getFullYear())))
+    })
+
+    it('shows the hint under the date field (AC4)', () => {
+      renderWithProviders(<AccountDialog {...baseProps} open account={savedAccount} />)
+      expect(screen.getByText(t('accounts.balanceDateHint'))).toBeInTheDocument()
+    })
+
+    it('omits balance and balance_date on a name-only edit of a dated account (AC5)', () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      renderWithProviders(<AccountDialog {...baseProps} open account={savedAccount} />)
+      fireEvent.change(nameInput(), { target: { value: 'Renamed' } })
+      const payload = submit()
+      expect(payload.name).toBe('Renamed')
+      expect(payload).not.toHaveProperty('balance')
+      expect(payload).not.toHaveProperty('balance_date')
+    })
+
+    it('keeps the saved date in the payload when only the balance changes', () => {
+      vi.mocked(baseProps.onSave).mockClear()
+      renderWithProviders(<AccountDialog {...baseProps} open account={savedAccount} />)
+      fireEvent.change(balanceInput(), { target: { value: '300' } })
+      const payload = submit()
+      expect(payload.balance).toBe(300)
+      expect(payload.balance_date).toBe('2023-03-07')
+    })
+
+    it('shows the new account date when the dialog switches to another account', () => {
+      const { rerender } = renderWithProviders(<AccountDialog {...baseProps} open account={savedAccount} />)
+      rerender(<AccountDialog {...baseProps} open={false} account={savedAccount} />)
+      rerender(<AccountDialog {...baseProps} open account={undatedAccount} />)
+      expect(dateTrigger().textContent).not.toMatch(/2023/)
     })
   })
 })

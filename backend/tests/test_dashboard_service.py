@@ -65,6 +65,13 @@ async def _add_txn(
     )
     session.add(txn)
     await session.commit()
+    if source == "opening_balance":
+        # AD-002: the floor reads the account's saved date, which the service
+        # keeps in step with its opening row; mirror that for fixtures.
+        owner = await session.get(Account, account_id)
+        if owner is not None and owner.connection_id is None:
+            owner.balance_date = max(owner.balance_date or txn_date, txn_date)
+            await session.commit()
     await session.refresh(txn)
     return txn
 
@@ -1244,6 +1251,22 @@ async def test_account_balance_at_today_excludes_transactions_before_opening(
     account, today, _ = await _floored_manual_account(session, test_user.id)
 
     assert await _account_balance_at(session, account, today) == pytest.approx(900.0)
+
+
+@pytest.mark.asyncio
+async def test_account_balance_at_uses_saved_date_without_an_opening_row(
+    session: AsyncSession, test_user
+):
+    """ABD-02 AC4: balance_date set, no opening transaction -> floor still applies."""
+    from app.core.app_clock import app_today
+    today = app_today()
+    account = await _make_account(session, test_user.id, "Dated No Opening")
+    account.balance_date = today - timedelta(days=5)
+    await session.commit()
+    await _add_txn(session, test_user.id, account.id, 200, "debit", today - timedelta(days=9))
+    await _add_txn(session, test_user.id, account.id, 100, "debit", today - timedelta(days=2))
+
+    assert await _account_balance_at(session, account, today) == pytest.approx(-100.0)
 
 
 @pytest.mark.asyncio

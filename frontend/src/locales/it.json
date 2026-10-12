@@ -1175,6 +1175,7 @@
     "balanceCreditCard": "Importo dovuto",
     "balanceCreditCardHint": "Inserisci quanto devi attualmente su questa carta come numero positivo. Lascia 0 se non hai debiti.",
     "balanceDate": "Data del saldo",
+    "balanceDateHint": "Le transazioni precedenti a questa data non modificano il saldo.",
     "lastSync": "Ultima sincronizzazione",
     "multiInstitutionLink_one": "{{provider}} · {{count}} istituto",
     "multiInstitutionLink_many": "{{provider}} · {{count}} istituti",

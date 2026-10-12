@@ -1173,6 +1173,7 @@
     "balanceCreditCard": "Amount owed",
     "balanceCreditCardHint": "Enter how much you currently owe on this card as a positive number. Leave at 0 if you have no debt.",
     "balanceDate": "Balance date",
+    "balanceDateHint": "Transactions before this date do not change the balance.",
     "lastSync": "Last sync",
     "multiInstitutionLink": "{{provider}} · {{count}} institutions",
     "sync": "Sync",
