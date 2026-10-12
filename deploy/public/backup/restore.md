@@ -5,7 +5,7 @@ para restaurar é preciso a chave **privada** (`age-key.txt`), que deve estar gu
 Sem ela os backups **não podem ser abertos**.
 
 Nomes dos arquivos: `securo-db-<data>.dump.age`, `securo-attachments-<data>.tar.gz.age` e `securo-<data>.sha256`.
-Onde estão: na pasta definida por `BACKUP_DIR` (padrão `~/securo-backup-files`) e, se configurado, no seu bucket R2, em `<prefixo>/securo-backup-AAAA-MM-DD/` (um backup por dia; backups anteriores à v0.16.3-selfhost.3 ficam soltos em `<prefixo>/`).
+Onde estão: na pasta definida por `BACKUP_DIR` (padrão `~/securo-backup-files`) e, se configurado, no seu bucket R2, em `securo-backup-AAAA-MM-DD/`, na raiz do bucket (um backup por dia; backups anteriores à v0.16.3-selfhost.3 ficam soltos em `securo/`).
 
 > Convenções: rode os comandos a partir da raiz do repositório. Troque `<data>` pelo carimbo do backup
 > (ex.: `20260101-031500`). Os comandos assumem o projeto Compose `securo-prod` e o arquivo de ambiente

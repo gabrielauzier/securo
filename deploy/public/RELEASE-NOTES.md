@@ -16,8 +16,8 @@ Parte de `0.16.3` do projeto original. Corrige dois problemas de contas e acresc
   `alembic upgrade head`, e vale o mesmo aviso: faça o backup antes. Ela adiciona a coluna e preenche a data das contas manuais
   com a data do saldo inicial que cada conta já tem, então **nenhum saldo muda depois da atualização**. Contas ligadas a banco e
   contas sem saldo inicial ficam com a data vazia, como antes. Voltar atrás exige restaurar o backup.
-- **Os backups no R2 passam a ficar em uma pasta por backup.** Em vez de arquivos soltos em `securo/`, cada backup vai para
-  `securo/securo-backup-AAAA-MM-DD/` (banco, anexos e `.sha256`). Backups do mesmo dia dividem a pasta. O job agendado usa a
+- **Os backups no R2 passam a ficar em uma pasta por backup, na raiz do bucket.** Em vez de arquivos soltos em `securo/`, cada backup vai para
+  `securo-backup-AAAA-MM-DD/` (banco, anexos e `.sha256`). O prefixo `securo` deixa de existir (o `R2_PREFIX` do `r2.env` é ignorado). Backups do mesmo dia dividem a pasta. O job agendado usa a
   **cópia** do script em `~/.config/securo-backup/`, então, depois de publicar, atualize-a:
   `cp deploy/public/backup/offsite.sh ~/.config/securo-backup/offsite.sh && chmod 755 ~/.config/securo-backup/offsite.sh`.
   Os arquivos antigos continuam soltos em `securo/` e seguem a mesma retenção (90 dias); nada é movido.

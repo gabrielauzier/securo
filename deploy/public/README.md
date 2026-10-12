@@ -188,7 +188,7 @@ mais um `.sha256` por backup (verificado ao final), retenção automática e, se
    cp deploy/public/backup/offsite.sh ~/.config/securo-backup/offsite.sh && chmod 755 ~/.config/securo-backup/offsite.sh
    ./deploy/public/backup/backup.sh          # agora deve enviar e verificar no R2
    ```
-   No R2, cada backup vai para a sua pasta, dentro do prefixo (`R2_PREFIX`, padrão `securo`): `securo/securo-backup-AAAA-MM-DD/` com o banco, os anexos e o `.sha256`. Backups do mesmo dia dividem a pasta (os nomes dos arquivos levam a hora). Arquivos enviados antes dessa mudança continuam soltos em `securo/` e seguem a mesma retenção.
+   No R2, cada backup vai para a sua pasta, direto na raiz do bucket: `securo-backup-AAAA-MM-DD/` com o banco, os anexos e o `.sha256`. Backups do mesmo dia dividem a pasta (os nomes dos arquivos levam a hora). Não há mais prefixo: o `R2_PREFIX` de um `r2.env` antigo é ignorado. Arquivos enviados antes dessa mudança continuam soltos em `securo/` e seguem a mesma retenção.
    O job agendado usa a **cópia** em `~/.config/securo-backup/`: depois de atualizar o `offsite.sh`, copie-o de novo (o `cp` acima).
    O token precisa poder apagar (retenção), então se a máquina for comprometida o atacante pode apagar os backups remotos; os arquivos são ilegíveis sem a chave age. Considere versionamento no bucket.
 4. **Agende** (macOS, LaunchAgent diário). O launchd **não consegue ler scripts nem renomear arquivos em volumes externos** (proteção de privacidade do macOS): use cópias no disco interno.

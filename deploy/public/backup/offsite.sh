@@ -5,12 +5,12 @@
 # Credenciais: arquivo ~/.config/securo-backup/r2.env (modo 600), criado por você a partir de
 # deploy/public/backup/r2.env.example. Nunca commitar.
 #
-# Cada backup vai para a sua própria pasta, dentro do prefixo (R2_PREFIX, padrão "securo"):
-#   <prefixo>/securo-backup-AAAA-MM-DD/  com os 3 arquivos (banco, anexos e .sha256)
+# Cada backup vai para a sua própria pasta, direto na raiz do bucket:
+#   securo-backup-AAAA-MM-DD/  com os 3 arquivos (banco, anexos e .sha256)
 # Backups do mesmo dia (ex.: um manual antes de atualizar e o noturno) dividem a pasta do dia; os
 # nomes dos arquivos levam a hora, então não se sobrescrevem.
 #
-# OFFSITE_TARGET (opcional) substitui o destino (prefixo) por qualquer caminho aceito pelo rclone,
+# OFFSITE_TARGET (opcional) substitui a raiz de destino (o bucket) por qualquer caminho aceito pelo rclone,
 # inclusive uma pasta local; serve para testar o fluxo sem credenciais.
 set -euo pipefail
 
@@ -42,7 +42,9 @@ if [ -z "${OFFSITE_TARGET:-}" ]; then
   export RCLONE_CONFIG_R2_ACL=private
   # Token restrito a um bucket não pode criar/checar o bucket: não tentar.
   export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
-  OFFSITE_TARGET="r2:${R2_BUCKET}/${R2_PREFIX:-securo}"
+  # Raiz do bucket. R2_PREFIX, de versões anteriores, não é mais usado.
+  OFFSITE_TARGET="r2:${R2_BUCKET}"
+  REMOTE_IS_R2=1
 fi
 KEEP_REMOTE_DAYS="${KEEP_REMOTE_DAYS:-90}"
 export RCLONE_CONFIG=/dev/null   # ignora qualquer rclone.conf; só vale o que está acima
@@ -65,13 +67,17 @@ log "verificando no destino ..."
 rclone check "$BACKUP_DIR" "$DEST_DIR" --files-from "$LIST" --one-way --quiet \
   || die "verificação falhou: o destino não confere com o backup local"
 
-# Retenção remota: só os nomes deste esquema, só nesse prefixo. O padrão sem barra casa em qualquer
-# profundidade, então vale tanto para as pastas por backup quanto para os arquivos soltos de antes.
+# Retenção remota: só os nomes deste esquema (nada mais no bucket é tocado). O padrão sem barra casa em
+# qualquer profundidade, então vale tanto para as pastas por backup quanto para os arquivos soltos de
+# versões anteriores (que ficam em securo/).
 log "retenção remota (${KEEP_REMOTE_DAYS} dias) ..."
 rclone delete "$OFFSITE_TARGET" --min-age "${KEEP_REMOTE_DAYS}d" \
   --include 'securo-db-*.dump.age' --include 'securo-attachments-*.tar.gz.age' --include 'securo-*.sha256' \
   --quiet || log "aviso: retenção remota falhou (não é fatal)"
-# Pastas de backup que ficaram vazias (no R2 elas somem sozinhas; num destino local, não).
-rclone rmdirs "$OFFSITE_TARGET" --leave-root --quiet || true
+# Pastas de backup que ficaram vazias, só em destino local (teste). No R2 elas somem sozinhas, e
+# `rmdirs` apagaria também pastas vazias que você criou à mão na raiz do bucket.
+if [ "${REMOTE_IS_R2:-0}" != 1 ]; then
+  rclone rmdirs "$OFFSITE_TARGET" --leave-root --quiet || true
+fi
 
 log "ok: backup $BACKUP_TS enviado e verificado em $FOLDER"
