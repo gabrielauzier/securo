@@ -1414,9 +1414,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BVIEW AC 2-10 pass; keys in every locale
-- [ ] New test `frontend/src/pages/credit-cards.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/credit-cards.test.tsx`
+- [x] BVIEW AC 2-10 pass; keys in every locale
+- [x] New test `frontend/src/pages/credit-cards.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/credit-cards.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

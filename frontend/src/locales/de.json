@@ -3020,6 +3020,26 @@
       "nextDue": "Next due date",
       "limit": "Total limit",
       "available": "Total available"
+    },
+    "page": {
+      "title": "Credit Card",
+      "card": "Card",
+      "allCards": "All cards",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "empty": "You have no credit card yet. Create one to track its bills here.",
+      "createCard": "Create a credit card",
+      "configure": "{{card}} has no close or due day, so it has no bills.",
+      "configureAction": "Configure",
+      "billsTitle": "Bills",
+      "noBills": "No bills in this month.",
+      "status": "Status",
+      "transactionsTitle": "Card transactions",
+      "noTransactions": "No card transactions in this month.",
+      "date": "Date",
+      "description": "Description",
+      "category": "Category",
+      "amount": "Amount"
     }
   }
 }
