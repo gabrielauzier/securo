@@ -2925,6 +2925,10 @@
       "closed": "Fechada"
     },
     "originalDueDate": "Vencimento original {{date}} ({{weekday}})",
+    "infoTitle": "Fatura",
+    "infoBill": "{{card}} · {{month}}",
+    "infoSettledOn": "Quitada em {{date}}",
+    "infoNotSettled": "Não quitada · vence em {{date}}",
     "reason": {
       "exact_amount": "Valor exato",
       "partial_amount": "Pagamento parcial",

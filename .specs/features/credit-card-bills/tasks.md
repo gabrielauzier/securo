@@ -1938,9 +1938,9 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] ADJ AC 5 for paid and unpaid bills; nothing shown for non-card rows
-- [ ] Tests added to `frontend/src/components/transaction-dialog.test.tsx` (append only)
-- [ ] Gate passes: Quick-FE
+- [x] ADJ AC 5 for paid and unpaid bills; nothing shown for non-card rows
+- [x] Tests added to `frontend/src/components/transaction-dialog.test.tsx` (append only)
+- [x] Gate passes: Quick-FE
 
 **Tests**: unit
 **Gate**: Quick-FE

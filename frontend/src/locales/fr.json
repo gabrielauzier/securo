@@ -2925,6 +2925,10 @@
       "closed": "Closed"
     },
     "originalDueDate": "Original due date {{date}} ({{weekday}})",
+    "infoTitle": "Bill",
+    "infoBill": "{{card}} · {{month}}",
+    "infoSettledOn": "Settled on {{date}}",
+    "infoNotSettled": "Not settled · due {{date}}",
     "reason": {
       "exact_amount": "Exact amount",
       "partial_amount": "Partial payment",

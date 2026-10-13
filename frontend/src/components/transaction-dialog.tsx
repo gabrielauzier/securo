@@ -41,6 +41,7 @@ import { TransactionAttachments } from '@/components/transaction-attachments'
 import type { AttachmentPreview } from '@/components/transaction-attachments'
 import { TransactionSplitsSection } from '@/components/transaction-splits-section'
 import { BillOverrideSelect } from '@/components/credit-card/bill-override-select'
+import { BillInfo } from '@/components/credit-card/bill-info'
 import { buildInstallmentSeriesInput, hasNonStatusChange, isManualInstallmentSeriesRow } from '@/lib/installment-series'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import type { Transaction, RecurringTransaction, TransactionSplitsInput, TransactionEditPayload, InstallmentSeriesInput, TransactionApplyScope, CategoryGroup, Category, Rule, RuleCondition, RuleConditionNode } from '@/types'
@@ -1220,6 +1221,12 @@ function TransactionForm({
         if (selectedAcc?.type !== 'credit_card') return null
         return (
           <div className="space-y-2">
+            {transaction?.bill_id && transaction.account_id === selectedAcc.id && (
+              <BillInfo
+                billId={transaction.bill_id}
+                cardName={selectedAcc.display_name || selectedAcc.name}
+              />
+            )}
             <Label>
               {t('bills.override.label')}{' '}
               <span className="text-muted-foreground font-normal text-xs">
