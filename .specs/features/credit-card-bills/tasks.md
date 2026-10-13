@@ -104,6 +104,18 @@ T46 → T47 → T48 → T49 → T50 → T51
 T55 → T56 → T57 → T58 → T59 → T60
 ```
 
+### Phase 11: Round 2 fixes and backend adjustments
+
+```
+T61 → T62 → T63 → T64 → T65 → T66
+```
+
+### Phase 12: Frontend adjustments
+
+```
+T67 → T68 → T69 → T70 → T71 → T72
+```
+
 ---
 
 ## Task Breakdown
@@ -1629,6 +1641,308 @@ T55 → T56 → T57 → T58 → T59 → T60
 **Gate**: Build
 **Commit**: `fix(bills): keep transaction descriptions visible next to bill badges`
 
+
+---
+
+### T61: Refresh bills when a category is deleted with reassignment
+
+**What**: When a category is deleted and its rows move to another category (bulk `UPDATE transactions SET category_id`, `category_service.py` ~l.411-448), refresh the bills of the moved rows (Verifier round 2 gap 1, AD-004).
+**Where**: `backend/app/services/category_service.py`
+**Depends on**: None (phase order)
+**Reuses**: `bill_service.collect_bill_ids`, `refresh_bills`
+**Requirement**: BILL-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] A card purchase moved from an `is_ignored` category to a normal one raises the bill's `computed_total` (0.00 → 100.00), and the reverse lowers it
+- [ ] New test `backend/tests/test_category_delete_bills.py` that fails before the fix
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `fix(bills): refresh bills when a deleted category reassigns rows`
+
+---
+
+### T62: Refresh bills when rules are applied
+
+**What**: `rule_service.apply_single_rule` and `apply_all_rules` refresh the bills of every row they change (category or `is_ignored`) before commit (Verifier round 2 gap 2, AD-004).
+**Where**: `backend/app/services/rule_service.py`
+**Depends on**: T61
+**Reuses**: `bill_service.touch`
+**Requirement**: BILL-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] An `ignore` rule matching a card purchase drops `computed_total` (100.00 → 0.00) through both entry points
+- [ ] A categorize rule into an `is_bill_payment` category removes a payment from P/L and refreshes its bill
+- [ ] New test `backend/tests/test_rule_apply_bills.py` that fails before the fix
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `fix(bills): refresh bills when rules are applied`
+
+---
+
+### T63: Refresh bills for upgraded recurring placeholders
+
+**What**: Import `touch`es the `upgraded_placeholders` ids after rules run on them (`import_service.py` ~l.1016-1047, Verifier round 2 gap 3).
+**Where**: `backend/app/services/import_service.py`
+**Depends on**: T62
+**Reuses**: `bill_service.touch`
+**Requirement**: BILL-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] An upgraded placeholder that a rule marks ignored leaves its bill total updated
+- [ ] Tests added to `backend/tests/test_import_bills.py` (feature-created file)
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `fix(bills): refresh bills for upgraded recurring placeholders`
+
+---
+
+### T64: Guard test for AD-004
+
+**What**: A test scans `backend/app/services/` and `backend/app/api/` for bulk `update(Transaction)` / `delete(Transaction)` statements and for writes to `category_id`, `is_ignored`, `bill_id`, `paid_bill_id` via core statements, and fails when a module contains one without calling `bill_service` (allow-list with a reason per entry).
+**Where**: `backend/tests/test_ad004_guard.py`
+**Depends on**: T63
+**Reuses**: `ast` / text scan of the source tree
+**Requirement**: BILL-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Guard passes on the current tree and fails when the refresh call is removed from T61's or T62's path (checked once, not committed)
+- [ ] Every allow-list entry has a one-line reason
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `test(bills): guard bulk transaction writes against stale bills`
+
+---
+
+### T65: Projected purchase count per category
+
+**What**: Category spending in `settlement` returns `projected_count` per category (number of `is_bill_projected` card rows counted in `projected`); 0 elsewhere.
+**Where**: `backend/app/services/dashboard_service.py`
+**Depends on**: T64
+**Reuses**: `_get_settlement_projections`
+**Requirement**: ADJ-04
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Two unpaid purchases in Compras give `projected_count = 2`; paid ones are not counted; `cash`/`accrual` return 0
+- [ ] Schema field optional with default 0
+- [ ] New test `backend/tests/test_dashboard_projected_count.py`
+- [ ] Gate passes: Full
+
+**Tests**: integration
+**Gate**: Full
+**Commit**: `feat(dashboard): count projected card purchases per category`
+
+---
+
+### T66: Available credit honors the balance date
+
+**What**: The account detail `available_credit` equals `credit_limit − amount owed`, using the same floored current balance as the accounts list (AD-001/AD-002). Find why `serialize_account` / `get_account` differs from `get_accounts` and fix at the source.
+**Where**: `backend/app/services/account_service.py`
+**Depends on**: T65
+**Reuses**: balance used by `get_accounts`
+**Requirement**: ADJ-05
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] A card with an opening balance and older transactions shows the same owed amount in list and detail, and `available_credit = limit − owed`
+- [ ] New test `backend/tests/test_card_available_credit.py` that fails before the fix
+- [ ] Gate passes: Build (backend)
+
+**Tests**: integration
+**Gate**: Build
+**Commit**: `fix(accounts): compute available credit from the floored balance`
+
+---
+
+### T67: Bill-payment badge on categories
+
+**What**: Categories list shows a "Pagamento de fatura" badge for `is_bill_payment`, like the Transferências/Ignorado badges.
+**Where**: `frontend/src/pages/categories.tsx`
+**Depends on**: None (phase order)
+**Reuses**: existing transfer/ignored badges
+**Requirement**: ADJ-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: react-best-practices
+
+**Done when**:
+
+- [ ] Badge shown only for flagged categories; keys in every locale
+- [ ] Tests added to `frontend/src/pages/categories-bill-payment.test.tsx`
+- [ ] Gate passes: Quick-FE
+
+**Tests**: unit
+**Gate**: Quick-FE
+**Commit**: `feat(categories): show the bill payment badge in the list`
+
+---
+
+### T68: Projected count badge on Spending by Category
+
+**What**: Dashboard "Gastos por Categoria" shows "(N previstas)" next to categories with `projected_count > 0` in `settlement`.
+**Where**: `frontend/src/pages/dashboard.tsx`
+**Depends on**: T67
+**Reuses**: `projected_count` from T65
+**Requirement**: ADJ-04
+
+**Tools**:
+
+- MCP: NONE
+- Skill: react-best-practices
+
+**Done when**:
+
+- [ ] Badge text uses plural rules (1 prevista / 2 previstas); hidden when 0
+- [ ] Tests added to `frontend/src/pages/dashboard.test.tsx` (append only)
+- [ ] Gate passes: Quick-FE
+
+**Tests**: unit
+**Gate**: Quick-FE
+**Commit**: `feat(dashboard): show projected purchase counts per category`
+
+---
+
+### T69: Settlement dates in the transactions list
+
+**What**: In `settlement`, card rows with a bill show the reporting date with "Paga em" (bill paid) or "Pagar até" (otherwise) and a second line "Lançada em <date>", plus the "Prevista" badge when `is_bill_projected`; desktop and mobile rows; other modes unchanged.
+**Where**: `frontend/src/pages/transactions.tsx`
+**Depends on**: T68
+**Reuses**: drill-down row layout (T41), `ProjectedTransactionBadge`
+**Requirement**: ADJ-02
+
+**Tools**:
+
+- MCP: NONE
+- Skill: react-best-practices
+
+**Done when**:
+
+- [ ] ADJ AC 2, 3, 4 and the spec Independent Test (Petz Digital: "Pagar até 13/10/2026", "Lançada em 05/09/2026", Prevista)
+- [ ] Backend already returns `reporting_date`/`is_bill_projected`; add the bill paid state to the row if missing (smallest change, documented)
+- [ ] New test `frontend/src/pages/transactions-settlement-dates.test.tsx`
+- [ ] Gate passes: Quick-FE
+
+**Tests**: unit
+**Gate**: Quick-FE
+**Commit**: `feat(transactions): show bill dates for card rows in settlement mode`
+
+---
+
+### T70: Bill info in the transaction dialog
+
+**What**: Card transactions with a bill show read-only: bill (card + reference month) and "Quitada em <date>" or "Não quitada · vence em <effective due>".
+**Where**: `frontend/src/components/transaction-dialog.tsx`
+**Depends on**: T69
+**Reuses**: `creditCardBills.get`, `BillStatusBadge`
+**Requirement**: ADJ-03
+
+**Tools**:
+
+- MCP: NONE
+- Skill: react-best-practices
+
+**Done when**:
+
+- [ ] ADJ AC 5 for paid and unpaid bills; nothing shown for non-card rows
+- [ ] Tests added to `frontend/src/components/transaction-dialog.test.tsx` (append only)
+- [ ] Gate passes: Quick-FE
+
+**Tests**: unit
+**Gate**: Quick-FE
+**Commit**: `feat(bills): show the bill and settlement date on card transactions`
+
+---
+
+### T71: Payment links open the payment
+
+**What**: Payment entries in `BillDetailsCard` and on the credit cards page link to `/transactions?highlight=<payment id>` scoped to the payment's month instead of the paying account.
+**Where**: `frontend/src/components/credit-card/bill-details-card.tsx`
+**Depends on**: T70
+**Reuses**: `highlight` handling in `transactions.tsx`
+**Requirement**: ADJ-06
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] ADJ AC 8 on both pages
+- [ ] Tests updated only in feature-created files (`account-detail-bills.test.tsx`, `credit-cards.test.tsx`)
+- [ ] Gate passes: Build (frontend)
+
+**Tests**: unit
+**Gate**: Build
+**Commit**: `fix(bills): open the payment transaction from a bill`
+
+---
+
+### T72: Release notes for the adjustments
+
+**What**: Release notes cover ADJ items, the inverted-sign CSV guidance (use "inverter sinal" in the saved card mapping), and the bill-refresh fixes.
+**Where**: `deploy/public/RELEASE-NOTES.md`
+**Depends on**: T71
+**Reuses**: T51 notes
+**Requirement**: ADJ-07
+
+**Tools**:
+
+- MCP: NONE
+- Skill: docs-writer
+
+**Done when**:
+
+- [ ] Notes updated in Portuguese
+- [ ] Gate passes: Build (backend and frontend)
+
+**Tests**: none
+**Gate**: Build
+**Commit**: `docs(deploy): document the credit card adjustments`
 ---
 
 ## Phase Execution Map
@@ -1646,6 +1960,8 @@ Phase 7:  T53 → T38 → T39 → T40 → T41 → T54
 Phase 8:  T42 → T43 → T44 → T45
 Phase 9:  T46 → T47 → T48 → T49 → T50 → T51
 Phase 10: T55 → T56 → T57 → T58 → T59 → T60
+Phase 11: T61 → T62 → T63 → T64 → T65 → T66
+Phase 12: T67 → T68 → T69 → T70 → T71 → T72
 ```
 
 Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phase 7 (6), B7 = Phase 8 (4), B8 = Phase 9 (6).
@@ -1721,3 +2037,10 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | BREP-01 | T29-T37, T39, T51, T54 |
 | BREP-02 | T37, T41 |
 | BVIEW-01 | T48, T49, T50 |
+| ADJ-01 | T67 |
+| ADJ-02 | T69 |
+| ADJ-03 | T70 |
+| ADJ-04 | T65, T68 |
+| ADJ-05 | T66 |
+| ADJ-06 | T71 |
+| ADJ-07 | T72 |

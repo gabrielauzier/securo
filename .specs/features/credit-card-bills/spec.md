@@ -225,6 +225,30 @@ A credit-card bill (`CreditCardBill`) exists only when a provider (Pluggy `/bill
 
 ---
 
+### P2: Post-delivery adjustments (owner review, 2026-10-13)
+
+Source: `.specs/features/credit-card-bills/ajustes.md`, approved by the owner for this release.
+
+**User Story**: As the owner using `settlement`, I want card rows, bills and categories to show bill dates and states consistently everywhere, so that a month filter never looks like it shows another month's spending.
+
+**Why P2**: Usability and correctness fixes found while using the delivered feature.
+
+**Acceptance Criteria**:
+
+1. WHEN a category has `is_bill_payment` THEN the categories list SHALL show a "Pagamento de fatura" badge next to it, styled like the existing "Transferências" and "Ignorado" badges.
+2. WHILE the mode is `settlement`, the transactions list SHALL show, for each card row with a bill, the reporting date as the row date with the label "Paga em" when the bill is `paid` or "Pagar até" otherwise, and below it the line "Lançada em <purchase date>".
+3. WHILE the mode is `cash` or `accrual`, the transactions list SHALL show card rows exactly as before.
+4. WHILE the mode is `settlement`, the transactions list SHALL show the existing "Prevista" badge on rows with `is_bill_projected = true`.
+5. WHEN the user opens a card transaction that has a bill THEN the transaction dialog SHALL show, read-only, the bill (card and reference month) and either "Quitada em <settled_on>" or "Não quitada · vence em <effective due date>".
+6. WHILE the mode is `settlement`, the dashboard "Gastos por Categoria" card SHALL show next to each category with projected purchases a badge with their count (e.g. "Compras (2 previstas)"); categories with none show no badge.
+7. The credit card account detail page SHALL show available credit equal to `credit_limit − amount owed`, where amount owed is the card's current balance computed with the balance-date floor (AD-001/AD-002), the same balance the accounts list shows.
+8. WHEN the user clicks a payment in a bill's payment list THEN the system SHALL open the transactions list highlighting that payment transaction (`/transactions?highlight=<id>` with the payment's month), not the paying account.
+9. The release notes SHALL explain that card CSVs with inverted signs are handled by the existing "inverter sinal" import option saved with the mapping (owner decision: no code change).
+
+**Independent Test**: With `settlement` on and the reference data, open October transactions: the 05/09 "Petz Digital" card purchase on the 13/10 bill shows "Pagar até 13/10/2026", "Lançada em 05/09/2026" and the "Prevista" badge.
+
+---
+
 ## Edge Cases
 
 - WHEN close day equals due day (both 10) THEN the system SHALL set the nominal due date to the 10th of the month after the close.
@@ -234,6 +258,7 @@ A credit-card bill (`CreditCardBill`) exists only when a provider (Pluggy `/bill
 - IF the bill's card is closed (`is_closed`) THEN the system SHALL still allow linking payments to its existing bills.
 - WHEN a linked payment transaction is deleted THEN the system SHALL drop the link and recompute the bill status.
 - WHEN a card account is deleted THEN the system SHALL delete its bills and unlink their payments.
+- WHEN rules are applied to existing transactions, or a category is deleted and its rows move to another category, or an import upgrades a recurring placeholder, THEN the system SHALL refresh every bill whose card rows or payments changed (AD-004).
 - WHEN two imports create the same bill concurrently THEN the system SHALL keep one bill and link both batches to it.
 - WHEN a bill has no linked rows and no declared total THEN the system SHALL report computed total 0 and, once closed, status `paid`.
 - IF a card's `statement_close_day` and `payment_due_day` would map two consecutive close dates to the same reference month (e.g. close 30, due 31) THEN creating or updating the account SHALL respond HTTP 422 with detail `incompatible_cycle_days` and store nothing.
@@ -258,9 +283,16 @@ A credit-card bill (`CreditCardBill`) exists only when a provider (Pluggy `/bill
 | BMATCH-03 | P2: Matching (AC 10-11, bulk preview) | Tasks | In Tasks |
 | BREP-01 | P2: Settlement mode (AC 1-11, 16) | Tasks | In Tasks |
 | BREP-02 | P2: Settlement mode (AC 12-15, drill-down) | Tasks | In Tasks |
+| ADJ-01 | P2: Adjustments (AC 1, category badge) | Tasks | In Tasks |
+| ADJ-02 | P2: Adjustments (AC 2-4, transactions list in settlement) | Tasks | In Tasks |
+| ADJ-03 | P2: Adjustments (AC 5, transaction dialog bill info) | Tasks | In Tasks |
+| ADJ-04 | P2: Adjustments (AC 6, projected count badge) | Tasks | In Tasks |
+| ADJ-05 | P2: Adjustments (AC 7, available credit) | Tasks | In Tasks |
+| ADJ-06 | P2: Adjustments (AC 8, payment link) | Tasks | In Tasks |
+| ADJ-07 | P2: Adjustments (AC 9, release notes on inverted signs) | Tasks | In Tasks |
 | BVIEW-01 | P3: Consolidated page (AC 1-11) | Tasks | In Tasks |
 
-**Coverage:** 15 total, 15 mapped to tasks (see `tasks.md` Requirement Coverage), 0 unmapped.
+**Coverage:** 22 total, 22 mapped to tasks (see `tasks.md` Requirement Coverage), 0 unmapped.
 
 ---
 
