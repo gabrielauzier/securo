@@ -18,6 +18,7 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, DailyBalance, BalanceHistory
 from app.services._query_filters import (
     counts_as_user_pnl,
+    bill_projected_row,
     is_bill_projected,
     is_recognized,
     owner_split_offset_by_category,
@@ -1012,6 +1013,9 @@ async def get_spending_by_category(
                 {"name": "Sem categoria", "icon": "circle-help", "color": "#6B7280"},
             )
             spending_map[cat_id] = {**info, "total": 0.0, "projected": projected_amount}
+        if bill_projected_row(tx, accounting_mode):
+            entry = spending_map[cat_id]
+            entry["projected_count"] = entry.get("projected_count", 0) + 1
 
     # `total` stays posted-only so the breakdown adds up to the expenses card,
     # which is also posted-only. The forecast rides along in `projected_total`
@@ -1026,6 +1030,7 @@ async def get_spending_by_category(
             category_color=entry["color"],
             total=entry["total"],
             projected_total=entry["total"] + entry.get("projected", 0.0),
+            projected_count=entry.get("projected_count", 0),
             percentage=(entry["total"] / grand_total * 100) if grand_total else 0,
         ))
 

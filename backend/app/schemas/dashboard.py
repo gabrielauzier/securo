@@ -45,6 +45,8 @@ class SpendingByCategory(BaseModel):
     total: float
     # Actual plus forecast, mirroring the card's projected sub-line.
     projected_total: float = 0.0
+    # `settlement` only: card purchases on unpaid bills counted in `projected_total`.
+    projected_count: int = 0
     percentage: float
 
 

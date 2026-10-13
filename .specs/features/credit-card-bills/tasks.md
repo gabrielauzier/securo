@@ -1760,10 +1760,10 @@ T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] Two unpaid purchases in Compras give `projected_count = 2`; paid ones are not counted; `cash`/`accrual` return 0
-- [ ] Schema field optional with default 0
-- [ ] New test `backend/tests/test_dashboard_projected_count.py`
-- [ ] Gate passes: Full
+- [x] Two unpaid purchases in Compras give `projected_count = 2`; paid ones are not counted; `cash`/`accrual` return 0
+- [x] Schema field optional with default 0
+- [x] New test `backend/tests/test_dashboard_projected_count.py`
+- [x] Gate passes: Full
 
 **Tests**: integration
 **Gate**: Full
