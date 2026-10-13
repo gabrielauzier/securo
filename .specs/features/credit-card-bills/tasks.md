@@ -253,12 +253,12 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] P1 Independent Test scenario passes through the migration function
-- [ ] Running the backfill twice yields the same bills and links (P1 AC 14)
-- [ ] Provider bills and their links unchanged (P1 AC 15)
-- [ ] Frozen math equals live `bill_period_for` for every day 2024-2028 (two cycle configs)
-- [ ] New test `backend/tests/test_credit_card_bills_backfill_migration.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_credit_card_bills_backfill_migration.py -q`
+- [x] P1 Independent Test scenario passes through the migration function
+- [x] Running the backfill twice yields the same bills and links (P1 AC 14)
+- [x] Provider bills and their links unchanged (P1 AC 15)
+- [x] Frozen math equals live `bill_period_for` for every day 2024-2028 (two cycle configs)
+- [x] New test `backend/tests/test_credit_card_bills_backfill_migration.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_credit_card_bills_backfill_migration.py -q`
 
 **Tests**: unit
 **Gate**: Quick

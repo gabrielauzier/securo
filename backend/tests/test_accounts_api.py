@@ -749,6 +749,27 @@ async def test_get_account_bills_rejects_invalid_limit(
     assert resp.status_code == 422  # Query(ge=1) bound
 
 
+@pytest.mark.asyncio
+async def test_get_account_bills_lists_auto_bills_without_external_id(
+    client: AsyncClient, auth_headers, session: AsyncSession, test_user,
+):
+    """Auto bills (cycle math, no provider) have no external id; listing them must not fail."""
+    from app.services.bill_service import get_or_create_bill
+    from app.services.credit_card_service import bill_period_for_month
+
+    cc = await _make_cc_account(session, test_user.id, "Auto")
+    cc.statement_close_day, cc.payment_due_day = 5, 12
+    await get_or_create_bill(session, cc, bill_period_for_month(_date(2026, 9, 1), 5, 12))
+    await session.commit()
+
+    resp = await client.get(f"/api/accounts/{cc.id}/bills", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["external_id"] is None
+    assert data[0]["due_date"] == "2026-09-12"
+
+
 # ---------------------------------------------------------------------------
 # Opening balance floor (account summary)
 # ---------------------------------------------------------------------------
