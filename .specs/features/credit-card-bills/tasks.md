@@ -306,10 +306,10 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BIMP Independent Test passes (3 linked, bills 2026-09/10/11)
-- [ ] Re-importing the same CSV creates no bill (BIMP AC 7)
-- [ ] New test `backend/tests/test_import_bills.py`
-- [ ] Gate passes: Full
+- [x] BIMP Independent Test passes (3 linked, bills 2026-09/10/11)
+- [x] Re-importing the same CSV creates no bill (BIMP AC 7)
+- [x] New test `backend/tests/test_import_bills.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

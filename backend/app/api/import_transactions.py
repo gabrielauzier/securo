@@ -161,15 +161,18 @@ async def import_transactions(
     if not account:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
 
-    imported, skipped, excluded, import_log_id = await import_service.import_transactions(
+    result = await import_service.import_transactions(
         session, ctx.workspace.id, ctx.user_id, data.account_id, data.transactions, "import",
         filename=data.filename, detected_format=data.detected_format,
         detect_duplicates=data.detect_duplicates,
     )
+    imported, skipped, excluded, import_log_id = result
 
     return {
         "imported": imported,
         "skipped": skipped,
         "excluded": excluded,
         "import_log_id": str(import_log_id),
+        "bills_linked": result.bills_linked,
+        "bills_created": result.bills_created,
     }
