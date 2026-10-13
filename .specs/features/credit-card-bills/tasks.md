@@ -1339,9 +1339,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] P1 AC 7, 9 flows work in the UI; provider bills hide date edit; existing `account-detail-cycle.test.tsx` green
-- [ ] New test `frontend/src/pages/account-detail-bills.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/account-detail-bills.test.tsx src/pages/account-detail-cycle.test.tsx`
+- [x] P1 AC 7, 9 flows work in the UI; provider bills hide date edit; existing `account-detail-cycle.test.tsx` green
+- [x] New test `frontend/src/pages/account-detail-bills.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/account-detail-bills.test.tsx src/pages/account-detail-cycle.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

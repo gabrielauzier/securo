@@ -2969,6 +2969,46 @@
         "partial": "Parcial",
         "suggestion": "Sugestão"
       }
+    },
+    "manage": {
+      "title": "Fatura",
+      "source": {
+        "provider": "Do banco",
+        "auto": "Automática",
+        "manual": "Manual"
+      },
+      "effectiveDueDate": "Vencimento efetivo",
+      "nominalDueDate": "Vencimento original {{date}}",
+      "computedTotal": "Total calculado",
+      "declaredTotal": "Total declarado",
+      "declaredTotalHint": "O total da fatura do banco. Deixe vazio para usar o total calculado.",
+      "difference": "Diferença",
+      "paid": "Pago",
+      "remaining": "Restante",
+      "overpaid": "Pago a mais",
+      "payments": "Pagamentos",
+      "noPayments": "Nenhum pagamento vinculado a esta fatura.",
+      "noBill": "Nenhuma fatura registrada para este ciclo.",
+      "create": "Nova fatura",
+      "createTitle": "Nova fatura manual",
+      "edit": "Editar fatura",
+      "editTitle": "Editar fatura",
+      "formDescription": "O mês de referência é o mês do vencimento.",
+      "providerDatesHint": "As datas de uma fatura sincronizada do banco não podem ser editadas.",
+      "referenceMonth": "Mês de referência",
+      "previousMonth": "Mês anterior",
+      "nextMonth": "Próximo mês",
+      "closeDate": "Data de fechamento",
+      "dueDate": "Data de vencimento",
+      "negativeTotal": "O total declarado deve ser zero ou mais.",
+      "datesRequired": "Escolha a data de fechamento e a de vencimento.",
+      "duplicate": "O cartão já tem uma fatura neste mês de referência.",
+      "created": "Fatura criada",
+      "updated": "Fatura atualizada",
+      "deleted": "Fatura excluída",
+      "delete": "Excluir fatura",
+      "deleteTitle": "Excluir esta fatura?",
+      "deleteDescription": "As transações e os pagamentos continuam, desvinculados da fatura."
     }
   }
 }

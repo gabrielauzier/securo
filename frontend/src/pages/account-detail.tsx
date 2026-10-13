@@ -19,6 +19,7 @@ import { ArrowLeft, ArrowLeftRight, CalendarClock, ChevronLeft, ChevronRight, Cl
 import { MobileTransactionRow } from '@/components/mobile-transaction-row'
 import { CategoryIcon } from '@/components/category-icon'
 import { ProjectedTransactionBadge } from '@/components/projected-transaction-badge'
+import { BillDetailsCard } from '@/components/credit-card/bill-details-card'
 import { TransactionDialog, type TransactionSavePayload } from '@/components/transaction-dialog'
 import { extractApiError } from '@/lib/api-errors'
 import { TransferDialog } from '@/components/transfer-dialog'
@@ -1303,6 +1304,15 @@ export default function AccountDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {isCreditCard && (
+        <BillDetailsCard
+          account={account}
+          bill={activeBill}
+          canWrite={canWrite}
+          defaultMonth={(activeBill?.reference_month ?? dueDateForCycle(filterTo, account.payment_due_day) ?? filterTo).slice(0, 7)}
+        />
       )}
 
       {isCreditCard && (() => {

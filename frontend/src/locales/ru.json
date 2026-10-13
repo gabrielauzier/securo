@@ -2984,6 +2984,46 @@
         "partial": "Partial",
         "suggestion": "Suggestion"
       }
+    },
+    "manage": {
+      "title": "Bill",
+      "source": {
+        "provider": "From the bank",
+        "auto": "Automatic",
+        "manual": "Manual"
+      },
+      "effectiveDueDate": "Effective due date",
+      "nominalDueDate": "Original due date {{date}}",
+      "computedTotal": "Computed total",
+      "declaredTotal": "Declared total",
+      "declaredTotalHint": "The total on the bank's bill. Leave empty to use the computed total.",
+      "difference": "Difference",
+      "paid": "Paid",
+      "remaining": "Remaining",
+      "overpaid": "Overpaid",
+      "payments": "Payments",
+      "noPayments": "No payments linked to this bill.",
+      "noBill": "No bill stored for this cycle.",
+      "create": "New bill",
+      "createTitle": "New manual bill",
+      "edit": "Edit bill",
+      "editTitle": "Edit bill",
+      "formDescription": "The reference month is the month of the due date.",
+      "providerDatesHint": "The dates of a bill synced from the bank cannot be edited.",
+      "referenceMonth": "Reference month",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "closeDate": "Close date",
+      "dueDate": "Due date",
+      "negativeTotal": "The declared total must be zero or more.",
+      "datesRequired": "Pick the close date and the due date.",
+      "duplicate": "The card already has a bill for this reference month.",
+      "created": "Bill created",
+      "updated": "Bill updated",
+      "deleted": "Bill deleted",
+      "delete": "Delete bill",
+      "deleteTitle": "Delete this bill?",
+      "deleteDescription": "Its transactions and payments stay, unlinked from the bill."
     }
   }
 }
