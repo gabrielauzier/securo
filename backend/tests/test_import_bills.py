@@ -115,3 +115,66 @@ async def test_import_into_a_non_card_account_reports_zero_bill_counts(
     response = await client.post("/api/transactions/import", headers=auth_headers, json=payload)
     assert response.status_code == 201
     assert (response.json()["bills_linked"], response.json()["bills_created"]) == (0, 0)
+
+
+async def test_upgraded_placeholder_ignored_by_a_rule_leaves_its_bill_updated(
+    session, card, test_user, test_workspace
+):
+    # Edge case (AD-004): an import that upgrades a recurring placeholder
+    # already on its bill refreshes that bill when a rule ignores the charge.
+    from decimal import Decimal
+    from unittest.mock import AsyncMock, patch
+
+    from app.schemas.recurring_transaction import RecurringTransactionCreate
+    from app.schemas.rule import RuleAction, RuleCondition, RuleCreate
+    from app.schemas.transaction import TransactionImport
+    from app.services import bill_service
+    from app.services.recurring_transaction_service import create_recurring_transaction
+    from app.services.rule_service import create_rule
+
+    recurring = await create_recurring_transaction(
+        session, test_workspace.id, test_user.id,
+        RecurringTransactionCreate(
+            description="Streaming", amount=Decimal("49.90"), currency="BRL", type="debit",
+            frequency="monthly", start_date=date(2026, 8, 20), account_id=card.id,
+        ),
+    )
+    recurring.next_occurrence = date(2026, 9, 20)
+    placeholder = Transaction(
+        user_id=test_user.id, workspace_id=test_workspace.id, account_id=card.id,
+        description="Streaming", amount=Decimal("49.90"), currency="BRL",
+        date=date(2026, 8, 20), effective_date=date(2026, 8, 20), type="debit",
+        source="recurring", status="pending", recurring_transaction_id=recurring.id,
+    )
+    session.add(placeholder)
+    await session.flush()
+    await bill_service.link_account_transactions(session, card, [placeholder.id])
+    await session.commit()
+    await session.refresh(placeholder)
+    bill = await session.get(CreditCardBill, placeholder.bill_id)
+    assert bill.computed_total == Decimal("49.90")
+
+    await create_rule(
+        session, test_workspace.id, test_user.id,
+        RuleCreate(
+            name="Ignore streaming",
+            conditions=[RuleCondition(field="description", op="contains", value="STREAMING")],
+            actions=[RuleAction(op="ignore", value=True)],
+            apply_to_existing=False,
+        ),
+    )
+    incoming = TransactionImport(
+        description="STREAMING", amount=Decimal("49.90"), date=date(2026, 8, 21),
+        type="debit", currency="BRL",
+    )
+    with patch("app.services.import_service.stamp_primary_amount", new_callable=AsyncMock):
+        result = await import_transactions(
+            session, test_workspace.id, test_user.id, card.id, [incoming], "ofx"
+        )
+
+    assert result[0] == 1
+    await session.refresh(placeholder)
+    assert placeholder.source == "ofx"
+    assert placeholder.is_ignored is True
+    await session.refresh(bill)
+    assert bill.computed_total == Decimal("0.00")

@@ -1101,6 +1101,9 @@ async def import_transactions(
         bill_summary = await bill_service.link_account_transactions(
             session, account, [t.id for t in landed] + upgraded_placeholders
         )
+        # A placeholder already on its bill does not move, so linking leaves
+        # that bill alone; the rules may still have ignored or recategorized it.
+        await bill_service.touch(session, upgraded_placeholders)
 
     await session.commit()
     result = ImportResult(imported, skipped, excluded_count, import_log.id, bill_summary)

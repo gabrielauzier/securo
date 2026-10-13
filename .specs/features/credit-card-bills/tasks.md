@@ -1710,9 +1710,9 @@ T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] An upgraded placeholder that a rule marks ignored leaves its bill total updated
-- [ ] Tests added to `backend/tests/test_import_bills.py` (feature-created file)
-- [ ] Gate passes: Full
+- [x] An upgraded placeholder that a rule marks ignored leaves its bill total updated
+- [x] Tests added to `backend/tests/test_import_bills.py` (feature-created file)
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
