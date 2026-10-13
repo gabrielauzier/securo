@@ -1659,9 +1659,9 @@ T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] A card purchase moved from an `is_ignored` category to a normal one raises the bill's `computed_total` (0.00 → 100.00), and the reverse lowers it
-- [ ] New test `backend/tests/test_category_delete_bills.py` that fails before the fix
-- [ ] Gate passes: Full
+- [x] A card purchase moved from an `is_ignored` category to a normal one raises the bill's `computed_total` (0.00 → 100.00), and the reverse lowers it
+- [x] New test `backend/tests/test_category_delete_bills.py` that fails before the fix
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
