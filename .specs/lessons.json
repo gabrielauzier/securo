@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 10,
+  "next_id": 11,
   "lessons": [
     {
       "id": "L-001",
@@ -166,6 +166,24 @@
       ],
       "created": "2026-10-13T13:45:07Z",
       "last_seen": "2026-10-13T13:45:07Z"
+    },
+    {
+      "id": "L-010",
+      "key": "spec_deviation::when a stored aggregate depends on a field of a linked row refresh on changes to the linked row too not only on changes to the counted row",
+      "text": "When a stored aggregate depends on a field of a linked row, refresh on changes to the linked row too, not only on changes to the counted row",
+      "signal": "spec_deviation",
+      "scope": "write-paths",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/services/bill_service.py:258-268 (SPEC_DEVIATION 2) (write-paths)"
+      ],
+      "created": "2026-10-13T15:03:00Z",
+      "last_seen": "2026-10-13T15:03:00Z"
     }
   ]
 }

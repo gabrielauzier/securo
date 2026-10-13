@@ -68,6 +68,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: frontend/src/lib/settlement-dates.ts:19-26 SPEC_DEVIATION (validation.md round 3) (spec)
 - last seen: 2026-10-13T13:45:07Z
 
+### L-010 - When a stored aggregate depends on a field of a linked row, refresh on changes to the linked row too, not only on changes to the counted row
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `write-paths` · harmful: 0
+- features: credit-card-bills
+- evidence: backend/app/services/bill_service.py:258-268 (SPEC_DEVIATION 2) (write-paths)
+- last seen: 2026-10-13T15:03:00Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
