@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 8,
+  "next_id": 10,
   "lessons": [
     {
       "id": "L-001",
@@ -130,6 +130,42 @@
       ],
       "created": "2026-10-13T10:53:11Z",
       "last_seen": "2026-10-13T10:53:11Z"
+    },
+    {
+      "id": "L-008",
+      "key": "ac_gap::when a stored aggregate depends on a row field also audit orm attribute writes of that field in api route helpers since a guard that scans bulk statements cannot see them",
+      "text": "When a stored aggregate depends on a row field, also audit ORM attribute writes of that field in API route helpers, since a guard that scans bulk statements cannot see them",
+      "signal": "ac_gap",
+      "scope": "write-paths",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/api/reconciliation.py:559-562 (validation.md round 3, AD-004 audit) (write-paths)"
+      ],
+      "created": "2026-10-13T13:45:07Z",
+      "last_seen": "2026-10-13T13:45:07Z"
+    },
+    {
+      "id": "L-009",
+      "key": "spec_deviation::specify a ui label s condition with the same field that selects the date it labels so the label and the date cannot disagree",
+      "text": "Specify a UI label's condition with the same field that selects the date it labels, so the label and the date cannot disagree",
+      "signal": "spec_deviation",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "frontend/src/lib/settlement-dates.ts:19-26 SPEC_DEVIATION (validation.md round 3) (spec)"
+      ],
+      "created": "2026-10-13T13:45:07Z",
+      "last_seen": "2026-10-13T13:45:07Z"
     }
   ]
 }

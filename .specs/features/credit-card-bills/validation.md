@@ -1,20 +1,19 @@
-# Credit Card Bills Validation (round 2)
+# Credit Card Bills Validation (round 3)
 
 **Date**: 2026-10-13
 **Spec**: `.specs/features/credit-card-bills/spec.md`
-**Diff range**: `7da4813..HEAD` (HEAD `74ffcff`, 67 commits). Round 1 fixes: `7568df7..HEAD` (T55-T60 and `74ffcff`).
-**Verifier**: independent sub-agent, round 2 (author ≠ verifier)
+**Diff range**: `7da4813..HEAD` (HEAD `300f423`, 84 commits). Since round 2 (`b8d1c2e`): `df9cd0f..300f423`, which covers Phase 11 (T61-T66) and Phase 12 (T73, T74, T67-T72).
+**Verifier**: independent sub-agent, round 3 (author ≠ verifier)
 
 ## Validation: credit-card-bills - FAIL ❌
 
-All six round 1 gaps are closed. Each fix has a test, and a mutation that removes the fix is killed. All gates are green: backend 4765 passed, frontend 1055 passed, ruff and ty clean. The sensor killed 14 of 14 mutations.
+All three round 2 gaps are closed. Each one has a test that asserts the spec outcome, and a mutation that removes the fix is killed. The follow-ups T73 and T74 and the T64 guard work. All 9 ADJ ACs trace to assertions of the spec outcome. All gates are green: backend 4781 passed with 0 skipped (PostgreSQL included), frontend 1071 passed, ruff and ty clean. The sensor killed 19 of 19 mutation runs.
 
-The verdict is still FAIL because the AD-004 re-audit found two write paths outside `transaction_service` that change card transactions without refreshing their bills. Both were reproduced in a scratch worktree:
+The verdict is FAIL because the last AD-004 hand audit found one more write path that changes card rows and leaves the stored bill aggregate stale. A scratch probe reproduced it:
 
-1. **Deleting a category and moving its rows to another category** (`category_service.delete_category` with `transfer_to_id`, `backend/app/services/category_service.py:448` → `_transfer_category_references`, bulk `UPDATE transactions SET category_id` at `:411-419`) does not refresh any bill. In the probe, a 100.00 card purchase sat in an `is_ignored` category, so the bill's `computed_total` was 0.00. The category was then deleted and its rows moved to "Mercado". `computed_total` stayed at 0.00 when it should have been 100.00. The reverse case, moving rows into a flagged category, leaves the total too high.
-2. **Applying rules to existing transactions** (`rule_service.apply_single_rule`, `backend/app/services/rule_service.py:1382-1455`, called on rule create and update at `backend/app/api/rules.py:99,202`, and `apply_all_rules`, `:1458-1523`, at `backend/app/api/rules.py:284`) sets `category_id` and `is_ignored` on card rows and commits without `bill_service.touch`. In the probe, an `ignore` rule matched a 100.00 card purchase (1 row changed). `computed_total` stayed at 100.00 when it should have been 0.00.
+- **Accepting a transfer suggestion from the reconciliation queue** (`backend/app/api/reconciliation.py:559-562`, `_settle` → `leg.transfer_pair_id = pair_id`, reached from `accept_suggestion` at `:421-464`) pairs the two legs and commits. It never calls `bill_service`. When the debit is a payment already linked to a bill (`needs_counterpart`), the card credit becomes "the card leg of a bill payment". The spec's computed-total rule (Assumptions) then excludes that credit, so the bill's `computed_total` must change. In the probe, a 1,000.00 purchase and a 1,000.00 card credit sat on the 2026-09 bill. Two checking debits of 1,000.00 on the same day made the pair ambiguous, so `detect_transfer_pairs` queued a question rather than pairing. The suggestion for the linked payment and the credit was accepted (HTTP 200). The stored `computed_total` stayed at **0.00**. Recomputing from the rows gives **1000.00**. The bill then reports target 0, overpaid 1,000.00 and, once closed, status `paid`, which contradicts P1 AC 5 and AC 6. `settled_on` and the `settlement` recognition date go wrong with it. The T64 guard cannot see this path, because it is an ORM attribute write in a loop and not a bulk statement.
 
-Both break the stored aggregate contract (AD-003, AD-004). They also break the spec's computed-total rule (Assumptions: ignored rows and rows in `is_bill_payment`/`is_ignored` categories do not count) as it feeds P1 AC 5/6 and, through `settled_on`, the `settlement` recognition date. `rebuild-bills` repairs the data, but no write path triggers it.
+The other pairing paths refresh: `transfer_detection_service` (`:507`, `:601`, `:622`), `transaction_service.link_existing_as_transfer` and `create_transfer_counterpart`, and `bill_payment_service`. The gap is limited to the reconciliation accept route.
 
 ---
 
@@ -22,37 +21,45 @@ Both break the stored aggregate contract (AD-003, AD-004). They also break the s
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| T1-T54 | ✅ Done | All checkboxes `[x]`. T50's browser check was recorded by the orchestrator on 2026-10-13 (`tasks.md`, T50 Done-when). |
-| T55 import undo refresh | ✅ Done | `backend/app/api/import_logs.py:94-114` |
-| T56 account delete refresh | ✅ Done | `backend/app/services/account_service.py:642-681,712` |
-| T57 sync phantom cleanup refresh | ✅ Done | `backend/app/services/connection_service.py:1625-1652` |
-| T58 concurrent batches test | ✅ Done | `backend/tests/test_bill_service.py:323-348` |
-| T59 cross-page figures test | ✅ Done | `frontend/src/pages/credit-cards-consistency.test.tsx` |
-| T60 badge truncation | ✅ Done | `frontend/src/components/bill-payment-row-badge.test.tsx:48-73`. The orchestrator does the browser re-check (open item). |
+| T1-T60 | ✅ Done | Verified in rounds 1 and 2; checkboxes `[x]` |
+| T61 category delete refresh | ✅ Done | `backend/app/services/category_service.py:411-430` |
+| T62 rules apply refresh | ✅ Done | `backend/app/services/rule_service.py:1415,1455-1458,1482,1527-1531` |
+| T63 placeholder upgrade refresh | ✅ Done | `backend/app/services/import_service.py:1104-1106` |
+| T64 AD-004 guard | ✅ Done | `backend/tests/test_ad004_guard.py:121-134`; allow-list reasons at `:34-49` |
+| T65 projected count | ✅ Done | `backend/app/services/dashboard_service.py:1016-1018,1033`; schema `backend/app/schemas/dashboard.py:49` |
+| T66 available credit | ✅ Done | `backend/app/services/account_service.py:60-81`; `backend/app/api/accounts.py:139-142` |
+| T73 user delete refresh | ✅ Done | `backend/app/services/admin_service.py:193-198,221-222`; no longer allow-listed |
+| T74 create returns floored balance | ✅ Done | `backend/app/api/accounts.py:155-156` (update at `:175-180` as well) |
+| T67 category badge | ✅ Done | `frontend/src/pages/categories.tsx:280-287` |
+| T68 projected count badge | ✅ Done | `frontend/src/pages/dashboard.tsx:483,959-966` |
+| T69 settlement dates in the list | ✅ Done | `frontend/src/lib/settlement-dates.ts`, `frontend/src/components/settlement-date.tsx`, `frontend/src/pages/transactions.tsx:834-852,1193,1266-1275,1306-1315,1627` |
+| T70 bill info in the dialog | ✅ Done | `frontend/src/components/credit-card/bill-info.tsx`, `frontend/src/components/transaction-dialog.tsx:1224-1229` |
+| T71 payment links | ✅ Done | `frontend/src/lib/bill-payment.ts:5-9`; used at `bill-details-card.tsx:157` and `credit-cards.tsx:229` |
+| T72 release notes | ✅ Done | `deploy/public/RELEASE-NOTES.md:106-109` |
 
 ---
 
 ## Spec-Anchored Acceptance Criteria
 
-I re-derived this coverage from the spec and the current test files. Backend paths are relative to `backend/tests/`, frontend paths to `frontend/src/`.
+I re-derived this coverage from spec.md and the current test files. For the 78 pre-ADJ ACs, I re-read the cited assertions against the spec outcome, starting from the round 2 table. Only `credit-cards.test.tsx` moved since round 2: T71 added one line at `:183`, so the citations below it shift by +1. Backend paths are relative to `backend/tests/`, frontend paths to `frontend/src/`.
 
 ### P1: Bills exist (BILL-01..04)
 
 | AC | Spec outcome | `file:line`: assertion | Result |
 | -- | ------------ | ---------------------- | ------ |
 | 1 | at most one bill per card/month | `test_bill_service.py:167-178` `created_again is False`, `count == 1`; `:190` `pytest.raises(IntegrityError)` | ✅ |
-| 2 | 08-05..09-04, close 09-05, due 09-12, eff 09-14 | `test_bill_period.py:18-25` `== BillPeriod(...)`; API `test_credit_card_bills_api.py:136-140` | ✅ |
+| 2 | 08-05..09-04, close 09-05, due 09-12, eff 09-14 | `test_bill_period.py:18-25` `== BillPeriod(period_start=date(2026, 8, 5), ..., effective_due_date=date(2026, 9, 14))`; API `test_credit_card_bills_api.py:136-140` | ✅ |
 | 3 | close 31 clamps | `test_bill_period.py:31` `close_date == date(2026, 9, 30)` | ✅ |
 | 4 | 2026-12-05..2027-01-04 | `test_bill_period.py:40-41` | ✅ |
-| 5 | computed, declared (nullable), paid, remaining ≥ 0, overpaid, status, source | `test_credit_card_bills_api.py:142-149` (`source == "auto"`, `declared_total is None`, `remaining_amount == 783.20`, `overpaid_amount == 0.0`, `status == "partially_paid"`); `test_bill_service.py:73-74` overpaid `16.80`, remaining `0.00` | ✅ |
-| 6 | status derived by precedence, not stored | `test_bill_service.py:51-100` (one test per precedence branch), `:110-115` (`not hasattr(bill, "status")`) | ✅ |
+| 5 | computed, declared (nullable), paid, remaining ≥ 0, overpaid, status, source | `test_credit_card_bills_api.py:142-149`; `test_bill_service.py:73-74` (overpaid `16.80`, remaining `0.00`) | ✅ (test level; see the AD-004 gap for the stored value) |
+| 6 | status derived by precedence, not stored | `test_bill_service.py:51-100`, `:110-115` `not hasattr(bill, "status")` | ✅ |
 | 7 | manual bill, links period rows without override | `test_bill_manual.py:87-99` | ✅ |
 | 8 | 409, nothing stored | `test_bill_manual.py:139-141`; API `test_credit_card_bills_api.py:258-262` | ✅ |
-| 9 | declared total edit recomputes target/remaining/status | `test_bill_manual.py:169-174` (`500.00`, `0.00`, `"paid"`); API `test_credit_card_bills_api.py:301-304` | ✅ |
+| 9 | declared total edit recomputes | `test_bill_manual.py:169-174` (`500.00`, `0.00`, `"paid"`) | ✅ |
 | 10 | provider dates → 422 | `test_bill_manual.py:196`; API `test_credit_card_bills_api.py:334` | ✅ |
-| 11 | delete unlinks rows and payments, keeps transactions | `test_bill_manual.py:250-254`; pair undone `test_bill_payment_pairing.py:218-220` | ✅ |
-| 12 | cycle change re-dates unpaid bills, paid unchanged | `test_bill_linking.py:212-231`; `test_account_cycle_relink.py:86-99` | ✅ |
-| 13 | no cycle, no auto bills | `test_bill_linking.py:156-158` `LinkSummary(0, 0)`, `{}` | ✅ |
+| 11 | delete unlinks, keeps transactions | `test_bill_manual.py:250-254`; `test_bill_payment_pairing.py:218-220` | ✅ |
+| 12 | cycle change re-dates unpaid bills only | `test_bill_linking.py:212-231`; `test_account_cycle_relink.py:86-99` | ✅ |
+| 13 | no cycle, no auto bills | `test_bill_linking.py:156-158` `LinkSummary(0, 0)` | ✅ |
 | 14 | backfill creates, links, idempotent | `test_credit_card_bills_backfill_migration.py:201-221`, `:238-239` | ✅ |
 | 15 | provider bills untouched | `test_credit_card_bills_backfill_migration.py:252-260` | ✅ |
 
@@ -60,91 +67,109 @@ I re-derived this coverage from the spec and the current test files. Backend pat
 
 | AC | Spec outcome | `file:line`: assertion | Result |
 | -- | ------------ | ---------------------- | ------ |
-| 1 | import, sync, manual entry link the period bill | `test_import_bills.py:74-77`; `test_sync_bills.py:114-116`; `test_transaction_bill_hooks.py:105-108` | ✅ |
+| 1 | import, sync, entry link the period bill | `test_import_bills.py:74-77`; `test_sync_bills.py:114-116`; `test_transaction_bill_hooks.py:105-108` | ✅ |
 | 2 | missing bill created `auto` | `test_bill_linking.py:79,85` | ✅ |
-| 3 | close-day row goes to the next bill | `test_bill_linking.py:83`; `test_bill_period.py:64` | ✅ |
-| 4 | override links by effective/nominal due, creates none | `test_bill_linking.py:129-133` | ✅ |
-| 5 | date or account change relinks | `test_transaction_bill_hooks.py:141-143`, `:155-157` | ✅ |
+| 3 | close-day row → next bill | `test_bill_linking.py:83`; `test_bill_period.py:64` | ✅ |
+| 4 | override links by due date, creates none | `test_bill_linking.py:129-133` | ✅ |
+| 5 | date/account change relinks | `test_transaction_bill_hooks.py:141-143`, `:155-157` | ✅ |
 | 6 | import reports linked + created | `test_import_bills.py:69` `(3, 3)`; route `:101-103` | ✅ |
-| 7 | same file twice, no duplicate bill | `test_import_bills.py:85-86` | ✅ |
-| 8 | installment links the bill of its own date | `test_bill_linking.py:149`; `test_transaction_bill_hooks.py:128` | ✅ |
+| 7 | same file twice, no duplicate | `test_import_bills.py:85-86` | ✅ |
+| 8 | installment → bill of its own date | `test_bill_linking.py:149`; `test_transaction_bill_hooks.py:128` | ✅ |
 
 ### P1: Bill payments (BPAY-01..03)
 
 | AC | Spec outcome | `file:line`: assertion | Result |
 | -- | ------------ | ---------------------- | ------ |
 | 1 | link recorded, paid + status recomputed | `test_bill_payment_service.py:79-82` | ✅ |
-| 2 | payment out of income/expense in every mode | cash/accrual `test_bill_payment_pnl.py:88-89,101-103,113-114,140-141`; settlement `test_dashboard_settlement.py:54` (1,000.00 linked payment, Sept expenses `== 1000.0`) | ✅ |
+| 2 | payment out of P&L in every mode | `test_bill_payment_pnl.py:88-89,101-103,113-114,140-141`; `test_dashboard_settlement.py:54` (`== 1000.0`) | ✅ |
 | 3 | paired with the card credit | `test_bill_payment_pairing.py:102-106` | ✅ |
 | 4 | no credit: link kept, `needs_counterpart` | `test_bill_payment_pairing.py:120-123` | ✅ |
 | 5 | reference payment: `paid`, remaining 0 | `test_bill_payment_service.py:81-83`; API `test_credit_card_bills_api.py:433-435` | ✅ |
-| 6 | 500.00 of 1,283.20: `partially_paid`, 783.20 | `test_bill_payment_service.py:92-93` | ✅ |
+| 6 | 500 of 1,283.20: `partially_paid`, 783.20 | `test_bill_payment_service.py:92-93` `== "partially_paid"`, `remaining == Decimal("783.20")` | ✅ |
 | 7 | two partials: `paid` | `test_bill_payment_service.py:103` | ✅ |
 | 8 | overpayment: `paid` + overpaid | `test_bill_payment_service.py:113-114` (`16.80`) | ✅ |
-| 9 | unlink removes link, undoes pair, recomputes | `test_bill_payment_pairing.py:160-166` | ✅ |
+| 9 | unlink removes link, undoes pair | `test_bill_payment_pairing.py:160-166` | ✅ |
 | 10 | credit/card/ignored/currency → 422 | `test_bill_payment_service.py:152` (parametrized) | ✅ |
-| 11 | already pays another → 409 | `test_bill_payment_service.py:167` | ✅ |
+| 11 | already paying → 409 | `test_bill_payment_service.py:167` | ✅ |
 | 12 | other workspace → 404 | `test_bill_payment_service.py:197`; API `test_credit_card_bills_api.py:514` | ✅ |
-| 13 | `is_bill_payment` category excluded before linking | `test_bill_payment_pnl.py:102,114` (200.00 in the flagged category gives 0.0) | ✅ |
+| 13 | flagged category excluded before linking | `test_bill_payment_pnl.py:102,114`; rule path `test_rule_apply_bills.py:116,126` (`200.0` → `0.0`) | ✅ |
 
 ### P2: Matching (BDAY-01, BMATCH-01..03)
 
 | AC | Spec outcome | `file:line`: assertion | Result |
 | -- | ------------ | ---------------------- | ------ |
 | 1 | weekend/holiday → next business day | `test_business_days.py:97,101,111` | ✅ |
-| 2 | Easter-derived holidays 2026-28 | `test_business_days.py:24` (Easter dates), `:81` (exact holiday sets) | ✅ |
-| 3 | window `[close, eff due + 5]`, remaining > 0 | `test_bill_match_candidates.py:90`, `:121` | ✅ |
+| 2 | Easter-derived holidays 2026-28 | `test_business_days.py:24`, `:81` | ✅ |
+| 3 | window `[close, eff + 5]`, remaining > 0 | `test_bill_match_candidates.py:90`, `:121` | ✅ |
 | 4 | unique exact pair auto-links | `test_bill_match_apply.py:79-81` | ✅ |
 | 5 | below remaining → `partial`, no link | `test_bill_match_apply.py:128-130`; `test_bill_match_candidates.py:111` | ✅ |
-| 6 | several bills or payments → suggestions only | `test_bill_match_apply.py:94-96`, `:112-115` | ✅ |
-| 7 | matcher runs on import, sync, entry, new bill | `test_import_bill_match.py:87,106`; `test_sync_bills.py:209`; `test_transaction_bill_hooks.py:320,340,354` | ✅ |
-| 8 | dialog: candidates first with card/month/due/target/remaining/reason, then others | `test_credit_card_bills_api.py:572-583`; `components/link-bill-dialog.test.tsx:113-128` | ✅ |
-| 9 | dismissed pair never suggested again | `test_bill_match_dismiss.py:84-86`; API `test_credit_card_bills_api.py:677` | ✅ |
-| 10 | preview lists checkboxes and writes nothing | `test_credit_card_bills_api.py:611-619`; `components/bill-match-apply-dialog.test.tsx:74-78` | ✅ |
-| 11 | apply links checked pairs, reports failures | `test_bill_match_apply.py:171-178`; `test_credit_card_bills_api.py:638` | ✅ |
-| 12 | 09-14 payment inside the window of nominal due 09-12 | `test_bill_match_candidates.py:74` | ✅ |
-| 13 | 09-20 vs eff due 09-14: no auto link, listed as other | `test_bill_match_candidates.py:100`; `test_bill_match_apply.py:141-143` | ✅ |
-| 14 | indicator "Possível pagamento de fatura" with confirm/dismiss | `pages/transactions-bill-payment.test.tsx:202,209,230,243` | ✅ |
+| 6 | several → suggestions only | `test_bill_match_apply.py:94-96`, `:112-115` | ✅ |
+| 7 | matcher on import, sync, entry, new bill | `test_import_bill_match.py:87,106`; `test_sync_bills.py:209`; `test_transaction_bill_hooks.py:320,340,354` | ✅ |
+| 8 | dialog lists candidates then others | `test_credit_card_bills_api.py:572-583`; `components/link-bill-dialog.test.tsx:113-128` | ✅ |
+| 9 | dismissed pair never again | `test_bill_match_dismiss.py:84-86`; API `test_credit_card_bills_api.py:677` | ✅ |
+| 10 | preview writes nothing | `test_credit_card_bills_api.py:611-619`; `components/bill-match-apply-dialog.test.tsx:74-78` | ✅ |
+| 11 | apply links checked, reports failures | `test_bill_match_apply.py:171-178`; `test_credit_card_bills_api.py:638` | ✅ |
+| 12 | 09-14 inside window of nominal 09-12 | `test_bill_match_candidates.py:74` `== [(bill.id, "exact", "exact_amount", 1)]` | ✅ |
+| 13 | 09-20 vs eff 09-14: no auto link, listed as other | `test_bill_match_candidates.py:100`; `test_bill_match_apply.py:141-143` | ✅ |
+| 14 | "Possível pagamento de fatura" indicator | `pages/transactions-bill-payment.test.tsx:202,209,230,243` | ✅ |
 | 15 | hint ranking | `test_bill_match_candidates.py:167-169` | ✅ |
 
 ### P2: Settlement mode (BREP-01..02)
 
 | AC | Spec outcome | `file:line`: assertion | Result |
 | -- | ------------ | ---------------------- | ------ |
-| 1 | `cash`/`accrual`/`settlement`, default `cash` | `test_credit_card_accounting_mode.py:347`, `:2025` | ✅ |
+| 1 | three modes, default `cash` | `test_credit_card_accounting_mode.py:347`, `:2025` | ✅ |
 | 2 | paid bill realized on the completing payment date | `test_dashboard_settlement.py:167-171`; `test_settlement_filters.py:48` | ✅ |
-| 3 | unpaid: projected in the eff due month, not realized | `test_dashboard_settlement.py:116-121` | ✅ |
-| 4 | overdue past month: projected in the current month | `test_dashboard_settlement.py:130-135`; `test_settlement_filters.py:67` | ✅ |
-| 5 | paid 09-14: Sept 600/400, Aug none | `test_dashboard_settlement.py:54-60` | ✅ |
-| 6 | 500.00: 0 realized, 1,000 projected | `test_dashboard_settlement.py:142-146` | ✅ |
-| 7 | + 500.00 on 09-20: realized, recognition 09-20 | `test_dashboard_settlement.py:72-78` | ✅ |
-| 8 | unlink the completing payment: back to projected | `test_dashboard_settlement.py:158-160` | ✅ |
-| 9 | card rows without a bill: purchase date | `test_settlement_filters.py:88` | ✅ |
-| 10 | dashboard, categories, budgets, reports, splits | `test_budget_settlement.py:42-46`; `test_report_settlement.py:55-59`; `test_split_offsets_mode.py:98-111` | ✅ |
-| 11 | open bills = sum of remaining of unpaid bills | `test_dashboard_settlement.py:203` (`700.0`); `pages/dashboard.test.tsx:158-159` | ✅ |
-| 12 | main date + "Lançada em" line | `components/transaction-drill-down.test.tsx:159-160`, `:167-168` | ✅ |
-| 13 | unpaid: projected badge + eff due date | `components/transaction-drill-down.test.tsx:176-177` | ✅ |
-| 14 | cash unchanged, no extra line | `components/transaction-drill-down.test.tsx:185-187` | ✅ |
+| 3 | unpaid: projected in eff due month | `test_dashboard_settlement.py:116-121` | ✅ |
+| 4 | overdue past month → current month | `test_dashboard_settlement.py:130-135`; `test_settlement_filters.py:67` | ✅ |
+| 5 | paid 09-14: Sept 600/400, Aug none | `test_dashboard_settlement.py:54-60` `{"Mercado": 600.0, "Restaurantes": 400.0}`, Aug `{}` | ✅ |
+| 6 | 500.00: 0 realized, 1,000 projected | `test_dashboard_settlement.py:142-146` `(0.0, 1000.0, {...})` | ✅ |
+| 7 | + 500 on 09-20: recognition 09-20 | `test_dashboard_settlement.py:72-78` | ✅ |
+| 8 | unlink → back to projected | `test_dashboard_settlement.py:158-160` | ✅ |
+| 9 | no bill: purchase date | `test_settlement_filters.py:88` | ✅ |
+| 10 | mode in dashboard, categories, budgets, reports, splits | `test_budget_settlement.py:42-46`; `test_report_settlement.py:55-59`; `test_split_offsets_mode.py:98-111` | ✅ |
+| 11 | open bills = sum of remaining | `test_dashboard_settlement.py:203` `== 700.0`; `pages/dashboard.test.tsx:158-159` | ✅ |
+| 12 | drill-down main date + "Lançada em" | `components/transaction-drill-down.test.tsx:159-160`, `:167-168` | ✅ |
+| 13 | unpaid: projected badge + eff due | `components/transaction-drill-down.test.tsx:176-177` | ✅ |
+| 14 | cash unchanged | `components/transaction-drill-down.test.tsx:185-187` | ✅ |
 | 15 | sorted by main date | `components/transaction-drill-down.test.tsx:208` | ✅ |
-| 16 | admin describes and picks the three modes | `pages/admin/settings-accounting-mode.test.tsx:70`, `:108-111` | ✅ |
+| 16 | admin describes/picks modes | `pages/admin/settings-accounting-mode.test.tsx:70`, `:108-111` | ✅ |
 
 ### P3: Consolidated page (BVIEW-01)
 
 | AC | Spec outcome | `file:line`: assertion | Result |
 | -- | ------------ | ---------------------- | ------ |
-| 1 | sub-item + palette at `/accounts/credit-cards` | `lib/nav-items.test.ts:119-121`; `components/command-palette-credit-cards.test.tsx:40`; `App.routes.test.tsx:32` | ✅ |
-| 2 | opens on the month of the next eff due | `pages/credit-cards.test.tsx:164` | ✅ |
-| 3 | `?account=<id>` scopes every figure | `pages/credit-cards.test.tsx:205-212` | ✅ |
-| 4 | previous/next month | `pages/credit-cards.test.tsx:230-236` | ✅ |
+| 1 | sub-item + palette | `lib/nav-items.test.ts:119-121`; `components/command-palette-credit-cards.test.tsx:40`; `App.routes.test.tsx:32` | ✅ |
+| 2 | opens on next eff due month | `pages/credit-cards.test.tsx:164` | ✅ |
+| 3 | `?account=<id>` scopes figures | `pages/credit-cards.test.tsx:206-213` | ✅ |
+| 4 | previous/next month | `pages/credit-cards.test.tsx:231-237` | ✅ |
 | 5 | sums, earliest due, limit, available | `pages/credit-cards.test.tsx:165-170` | ✅ |
-| 6 | bill rows with figures + payment links | `pages/credit-cards.test.tsx:177-181` | ✅ |
-| 7 | transactions + card column | `pages/credit-cards.test.tsx:190-192`, `:211` | ✅ |
-| 8 | same figures as the account detail page | `pages/credit-cards-consistency.test.tsx:168-169`: both renders `toEqual({ target: 'R$1,283.20', paid: 'R$500.00', remaining: 'R$783.20', status: 'Partially paid', due: '9/14/2026' })` | ✅ (round 1 gap closed) |
-| 9 | empty state with create call | `pages/credit-cards.test.tsx:251-252` | ✅ |
-| 10 | configure call for an unconfigured card | `pages/credit-cards.test.tsx:261-262` | ✅ |
-| 11 | no horizontal scroll at 375 px | browser check by the orchestrator, recorded in `tasks.md` T50 | ✅ (manual evidence) |
+| 6 | bill rows + payment links | `pages/credit-cards.test.tsx:177-185` | ✅ |
+| 7 | transactions + card column | `pages/credit-cards.test.tsx:191-193`, `:212` | ✅ |
+| 8 | same figures as account detail | `pages/credit-cards-consistency.test.tsx:168-169` | ✅ |
+| 9 | empty state | `pages/credit-cards.test.tsx:252-253` | ✅ |
+| 10 | configure call | `pages/credit-cards.test.tsx:262-263` | ✅ |
+| 11 | no horizontal scroll at 375 px | browser check by the orchestrator (`tasks.md` T50) | ✅ (manual evidence) |
 
-**Status**: all 78 ACs trace to an assertion of the spec outcome. No spec-precision gap remains. The failures are on write paths (see the AD-004 audit), not on missing AC tests.
+### P2: Post-delivery adjustments (ADJ-01..07)
+
+| AC | Spec outcome | `file:line`: assertion | Result |
+| -- | ------------ | ---------------------- | ------ |
+| 1 | "Pagamento de fatura" badge only on `is_bill_payment` | `pages/categories-bill-payment.test.tsx:133,135-136` (badge on the flagged row, absent on the plain one, exactly 1); `:143` `billPaymentBadge` `toBe('Pagamento de fatura')`. It uses the same badge classes as the transfer/ignored badges (`categories.tsx:280-287`) | ✅ |
+| 2 | settlement: reporting date, "Paga em"/"Pagar até", "Lançada em <purchase>" | `pages/transactions-settlement-dates.test.tsx:136-140` (Petz: `'Pagar até'`, `'13/10/2026'`, `'Lançada em 05/09/2026'`); `:148-151` (`'Paga em'`, `'10/10/2026'`); mobile `:198-205` (grouped under 13/10), `:212-213`. The backend contract for `reporting_date`/`is_bill_projected` is `test_transactions_reporting_fields_api.py:45-48,61-64,75-78` | ✅ (see SPEC_DEVIATION) |
+| 3 | cash/accrual unchanged | `pages/transactions-settlement-dates.test.tsx:169-185` (`describe.each(['cash','accrual'])`: `'05/09/2026'`, no "Lançada em", no labels, no Prevista); non-card row `:163-165` | ✅ |
+| 4 | "Prevista" on `is_bill_projected` rows in settlement | `pages/transactions-settlement-dates.test.tsx:139` (present), `:152`, `:214` (absent once paid), `:201` (mobile) | ✅ |
+| 5 | dialog: bill (card + month) and "Quitada em <settled_on>" / "Não quitada · vence em <eff due>" | `components/transaction-dialog.test.tsx:217-219` (`'Cartão de Crédito Nubank · October 2026'`, `'Quitada em 10/10/2026'`); `:227-229` (`'Não quitada · vence em 10/13/2026'`); non-card `:237` | ✅ |
+| 6 | settlement: projected count badge, none for 0 | backend `test_dashboard_projected_count.py:48-52` (`{"Compras": 2, "Mercado": 1, "Restaurantes": 1}`), `:62-66` (paid → 0), `:77-78` (cash/accrual → 0); frontend `pages/dashboard.test.tsx:189` (`'Compras(2 projected)'`), `:191` (`/^Mercado$/`), `:200-201` (`'(1 prevista)'`, `'(2 previstas)'`) | ✅ |
+| 7 | detail available credit = limit − floored owed, same as list | `test_card_available_credit.py:53-56` (list and detail `current_balance == -1200.0`, `available_credit == 3800.0`); create `:76-77` (`-300.0`, `700.0`) | ✅ |
+| 8 | payment link → `/transactions?highlight=<id>` in the payment's month | `pages/account-detail-bills.test.tsx:138` `href '/transactions?highlight=pay-1&from=2026-09-01&to=2026-09-30'`; `pages/credit-cards.test.tsx:184` | ✅ |
+| 9 | release notes explain the inverted-sign option | `deploy/public/RELEASE-NOTES.md:106-109`. It names the real UI label "Inverter valores (trocar entrada/saída)" (`frontend/src/locales/pt-BR.json:1669`), and the option is saved with the mapping (`backend/app/schemas/import_mapping.py:14` `flip_amount`). Docs only, no test by design | ✅ (document evidence) |
+
+**Status**: 87/87 ACs trace to an assertion, or to document or manual evidence, that matches the spec outcome. There are no spec-precision gaps. The FAIL comes from a write path (AD-004), not from a missing AC test.
+
+### SPEC_DEVIATION assessment (`frontend/src/lib/settlement-dates.ts:19-26`)
+
+ADJ AC 2 says the label is "Paga em" when the bill is `paid`. The code reads `!tx.is_bill_projected` instead, which is true when the bill has `settled_on` (`backend/app/services/_query_filters.py:209-213`). Under the status precedence, `paid` means `today ≥ close date and paid ≥ target`, and `settled_on` is set exactly when `paid ≥ target` (`bill_service.py:203-213`). The two disagree only for a bill paid in full before its close date. For that bill the status is `open`, but the reporting date is already the payment date (`reporting_date_of`, `_query_filters.py:198-200`). A literal implementation would show "Pagar até <payment date>", a deadline that is really a past payment. The owner's text (`ajustes.md`: "Pagar até" or "Paga em" depending on whether the bill is paid; the date of the due date or of the payment) means the label should describe the date shown. "Paga em <payment date>" does that. **Verdict: it does not violate the intent, and no user-visible outcome contradicts the spec's purpose. It is not counted as a failure.** Recommendation: change the AC 2 wording to "when the bill is settled (`settled_on` set)".
 
 ---
 
@@ -154,92 +179,109 @@ I re-derived this coverage from the spec and the current test files. Backend pat
 | --------- | -------- | ------ |
 | close = due = 10 | `test_bill_period.py:49-51` | ✅ |
 | nominal due 2026-09-07 → 09-08 | `test_bill_period.py:57-58` | ✅ |
-| payment amount 0 or negative → 422 | `test_bill_payment_service.py:152` (`zero`, `negative` cases) | ✅ |
+| payment 0 or negative → 422 | `test_bill_payment_service.py:152` | ✅ |
 | negative declared total → 422 | `test_bill_manual.py:148`; API `test_credit_card_bills_api.py:273,315` | ✅ |
-| closed card still accepts payments | `test_bill_payment_service.py:208` | ✅ |
-| linked payment deleted: link dropped, status recomputed | single `test_transaction_bill_hooks.py:280-281`; bulk `:297-298`; import undo `test_import_undo_bills.py:106-108`; account delete `test_account_delete_bills.py:54-56`; sync cleanup `test_sync_bills.py:269-272` | ✅ |
-| card account deleted: bills deleted, payments unlinked | `test_account_delete_bills.py:88-93` (PostgreSQL: `bills == []`, `paid_bill_id is None`, `bill_payment_pair is False`, `transfer_pair_id is None`) | ✅ |
-| concurrent imports: one bill, both batches linked | `test_bill_service.py:336` (`len(set(ids)) == 1`), `:347-348` (`count == 1`, `linked == [ids[0]] * 3`), PostgreSQL | ✅ |
-| empty bill: total 0, `paid` once closed | `test_bill_service.py:98-100`, `:290` | ✅ |
-| incompatible cycle days → 422 `incompatible_cycle_days` | `test_account_cycle_relink.py:153-156`, `:176-179` | ✅ |
+| closed card accepts payments | `test_bill_payment_service.py:208` | ✅ |
+| linked payment deleted | `test_transaction_bill_hooks.py:280-281,297-298`; `test_import_undo_bills.py:106-108`; `test_account_delete_bills.py:54-56`; `test_sync_bills.py:269-272`; user delete `test_delete_user_bills.py:54-56` (`paid_amount == 0.00`, `settled_on is None`, `"closed"`) | ✅ |
+| card account deleted | `test_account_delete_bills.py:88-93` (PostgreSQL) | ✅ |
+| rules applied / category deleted with reassignment / placeholder upgrade refresh bills (AD-004) | rules `test_rule_apply_bills.py:70,82,122` (`0.00`, `0.00`, `1000.00`); category `test_category_delete_bills.py:62,78` (`100.00`, `0.00`); placeholder `test_import_bills.py:178-181` (`is_ignored is True`, `computed_total == 0.00`) | ✅ for the three named paths |
+| concurrent imports: one bill | `test_bill_service.py:336`, `:347-348` (PostgreSQL) | ✅ |
+| empty bill: 0, `paid` once closed | `test_bill_service.py:98-100`, `:290` | ✅ |
+| incompatible cycle days → 422 | `test_account_cycle_relink.py:153-156`, `:176-179` | ✅ |
 
 ---
 
-## Round 1 Gap Closure
+## Round 1 Gap Closure (re-confirmed)
 
-| Round 1 gap | Fix (`file:line`) | Test (`file:line`) | Mutation | Closed? |
-| ----------- | ----------------- | ------------------ | -------- | ------- |
-| Import undo refresh | `backend/app/api/import_logs.py:94-114` (`collect_bill_ids` before, `refresh_bills` after, pair unlinked) | `backend/tests/test_import_undo_bills.py:70` (`computed_total == 50.00`), `:106-108` (`paid_amount == 0.00`, `settled_on is None`, `"closed"`), `:114` (pair undone) | M1, M2 killed | ✅ |
-| Non-card account deletion refresh | `backend/app/services/account_service.py:651,712` | `backend/tests/test_account_delete_bills.py:54-58` | M3 killed | ✅ |
-| Card account deletion test on PostgreSQL | `backend/app/services/account_service.py:644-681` | `backend/tests/test_account_delete_bills.py:61-93` (`postgres_sessions`) | M4 killed | ✅ |
-| Concurrent batches both linked | n/a (test gap) | `backend/tests/test_bill_service.py:323-348` | M6 killed | ✅ |
-| BVIEW AC 8 cross-page comparison | n/a (test gap) | `frontend/src/pages/credit-cards-consistency.test.tsx:156-170` | M13, M14 killed | ✅ |
-| Sync phantom cleanup refresh | `backend/app/services/connection_service.py:1647,1652` | `backend/tests/test_sync_bills.py:269-272` | M5 killed | ✅ |
+| Round 1 gap | Fix (`file:line`) | Test (`file:line`) | Closed? |
+| ----------- | ----------------- | ------------------ | ------- |
+| Import undo refresh | `backend/app/api/import_logs.py:94-114` | `backend/tests/test_import_undo_bills.py:70,106-108,114` | ✅ |
+| Non-card account deletion refresh | `backend/app/services/account_service.py` (`collect_bill_ids` → delete → `refresh_bills`) | `backend/tests/test_account_delete_bills.py:54-58` | ✅ |
+| Card account deletion on PostgreSQL | `backend/app/services/account_service.py` (card branch) | `backend/tests/test_account_delete_bills.py:61-93` | ✅ |
+| Concurrent batches both linked | n/a | `backend/tests/test_bill_service.py:323-348` | ✅ |
+| BVIEW AC 8 cross-page | n/a | `frontend/src/pages/credit-cards-consistency.test.tsx:156-170` | ✅ |
+| Sync phantom cleanup refresh | `backend/app/services/connection_service.py:1647,1652` | `backend/tests/test_sync_bills.py:269-272` | ✅ |
+
+These tests pass in the round 3 gate. Round 2's sensor already killed their mutants (M1-M6, M13, M14 there).
+
+## Round 2 Gap Closure
+
+| Round 2 gap | Fix (`file:line`) | Test (`file:line`): assertion | Mutation | Closed? |
+| ----------- | ----------------- | ----------------------------- | -------- | ------- |
+| Category delete with reassignment | `backend/app/services/category_service.py:413-420` (collect moved ids), `:430` (`touch`) | `backend/tests/test_category_delete_bills.py:62` `computed_total == Decimal("100.00")` (out of an ignored category); `:78` `== Decimal("0.00")` (into one) | M1 killed (behavior test and guard) | ✅ |
+| Rules applied to existing rows | `backend/app/services/rule_service.py:1455,1458` (`apply_single_rule`), `:1527-1531` (`apply_all_rules`) | `backend/tests/test_rule_apply_bills.py:70` (single, `0.00`), `:82` (all, `0.00`), `:122,126` (flagged category: `1000.00`, expenses `0.0`) | M2, M2b, M3 killed | ✅ |
+| Recurring placeholder upgrade | `backend/app/services/import_service.py:1106` | `backend/tests/test_import_bills.py:178-181` `computed_total == Decimal("0.00")` | M4 killed | ✅ |
+
+## Follow-ups
+
+| Item | Fix | Test | Mutation | Result |
+| ---- | --- | ---- | -------- | ------ |
+| T73 user deletion in a shared workspace | `backend/app/services/admin_service.py:197-198` (collect before), `:222` (refresh after the accounts are gone) | `backend/tests/test_delete_user_bills.py:54-56` | M5 killed by the test; M5g killed by the guard | ✅ |
+| T74 account create balance | `backend/app/api/accounts.py:156` | `backend/tests/test_card_available_credit.py:76-77` | M7 killed | ✅ |
+| T66 detail balance | `backend/app/api/accounts.py:139-142`, `backend/app/services/account_service.py:64-71,159-160` | `backend/tests/test_card_available_credit.py:53-56` | M6 killed | ✅ |
+| T64 AD-004 guard | `backend/tests/test_ad004_guard.py` | passes on HEAD (2 passed). It fails when the refresh is removed from T61's path (M1), T62's path (M2) and T73's path (M5g) | 3/3 killed | ✅ |
 
 ---
 
-## AD-004 Write-Path Audit (re-run)
+## AD-004 Write-Path Audit (final)
 
-I enumerated every `delete(Transaction)`, `update(Transaction)`, `session.delete(...)` of a transaction, and direct write of `bill_id`, `paid_bill_id`, `category_id`, `is_ignored`, `amount` and `date` in `backend/app`.
+I ran the guard: `tests/test_ad004_guard.py` gives 2 passed. Then I searched `backend/app` (services, api, agents, tasks, cli, fiscal, providers) by hand for ORM attribute writes and `setattr` on `category_id`, `is_ignored`, `amount`, `date`, `account_id`, `bill_id`, `paid_bill_id`, `effective_bill_date`, `type` and `transfer_pair_id`. The guard's AST patterns cannot see these writes.
 
-| Write path | Bill refresh | Test | Result |
-| ---------- | ------------ | ---- | ------ |
-| `transaction_service` create, installments, transfer, counterpart, link-as-transfer, update (with paired legs, `:1749`/`:1781`), bulk category, bulk ignore, toggle ignore, delete, bulk delete | `_sync_card_bills` / `touch` / `collect_bill_ids` → `refresh_bills` | `test_transaction_bill_hooks.py:99-298`; `test_bill_payment_pairing.py:194` | ✅ |
-| `import_service.import_transactions` | `link_account_transactions` + `run_auto_match` (`:1101,1111`) | `test_import_bills.py:65`; `test_import_bill_match.py:78` | ✅ |
-| `api/import_logs.delete_import_log` | `:94-114` | `test_import_undo_bills.py` | ✅ (fixed) |
-| `account_service.delete_account` (non-card and card) | `:642-681,712` | `test_account_delete_bills.py` | ✅ (fixed) |
-| `account_service.update_account` cycle change | `relink_account` | `test_account_cycle_relink.py:60,191` | ✅ |
-| `account_service` opening-balance writes (`:452-480,573-602`) | none needed: opening rows are never linked or counted | `test_bill_linking.py:161-164` | ✅ |
-| `connection_service` sync, provider bills, finance-charge orphans (`:1808`) | `_sync_account_bills` refreshes every bill of the card (`:1836-1842`, after cleanup at `:2468`) | `test_sync_bills.py:106-148` | ✅ |
-| `connection_service._cleanup_phantom_duplicates` | `:1647,1652` | `test_sync_bills.py:232-272` | ✅ (fixed) |
-| `connection_service` workspace move `update(Transaction)` (`:2049`) | not needed: changes only `user_id`/`workspace_id` | n/a | ✅ |
-| `recurring_transaction_service.generate_pending` | `link_account_transactions` | `test_recurring_bills.py:47-51` | ✅ |
-| `category_service.update_category` flag change | `refresh_workspace_bills` (`:247-256`) | `test_category_bill_payment.py:69,97` | ✅ |
-| `transfer_detection_service` pair/unpair | `touch` (`:622`) | `test_transfer_pairing_bills.py:82,92` | ✅ |
-| `bill_payment_service` link/unlink, `bill_service` CRUD | `refresh_bills` | BPAY and BILL-02 rows above | ✅ |
-| `payee_service` `update(Transaction)` (`:315,346,387`) | not needed: changes only payee fields | n/a | ✅ |
-| **`category_service.delete_category` with `transfer_to_id`** (`:448` → `:411-419`) | **none** | **none**. Probe: `computed_total` stays `0.00` (expected `100.00`) | ❌ |
-| **`rule_service.apply_single_rule`** (`:1382-1455`; `api/rules.py:99,202`) and **`apply_all_rules`** (`:1458-1523`; `api/rules.py:284`) | **none** | **none**. Probe: `ignore` rule → `computed_total` stays `100.00` (expected `0.00`) | ❌ |
-| `import_service` recurring placeholder upgrade (`:1016-1047`) setting `is_ignored`/category on a placeholder already on its bill | `link_account_transactions` refreshes only bills whose rows move | none | ⚠️ Low likelihood, not reproduced |
-
-Observation, not a failure: undoing a card import whose credit was paired with a checking payment deletes the credit and leaves the payment's `transfer_pair_id` dangling (`import_logs.py:96-108` unlinks only pairs whose payment is in the import). The payment stays linked to its bill and `paid_amount` is correct, but `needs_counterpart` reads `false`. Import undo already left transfer pairs dangling before this feature.
+| Write path | Bill refresh | Result |
+| ---------- | ------------ | ------ |
+| Round 2 table rows (transaction CRUD, import, import undo, account delete/update, sync, phantom cleanup, recurring, category flag, transfer detection, bill CRUD/payments, payee, workspace move) | unchanged since round 2 | ✅ |
+| `category_service._transfer_category_references` | `touch` `:430` | ✅ (fixed) |
+| `rule_service.apply_single_rule` / `apply_all_rules` (ORM writes via `apply_rule_actions`, `tx.category_id = None` `:1505`) | `touch` `:1458`, `:1531` | ✅ (fixed) |
+| `import_service` placeholder upgrade (`placeholder.is_ignored = True` `:1046`) | `touch` `:1106` | ✅ (fixed) |
+| `admin_service.delete_user` | `refresh_bills` `:222` | ✅ (fixed) |
+| `transaction_service.link_existing_as_transfer` (`:1178`), `create_transfer_counterpart` (`:1260`), update with paired legs (`:1611-1637`), toggle ignore (`:2033`) | `touch` / `_sync_card_bills` in the same function | ✅ |
+| `transfer_detection_service` pair/apply/unlink (`:502-507`, `:594-601`, `:620-622`) | `touch` | ✅ |
+| `connection_service` sync ORM writes (`:1189`, `:1255`, `:1427`, `:1771-1775`, `:2218-2260`, `:2375`, `:2403`) | `_sync_account_bills` refreshes every bill of the synced card | ✅ |
+| `account_service` opening-balance ORM writes (`:474-485`, `:622-624`) | not needed: opening rows are never counted | ✅ |
+| `tasks/fx_*` (`amount_primary` only) | not needed: the bill total reads `amount` | ✅ |
+| **`api/reconciliation._settle` transfer accept (`:559-562`, `leg.transfer_pair_id = pair_id`, from `accept_suggestion` `:421-464`)** | **none** | ❌ Probe: stored `computed_total` `0.00`, recomputed `1000.00` |
 
 ---
 
 ## Discrimination Sensor
 
-**Scratch**: `git worktree add --detach <scratchpad>/mut HEAD`. Each mutation rewrote one line, ran the feature tests (backend with `POSTGRES_TEST_URL` set, frontend with vitest), then restored the file with `git checkout`. The scratch worktree was removed with `git worktree remove --force`. Real-tree `git status --porcelain` before the run: empty. After cleanup: only `?? .specs/features/credit-card-bills/ajustes.md`, a file the owner added during the run (not created by the verifier, left untouched).
+**Scratch**: `git worktree add --detach <scratchpad>/mut HEAD`, with `frontend/node_modules` symlinked in. A script applied each mutation as one exact replacement and ran the covering tests: backend with `POSTGRES_TEST_URL` on a throwaway `public.ecr.aws/supabase/postgres:17.11.0.002` container (`ccr3-pg`), frontend with vitest. It then restored the file with `git checkout`. The scratch was removed with `git worktree remove --force`, and the container with `docker rm -f`. Real-tree `git status --porcelain`: empty before and empty after (they match).
 
-| # | File:line | Mutation | Killed? | Killing test(s) |
-| - | --------- | -------- | ------- | --------------- |
-| M1 | `backend/app/api/import_logs.py:114` | import undo skips `refresh_bills` | ✅ | `test_import_undo_bills.py` (both tests) |
-| M2 | `backend/app/api/import_logs.py:108` | import undo keeps the payment's transfer pair | ✅ | `test_import_undo_bills.py::test_undoing_a_checking_import_unlinks_its_payment_from_the_bill` |
-| M3 | `backend/app/services/account_service.py:712` | account delete skips `refresh_bills` | ✅ | `test_account_delete_bills.py::test_deleting_the_paying_account_unpays_the_bill` |
-| M4 | `backend/app/services/account_service.py:662` | card delete ignores payments of its own bills (no pair undo) | ✅ | `test_account_delete_bills.py::TestCardDeletionOnPostgres::test_deleting_a_card_deletes_its_bills_and_unlinks_their_payments` |
-| M5 | `backend/app/services/connection_service.py:1652` | phantom cleanup skips `refresh_bills` | ✅ | `test_sync_bills.py::test_phantom_cleanup_drops_the_deleted_payment_from_its_bill` |
-| M6 | `backend/app/services/bill_service.py:128` | race loser returns its own bill, not the winner | ✅ | `test_bill_service.py::test_concurrent_get_or_create_keeps_one_bill` (PostgreSQL) |
-| M7 | `backend/app/services/bill_service.py:73` | overdue `>` → `>=` | ✅ | 6 tests, e.g. `test_bill_service.py::TestBillStatus::test_on_effective_due_unpaid_is_closed` |
-| M8 | `backend/app/services/bill_service.py:210` | `settled_on` crossing `>=` → `>` | ✅ | 6 tests, e.g. `test_dashboard_settlement.py::test_paid_bill_counts_in_the_month_it_was_paid` |
-| M9 | `backend/app/services/bill_service.py:154` | computed total counts ignored rows | ✅ | `test_bill_service.py::test_computed_total_excludes_non_purchase_rows`, 2 hook tests |
-| M10 | `backend/app/services/_query_filters.py:288` | P&L stops excluding linked payments | ✅ | 6 `test_dashboard_settlement.py` tests |
-| M11 | `backend/app/services/bill_match_service.py:23` | match window +5 → +6 days | ✅ | `test_bill_match_candidates.py::test_window_bounds_are_close_date_and_effective_due_plus_five` and 2 more |
-| M12 | `backend/app/core/business_days.py:64` | business day ignores holidays | ✅ | `test_business_days.py::test_every_holiday_is_not_a_business_day[*]` |
-| M13 | `frontend/src/components/credit-card/bill-details-card.tsx:139` | account detail shows target as remaining | ✅ | `credit-cards-consistency.test.tsx` |
-| M14 | `frontend/src/lib/bill-summary.ts:29` | consolidated summary sums targets as remaining | ✅ | `credit-cards-consistency.test.tsx` |
+| # | File:line | Mutation | Killed? | Killing test |
+| - | --------- | -------- | ------- | ------------ |
+| M1 | `backend/app/services/category_service.py:430` | category delete drops `touch(moved_ids)` (round 2 gap 1) | ✅ | `test_category_delete_bills.py::test_moving_rows_out_of_an_ignored_category_raises_the_bill_total`; also `test_ad004_guard.py` |
+| M2 | `backend/app/services/rule_service.py:1458` | `apply_single_rule` drops its refresh call (round 2 gap 2; refresh removal) | ✅ | `test_ad004_guard.py::test_every_bulk_transaction_write_refreshes_bills` |
+| M2b | same as M2 | same mutant, behavior tests only | ✅ | `test_rule_apply_bills.py::test_apply_single_rule_ignoring_a_card_purchase_drops_the_bill_total` |
+| M3 | `backend/app/services/rule_service.py:1527` | `apply_all_rules` collects no changed rows | ✅ | `test_rule_apply_bills.py::test_apply_all_rules_ignoring_a_card_purchase_drops_the_bill_total` |
+| M4 | `backend/app/services/import_service.py:1106` | import drops `touch(upgraded_placeholders)` (round 2 gap 3) | ✅ | `test_import_bills.py::test_upgraded_placeholder_ignored_by_a_rule_leaves_its_bill_updated` |
+| M5 | `backend/app/services/admin_service.py:222` | user delete drops `refresh_bills` (T73) | ✅ | `test_delete_user_bills.py::test_deleting_the_paying_user_unpays_the_other_users_bill` |
+| M5g | same as M5 | same mutant, guard only | ✅ | `test_ad004_guard.py::test_every_bulk_transaction_write_refreshes_bills` |
+| M6 | `backend/app/api/accounts.py:139-142` | GET account back to the unfloored `serialize_account` (T66) | ✅ | `test_card_available_credit.py::test_detail_and_list_show_the_same_owed_amount_and_available_credit` |
+| M7 | `backend/app/api/accounts.py:156` | POST account returns the unfloored serializer (T74) | ✅ | `test_card_available_credit.py::test_create_returns_the_floored_balance_and_available_credit` |
+| M8 | `backend/app/services/dashboard_service.py:1016` | `projected_count` counts realized rows (`not bill_projected_row`) | ✅ | `test_dashboard_projected_count.py::test_unpaid_purchases_are_counted_per_category` |
+| M9 | `frontend/src/lib/settlement-dates.ts:26` | settlement date label flipped (`paid: !!is_bill_projected`) | ✅ | `transactions-settlement-dates.test.tsx` (4 of 7 fail) |
+| M10 | `frontend/src/lib/settlement-dates.ts:26` | "Lançada em" shows the bill date | ✅ | `transactions-settlement-dates.test.tsx` (3 fail) |
+| M11 | `frontend/src/lib/settlement-dates.ts:19` | `accrual` gets settlement labels (`mode === 'cash'` guard) | ✅ | `transactions-settlement-dates.test.tsx` (accrual case) |
+| M12 | `frontend/src/pages/transactions.tsx:1193` | desktop row drops the Prevista badge | ✅ | `transactions-settlement-dates.test.tsx` (1 fail) |
+| M13 | `frontend/src/pages/dashboard.tsx:961` | projected count badge shown for 0 (`>= 0`) | ✅ | `dashboard.test.tsx` (Mercado `/^Mercado$/`) |
+| M14 | `frontend/src/pages/dashboard.tsx:483` | projected count never reaches the badge (`0`) | ✅ | `dashboard.test.tsx` (Compras `(2 projected)`) |
+| M15 | `frontend/src/pages/categories.tsx:280` | bill payment badge keyed on `is_ignored` | ✅ | `categories-bill-payment.test.tsx` |
+| M16 | `frontend/src/components/credit-card/bill-info.tsx:41` | dialog swaps Quitada / Não quitada | ✅ | `transaction-dialog.test.tsx` (2 fail) |
+| M17 | `frontend/src/lib/bill-payment.ts:8` | payment link loses its month scope | ✅ | `account-detail-bills.test.tsx`, `credit-cards.test.tsx` |
 
-**Sensor depth**: expanded (14 manual behavior-level mutations: one or two per round 1 gap, plus core money paths)
-**Result**: 14/14 killed. The sensor passes.
+**Sensor depth**: expanded. 19 runs over 17 distinct behavior-level mutants: one or more per round 2 gap, T73, T66/T74, a refresh removal caught by the T64 guard (M2; also M1 and M5g), and 9 in ADJ frontend code (including the settlement date label M9-M11 and the projected count badge M13-M14).
+**Result**: 19/19 killed. The sensor passes.
 
-The two AD-004 gaps above are not mutants: the code has no refresh call there and no test, so the scratch probes stand in for the sensor on those paths.
+The reconciliation gap is not a mutant: the code has no refresh call there and no test. The scratch probe `tests/test_probe_recon.py` (scratch only, never committed) stands in for the sensor on that path. I also confirmed that the guard does not list `api/reconciliation.py` with M1 removed, so the path is invisible to it.
 
 ---
 
 ## Gate Check
 
-- **Backend**: `TZ=UTC python -m pytest -q -rs` with `POSTGRES_TEST_URL` pointing at a throwaway `public.ecr.aws/supabase/postgres:17.11.0.002` container (`ccr2-pg`, since removed). **4765 passed, 0 failed, 0 skipped.** PostgreSQL-only tests ran.
+- **Backend**: `TZ=UTC python -m pytest -q -rs` with `POSTGRES_TEST_URL` pointing at the throwaway container: **4781 passed, 0 failed, 0 skipped**. PostgreSQL-only tests ran.
 - **Backend lint/types**: `ruff check .`: all checks passed. `ty check`: all checks passed.
-- **Frontend**: `npm run typecheck && npm run lint && npm test`: exit 0. **125 files, 1055 tests passed.**
-- **Test count before the feature** (`7da4813`, round 1 figure): backend 4457, frontend 968. **Now**: 4765 / 1055. **Delta**: +308 / +87. No decrease; round 1 had 4760 / 1051.
+- **Frontend**: `npm run typecheck && npm run lint && npm test`: exit 0. **126 files, 1071 tests passed.**
+- **Test count before the feature** (`7da4813`): backend 4457, frontend 968. **Now**: 4781 / 1071. **Delta**: +324 / +103. Round 2 had 4765 / 1055, so there is no decrease.
 - **Skipped tests**: none.
 
 ---
@@ -248,37 +290,30 @@ The two AD-004 gaps above are not mutants: the code has no refresh call there an
 
 | Principle | Status |
 | --------- | ------ |
-| Minimum code / surgical changes / no scope creep (fix commits) | ✅ |
-| Matches patterns (`collect_bill_ids` → delete → `refresh_bills`, the same as `delete_transaction`) | ✅ |
+| Minimum code / surgical changes (Phase 11-12) | ✅ |
+| Matches patterns (`collect_bill_ids` → write → `refresh_bills`/`touch`; `get_serialized_account` reuses the list query) | ✅ |
 | Spec-anchored outcome check | ✅ (0 spec-precision gaps) |
-| Per-layer coverage (domain 1:1, routes happy + edge + error) | ✅ |
-| Every test maps to an AC, edge case or Done-when | ✅ |
-| AD-004: every card/payment write path refreshes bills | ❌ (category transfer delete, rule re-application) |
+| Per-layer coverage (domain 1:1; routes happy + edge + error) | ✅ |
+| Every new test maps to an AC, edge case, or Done-when | ✅ |
+| AD-004: every card/payment write path refreshes bills | ❌ (reconciliation transfer accept) |
 
 ---
 
 ## Fix Plans
 
-### Fix 1: Refresh bills when a deleted category's rows move (Major)
-- **Root cause**: `_transfer_category_references` bulk-updates `Transaction.category_id` and does not refresh any bill. A row that crosses into or out of an `is_bill_payment`/`is_ignored` category changes its bill's computed total.
-- **Fix task**: In `delete_category`, when `transfer_to_id` is given and either category carries `is_bill_payment` or `is_ignored`, call `refresh_workspace_bills(session, workspace_id)` (or `touch` the moved rows) before the commit. Test: card purchase in an `is_ignored` category, delete it with a transfer to a plain category, assert `computed_total == 100.00`. Add the reverse case.
-- **Where**: `backend/app/services/category_service.py:404-455`, test in `backend/tests/test_category_bill_payment.py`.
-
-### Fix 2: Refresh bills after rules are applied to existing transactions (Major)
-- **Root cause**: `apply_single_rule` and `apply_all_rules` change `category_id`/`is_ignored` on card rows and commit without `bill_service.touch`.
-- **Fix task**: Collect the ids of changed rows (`before != after`) and call `bill_service.touch(session, changed_ids)` before each commit. Test: an `ignore` rule applied to a card purchase makes `computed_total == 0.00`. A rule moving a row into an `is_bill_payment` category does the same. `apply_all_rules` resetting a rule-set `is_ignored` brings it back.
-- **Where**: `backend/app/services/rule_service.py:1382-1523`, new test `backend/tests/test_rule_bill_refresh.py`.
-
-### Fix 3 (Minor, optional): Import placeholder upgrade
-- `touch` the `upgraded_placeholders` ids after `link_account_transactions` in `import_service.import_transactions` (`:1099-1103`).
+### Fix 1: Refresh bills when a reconciliation transfer suggestion is accepted (Major)
+- **Root cause**: `_settle` in `backend/app/api/reconciliation.py:559-562` writes `transfer_pair_id` on both legs and `accept_suggestion` commits (`:464`) without `bill_service.touch`. Pairing a linked bill payment with its card credit takes the credit out of the bill's computed total.
+- **Fix task**: After the nested block in `accept_suggestion`, `touch` the legs of every accepted transfer member (or call `touch(session, [moved.id, counterpart.id])` at the end of the transfer branch of `_settle`). Extend the T64 guard to flag `transfer_pair_id` ORM assignments, or allow-list them with a reason. Test (new `backend/tests/test_reconciliation_bills.py`): link a payment with no counterpart, add the card credit and a second equal debit so the pair is queued, accept the suggestion through the API, then assert `computed_total == Decimal("1000.00")` and `needs_counterpart` false.
+- **Where**: `backend/app/api/reconciliation.py:421-562`, `backend/tests/test_ad004_guard.py`.
 
 ---
 
 ## Known Open Items (not counted as failures)
 
 - The `settlement` transactions-page summary counts projected purchases. This is outside the spec.
-- The import screen does not show `bills_linked`/`bills_created`. The API returns them (`test_import_bills.py:101-103`).
-- The orchestrator does the browser layout re-check for T60 (badge truncation at desktop and 375 px).
+- The import screen does not show `bills_linked`/`bills_created`. The API returns them (`backend/tests/test_import_bills.py:101-103`).
+- The orchestrator does the browser checks: T50 layout at 375 px, T60 badge truncation, and the ADJ rows and dialog in the real app.
+- The SPEC_DEVIATION in `frontend/src/lib/settlement-dates.ts` is accepted on intent (see the assessment above). Changing the AC 2 wording is recommended.
 
 ---
 
@@ -286,9 +321,9 @@ The two AD-004 gaps above are not mutants: the code has no refresh call there an
 
 | Requirement | New status |
 | ----------- | ---------- |
-| BILL-02, BILL-03, BILL-04, BIMP-01, BPAY-02, BPAY-03, BDAY-01, BMATCH-01, BMATCH-02, BMATCH-03, BREP-01, BREP-02, BVIEW-01 | ✅ Verified |
-| BILL-01 | ❌ Needs fix: stored computed total goes stale on category-transfer delete and rule re-application |
-| BPAY-01 | ✅ Verified (every deleted-payment path now refreshes) |
+| BILL-02, BILL-03, BILL-04, BIMP-01, BPAY-01, BPAY-03, BDAY-01, BMATCH-01, BMATCH-02, BMATCH-03, BREP-01, BREP-02, BVIEW-01, ADJ-01, ADJ-02, ADJ-03, ADJ-04, ADJ-05, ADJ-06, ADJ-07 | ✅ Verified |
+| BILL-01 | ❌ Needs fix: the stored computed total goes stale when a reconciliation transfer suggestion pairs a linked payment with its card credit |
+| BPAY-02 | ❌ Needs fix (same path: a pair made outside `bill_payment_service`/transfer detection does not refresh the bill) |
 
 ---
 
@@ -296,10 +331,10 @@ The two AD-004 gaps above are not mutants: the code has no refresh call there an
 
 **Overall**: ❌ Not ready
 
-**Spec-anchored check**: 78/78 ACs match the spec outcome. 0 spec-precision gaps. 10/10 edge cases covered.
-**Round 1 gaps**: 6/6 closed, each with a killed mutation.
-**Sensor**: 14/14 mutations killed.
-**Gate**: backend 4765 passed (PostgreSQL included); frontend 1055 passed; ruff and ty clean.
-**New gaps**: 2 AD-004 write paths, both reproduced: category delete with transfer, and rule re-application.
+**Spec-anchored check**: 87/87 ACs match the spec outcome. 0 spec-precision gaps. 11/11 edge cases covered. 1 SPEC_DEVIATION, accepted on intent.
+**Round 1 gaps**: 6/6 closed. **Round 2 gaps**: 3/3 closed, each with a killed mutation. **Follow-ups**: T73, T74 and T64 verified.
+**Sensor**: 19/19 mutation runs killed.
+**Gate**: backend 4781 passed (PostgreSQL included, 0 skipped); frontend 1071 passed; ruff and ty clean.
+**New gap**: 1 AD-004 write path, reproduced: reconciliation transfer accept.
 
-**Next steps**: Fixes 1 and 2, then round 3 re-verification. This is the last round before the bound of 3 is reached.
+**Next steps**: this was round 3, so the fix→re-verify bound is reached. Escalate to the owner with Fix 1. It is a one-call fix plus one test.

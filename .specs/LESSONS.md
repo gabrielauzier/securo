@@ -56,6 +56,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md round 2: category_service.py:448, rule_service.py:1382-1523 (write-paths)
 - last seen: 2026-10-13T10:53:11Z
 
+### L-008 - When a stored aggregate depends on a row field, also audit ORM attribute writes of that field in API route helpers, since a guard that scans bulk statements cannot see them
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `write-paths` · harmful: 0
+- features: credit-card-bills
+- evidence: backend/app/api/reconciliation.py:559-562 (validation.md round 3, AD-004 audit) (write-paths)
+- last seen: 2026-10-13T13:45:07Z
+
+### L-009 - Specify a UI label's condition with the same field that selects the date it labels, so the label and the date cannot disagree
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `spec` · harmful: 0
+- features: credit-card-bills
+- evidence: frontend/src/lib/settlement-dates.ts:19-26 SPEC_DEVIATION (validation.md round 3) (spec)
+- last seen: 2026-10-13T13:45:07Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
