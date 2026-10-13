@@ -3011,6 +3011,15 @@
       "label": "Bill",
       "auto": "Automatic (by date)",
       "unknown": "Bill due {{date}}"
+    },
+    "summary": {
+      "title": "Bills of the month",
+      "target": "Bills total",
+      "paid": "Paid",
+      "remaining": "Remaining",
+      "nextDue": "Next due date",
+      "limit": "Total limit",
+      "available": "Total available"
     }
   }
 }

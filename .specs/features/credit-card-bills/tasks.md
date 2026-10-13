@@ -1389,9 +1389,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BVIEW AC 5 figures, shared limit counted once
-- [ ] New test `frontend/src/components/credit-card/bill-summary-card.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/credit-card/bill-summary-card.test.tsx`
+- [x] BVIEW AC 5 figures, shared limit counted once
+- [x] New test `frontend/src/components/credit-card/bill-summary-card.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/credit-card/bill-summary-card.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

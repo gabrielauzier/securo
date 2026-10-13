@@ -3014,6 +3014,15 @@
       "label": "Fatura",
       "auto": "Automática (pela data)",
       "unknown": "Fatura com vencimento em {{date}}"
+    },
+    "summary": {
+      "title": "Faturas do mês",
+      "target": "Total das faturas",
+      "paid": "Pago",
+      "remaining": "Restante",
+      "nextDue": "Próximo vencimento",
+      "limit": "Limite total",
+      "available": "Disponível total"
     }
   }
 }
