@@ -613,9 +613,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BPAY Independent Test passes through the API; 404/409/422 and viewer 403 covered
-- [ ] Tests added to `backend/tests/test_credit_card_bills_api.py`
-- [ ] Gate passes: Full
+- [x] BPAY Independent Test passes through the API; 404/409/422 and viewer 403 covered
+- [x] Tests added to `backend/tests/test_credit_card_bills_api.py`
+- [x] Gate passes: Full
 
 **Tests**: integration
 **Gate**: Full

@@ -138,6 +138,19 @@ class CreditCardBillUpdate(BaseModel):
     due_date: Optional[date] = None
 
 
+class BillPaymentLink(BaseModel):
+    transaction_id: uuid.UUID
+
+
+class BillPaymentLinkRead(BaseModel):
+    """The outcome of linking a payment: the refreshed bill and the transfer pairing."""
+
+    transaction_id: uuid.UUID
+    bill: CreditCardBillRead
+    paired_credit_id: Optional[uuid.UUID] = None
+    needs_counterpart: bool
+
+
 class AccountSummary(BaseModel):
     account_id: uuid.UUID
     current_balance: float

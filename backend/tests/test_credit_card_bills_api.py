@@ -382,3 +382,148 @@ async def test_a_viewer_cannot_create_edit_or_delete_bills(
     )
     delete = await client.delete(f"/api/credit-card-bills/{bill.id}", headers=viewer_auth_headers)
     assert (create.status_code, patch.status_code, delete.status_code) == (403, 403, 403)
+
+
+# --- T20: payment endpoints --------------------------------------------------
+
+
+async def _reference(session, user, workspace):
+    """The reference case: the 1,283.20 September bill, the card's payment
+    credit, the 1,283.20 payment from "Nubank" and a 100.00 expense."""
+    card = await _card(session, user, workspace)
+    checking = await _checking(session, user, workspace)
+    bill = await _bill(session, card, SEP)
+    october = await _bill(session, card, OCT)
+    credit = _tx(card, date(2026, 9, 15), "1283.20", type_="credit", bill_id=october.id)
+    payment = _tx(checking, date(2026, 9, 14), "1283.20", description="Pagamento fatura")
+    session.add_all([
+        _tx(card, date(2026, 8, 20), "1283.20", bill_id=bill.id),
+        credit,
+        payment,
+        _tx(checking, date(2026, 9, 3), "100.00", description="Mercado"),
+    ])
+    await bill_service.refresh_bills(session, [bill.id, october.id])
+    await session.commit()
+    return {"card": card, "checking": checking, "bill": bill, "credit": credit, "payment": payment}
+
+
+async def _september_expenses(client, headers) -> float:
+    resp = await client.get(
+        "/api/dashboard/summary", headers=headers, params={"month": "2026-09-01"}
+    )
+    assert resp.status_code == 200
+    return resp.json()["monthly_expenses"]
+
+
+async def test_linking_the_reference_payment_pays_the_bill_and_leaves_the_expenses(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _reference(session, test_user, test_workspace)
+    assert await _september_expenses(client, auth_headers) == 1383.20
+
+    resp = await client.post(
+        f"/api/credit-card-bills/{ref['bill'].id}/payments", headers=auth_headers,
+        json={"transaction_id": str(ref["payment"].id)},
+    )
+
+    # BPAY Independent Test: expenses exclude 1,283.20 and the bill reports paid.
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["transaction_id"] == str(ref["payment"].id)
+    assert data["bill"]["status"] == "paid"
+    assert data["bill"]["remaining_amount"] == 0.0
+    assert data["bill"]["paid_amount"] == 1283.20
+    assert data["paired_credit_id"] == str(ref["credit"].id)
+    assert data["needs_counterpart"] is False
+    assert await _september_expenses(client, auth_headers) == 100.0
+
+
+async def test_unlinking_a_payment_returns_the_bill_and_restores_the_expense(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _reference(session, test_user, test_workspace)
+    await client.post(
+        f"/api/credit-card-bills/{ref['bill'].id}/payments", headers=auth_headers,
+        json={"transaction_id": str(ref["payment"].id)},
+    )
+
+    resp = await client.delete(
+        f"/api/credit-card-bills/payments/{ref['payment'].id}", headers=auth_headers
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["id"] == str(ref["bill"].id)
+    assert resp.json()["status"] == "closed"
+    assert resp.json()["paid_amount"] == 0.0
+    assert await _september_expenses(client, auth_headers) == 1383.20
+
+
+async def test_unlinking_a_transaction_that_pays_no_bill_is_404(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _reference(session, test_user, test_workspace)
+    resp = await client.delete(
+        f"/api/credit-card-bills/payments/{ref['payment'].id}", headers=auth_headers
+    )
+    assert resp.status_code == 404
+
+
+async def test_linking_a_credit_is_422(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _reference(session, test_user, test_workspace)
+    resp = await client.post(
+        f"/api/credit-card-bills/{ref['bill'].id}/payments", headers=auth_headers,
+        json={"transaction_id": str(ref["credit"].id)},
+    )
+    assert resp.status_code == 422
+
+
+async def test_linking_a_payment_of_another_bill_is_409(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _reference(session, test_user, test_workspace)
+    october = await _bill(session, ref["card"], OCT)
+    first = await client.post(
+        f"/api/credit-card-bills/{ref['bill'].id}/payments", headers=auth_headers,
+        json={"transaction_id": str(ref["payment"].id)},
+    )
+    assert first.status_code == 200
+
+    resp = await client.post(
+        f"/api/credit-card-bills/{october.id}/payments", headers=auth_headers,
+        json={"transaction_id": str(ref["payment"].id)},
+    )
+    assert resp.status_code == 409
+
+
+async def test_linking_across_workspaces_is_404(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace, other_workspace
+):
+    ref = await _reference(session, test_user, test_workspace)
+    foreign = await _bill(session, await _card(session, test_user, other_workspace), SEP)
+
+    to_foreign_bill = await client.post(
+        f"/api/credit-card-bills/{foreign.id}/payments", headers=auth_headers,
+        json={"transaction_id": str(ref["payment"].id)},
+    )
+    unknown_tx = await client.post(
+        f"/api/credit-card-bills/{ref['bill'].id}/payments", headers=auth_headers,
+        json={"transaction_id": str(uuid.uuid4())},
+    )
+    assert (to_foreign_bill.status_code, unknown_tx.status_code) == (404, 404)
+
+
+async def test_a_viewer_cannot_link_or_unlink_payments(
+    client: AsyncClient, viewer_auth_headers, session, test_user, test_workspace
+):
+    ref = await _reference(session, test_user, test_workspace)
+
+    link = await client.post(
+        f"/api/credit-card-bills/{ref['bill'].id}/payments", headers=viewer_auth_headers,
+        json={"transaction_id": str(ref["payment"].id)},
+    )
+    unlink = await client.delete(
+        f"/api/credit-card-bills/payments/{ref['payment'].id}", headers=viewer_auth_headers
+    )
+    assert (link.status_code, unlink.status_code) == (403, 403)

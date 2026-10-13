@@ -11,8 +11,14 @@ from app.core.workspace_context import (
     current_workspace,
     current_writable_workspace,
 )
-from app.schemas.account import CreditCardBillCreate, CreditCardBillRead, CreditCardBillUpdate
-from app.services import bill_service
+from app.schemas.account import (
+    BillPaymentLink,
+    BillPaymentLinkRead,
+    CreditCardBillCreate,
+    CreditCardBillRead,
+    CreditCardBillUpdate,
+)
+from app.services import bill_payment_service, bill_service
 
 router = APIRouter(prefix="/api/credit-card-bills", tags=["credit-card-bills"])
 
@@ -30,7 +36,9 @@ def _parse_month(value: Optional[str]) -> Optional[date]:
         )
 
 
-def _http_error(exc: bill_service.BillError) -> HTTPException:
+def _http_error(
+    exc: bill_service.BillError | bill_payment_service.BillPaymentError,
+) -> HTTPException:
     return HTTPException(status_code=exc.status_code, detail=exc.detail)
 
 
@@ -109,3 +117,41 @@ async def delete_bill(
         await session.rollback()
         raise _http_error(exc)
     await session.commit()
+
+
+@router.post("/{bill_id}/payments", response_model=BillPaymentLinkRead)
+async def link_payment(
+    bill_id: uuid.UUID,
+    data: BillPaymentLink,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        result = await bill_payment_service.link_payment(
+            session, ctx.workspace.id, data.transaction_id, bill_id
+        )
+    except bill_payment_service.BillPaymentError as exc:
+        await session.rollback()
+        raise _http_error(exc)
+    await session.commit()
+    return {
+        "transaction_id": result.payment.id,
+        "bill": (await bill_service.describe_bills(session, [result.bill]))[0],
+        "paired_credit_id": result.paired_credit_id,
+        "needs_counterpart": result.needs_counterpart,
+    }
+
+
+@router.delete("/payments/{transaction_id}", response_model=CreditCardBillRead)
+async def unlink_payment(
+    transaction_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        bill = await bill_payment_service.unlink_payment(session, ctx.workspace.id, transaction_id)
+    except bill_payment_service.BillPaymentError as exc:
+        await session.rollback()
+        raise _http_error(exc)
+    await session.commit()
+    return (await bill_service.describe_bills(session, [bill]))[0]
