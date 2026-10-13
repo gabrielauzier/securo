@@ -1684,10 +1684,10 @@ T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] An `ignore` rule matching a card purchase drops `computed_total` (100.00 → 0.00) through both entry points
-- [ ] A categorize rule into an `is_bill_payment` category removes a payment from P/L and refreshes its bill
-- [ ] New test `backend/tests/test_rule_apply_bills.py` that fails before the fix
-- [ ] Gate passes: Full
+- [x] An `ignore` rule matching a card purchase drops `computed_total` (100.00 → 0.00) through both entry points
+- [x] A categorize rule into an `is_bill_payment` category removes a payment from P/L and refreshes its bill
+- [x] New test `backend/tests/test_rule_apply_bills.py` that fails before the fix
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

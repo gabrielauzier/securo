@@ -20,6 +20,7 @@ from app.schemas.rule import (
     RuleUpdate,
 )
 
+from app.services import bill_service
 from app.services.category_service import get_assignable_category_ids
 
 from app.services.rule_engine import (
@@ -1411,6 +1412,7 @@ async def apply_single_rule(
 
     assignable_categories = await get_assignable_category_ids(session, workspace_id)
     count = 0
+    changed_ids: list[uuid.UUID] = []
     for tx in transactions:
         matches = evaluate_conditions(rule.conditions_op, conditions, tx)
         if not matches and tx.original_description is not None:
@@ -1450,7 +1452,10 @@ async def apply_single_rule(
         )
         if before != after:
             count += 1
+            changed_ids.append(tx.id)
 
+    # A new category or `is_ignored` changes what card rows add to their bills.
+    await bill_service.touch(session, changed_ids)
     await session.commit()
     return count
 
@@ -1474,6 +1479,7 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
 
     assignable_categories = await get_assignable_category_ids(session, workspace_id)
     count = 0
+    changed_ids: list[uuid.UUID] = []
     for tx in transactions:
         preserve_manual_description = _has_manual_description(tx)
         before = (
@@ -1518,6 +1524,10 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
         )
         if matched or before != after:
             count += 1
+        if before != after:
+            changed_ids.append(tx.id)
 
+    # A new category or `is_ignored` changes what card rows add to their bills.
+    await bill_service.touch(session, changed_ids)
     await session.commit()
     return count
