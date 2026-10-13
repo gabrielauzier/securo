@@ -98,6 +98,12 @@ T42 → T43 → T44 → T45
 T46 → T47 → T48 → T49 → T50 → T51
 ```
 
+### Phase 10: Verification fixes (round 1)
+
+```
+T55 → T56 → T57 → T58 → T59 → T60
+```
+
 ---
 
 ## Task Breakdown
@@ -1439,7 +1445,7 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BVIEW AC 1 and AC 11 (375 px, no horizontal scroll) verified in the browser preview
+- [x] BVIEW AC 1 and AC 11 (375 px, no horizontal scroll) verified in the browser preview (orchestrator, 2026-10-13: document width 375 at 375 px; tables scroll inside their own container)
 - [x] `frontend/src/pages/pages.contract.test.ts` updated for the new page
 - [x] Gate passes: Build (frontend)
 
@@ -1471,6 +1477,158 @@ T46 → T47 → T48 → T49 → T50 → T51
 **Gate**: Build
 **Commit**: `docs(deploy): write the 0.16.3-selfhost.4 release notes`
 
+
+---
+
+### T55: Refresh bills when an import is undone
+
+**What**: `DELETE /api/import-logs/{id}` collects the bill ids of the rows it deletes (`bill_service.collect_bill_ids`) and refreshes them after the delete (Verifier gap 1).
+**Where**: `backend/app/api/import_logs.py`
+**Depends on**: None (phase order)
+**Reuses**: `collect_bill_ids`, `refresh_bills`
+**Requirement**: BILL-01, BPAY-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Undoing a card import drops the bill's computed total to the remaining rows
+- [ ] Undoing a checking import that holds a linked payment drops `paid_amount`, clears `settled_on` and the bill status leaves `paid`
+- [ ] New test `backend/tests/test_import_undo_bills.py`
+- [ ] Gate passes: Full
+
+**Tests**: integration
+**Gate**: Full
+**Commit**: `fix(bills): refresh bills when an import is undone`
+
+---
+
+### T56: Refresh bills when an account with payments is deleted
+
+**What**: `account_service.delete_account` collects the bills paid by rows of the account before deleting and refreshes them after (Verifier gap 2).
+**Where**: `backend/app/services/account_service.py`
+**Depends on**: T55
+**Reuses**: `collect_bill_ids`, `refresh_bills`
+**Requirement**: BPAY-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Deleting a checking account holding a linked payment drops the bill's `paid_amount` and status
+- [ ] Deleting a card account deletes its bills and leaves its former payments unlinked (`paid_bill_id` null), asserted on PostgreSQL with `postgres_sessions` (Verifier gap 3, spec edge case)
+- [ ] New test `backend/tests/test_account_delete_bills.py`
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `fix(bills): refresh bills when an account is deleted`
+
+---
+
+### T57: Refresh paid bills after sync duplicate cleanup
+
+**What**: The sync twin/phantom cleanup (`connection_service.py` ~l.1645) collects bill ids (both `bill_id` and `paid_bill_id`) of rows it deletes and refreshes them (Verifier gap 5).
+**Where**: `backend/app/services/connection_service.py`
+**Depends on**: T56
+**Reuses**: `collect_bill_ids`, `refresh_bills`
+**Requirement**: BPAY-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] A linked non-card payment removed by the cleanup no longer counts in its bill's `paid_amount`
+- [ ] Tests added to `backend/tests/test_sync_bills.py`
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `fix(bills): refresh paid bills after sync duplicate cleanup`
+
+---
+
+### T58: Close the backend spec-precision gaps
+
+**What**: The concurrent creation test asserts that rows of both concurrent batches link to the single surviving bill (Verifier gap 4, spec edge case).
+**Where**: `backend/tests/test_bill_service.py`
+**Depends on**: T57
+**Reuses**: existing `postgres_sessions` test
+**Requirement**: BILL-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Assertion on both batches' `bill_id` equal to the one bill id added (test created by this feature, so no owner approval needed)
+- [ ] Gate passes: `cd backend && $V/python -m pytest tests/test_bill_service.py -q` with `POSTGRES_TEST_URL`
+
+**Tests**: unit
+**Gate**: Quick
+**Commit**: `test(bills): assert both concurrent batches join the same bill`
+
+---
+
+### T59: Same bill figures on both pages
+
+**What**: A frontend test renders the account detail bill panel and the consolidated page for the same bill fixture and asserts equal target, paid, remaining, status and effective due date (BVIEW AC 8, Verifier gap 4).
+**Where**: `frontend/src/pages/credit-cards-consistency.test.tsx`
+**Depends on**: T58
+**Reuses**: fixtures in `credit-cards.test.tsx`, `account-detail-bills.test.tsx`
+**Requirement**: BVIEW-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Both renders show the same five figures for one bill
+- [ ] Gate passes: `cd frontend && npx vitest run src/pages/credit-cards-consistency.test.tsx`
+
+**Tests**: unit
+**Gate**: Quick-FE
+**Commit**: `test(bills): compare bill figures across both pages`
+
+---
+
+### T60: Keep the description visible next to bill badges
+
+**What**: In the transactions list, the paid-bill pill and the "possible bill payment" badge shrink and truncate instead of hiding the description; the description keeps at least its first words visible and nothing overflows into the Category column (browser check finding, desktop and 375 px).
+**Where**: `frontend/src/components/bill-payment-row-badge.tsx`
+**Depends on**: T59
+**Reuses**: truncation classes used by other row badges
+**Requirement**: BPAY-01, BMATCH-02
+
+**Tools**:
+
+- MCP: NONE
+- Skill: `frontend-design`
+
+**Done when**:
+
+- [ ] Pill uses a short label (card display name + `MMM/yy`) with the full text in a tooltip/title; badge and pill have `min-w-0`/`truncate`/max width so the description is never fully hidden
+- [ ] Test asserts the full label is available as accessible text/title and the description text is still rendered
+- [ ] Tests added to `frontend/src/components/bill-payment-row-badge.test.tsx`
+- [ ] Gate passes: Build (frontend); orchestrator re-checks in the browser
+
+**Tests**: unit
+**Gate**: Build
+**Commit**: `fix(bills): keep transaction descriptions visible next to bill badges`
+
 ---
 
 ## Phase Execution Map
@@ -1487,6 +1645,7 @@ Phase 6:  T29 → T30 → T31 → T32 → T33 → T34 → T35 → T36 → T37
 Phase 7:  T53 → T38 → T39 → T40 → T41 → T54
 Phase 8:  T42 → T43 → T44 → T45
 Phase 9:  T46 → T47 → T48 → T49 → T50 → T51
+Phase 10: T55 → T56 → T57 → T58 → T59 → T60
 ```
 
 Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phase 7 (6), B7 = Phase 8 (4), B8 = Phase 9 (6).

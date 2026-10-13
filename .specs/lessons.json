@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 7,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "ac_gap::when a decision requires every write path to refresh derived aggregates audit bulk deletes and orm or fk cascades import undo account delete not only service crud functions",
+      "text": "When a decision requires every write path to refresh derived aggregates, audit bulk deletes and ORM or FK cascades (import undo, account delete), not only service CRUD functions",
+      "signal": "ac_gap",
+      "scope": "write-paths",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/api/import_logs.py:93-97; backend/app/services/account_service.py:622 (write-paths)"
+      ],
+      "created": "2026-10-13T06:24:57Z",
+      "last_seen": "2026-10-13T06:24:57Z"
+    },
+    {
+      "id": "L-002",
+      "key": "ac_gap::cover behavior that relies on database foreign key cascades with a postgresql test since the sqlite test schema does not enforce foreign keys",
+      "text": "Cover behavior that relies on database foreign key cascades with a PostgreSQL test, since the SQLite test schema does not enforce foreign keys",
+      "signal": "ac_gap",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec Edge Cases: card account deleted (tests)"
+      ],
+      "created": "2026-10-13T06:24:57Z",
+      "last_seen": "2026-10-13T06:24:57Z"
+    },
+    {
+      "id": "L-003",
+      "key": "spec_precision_gap::for a concurrency edge case assert every stated outcome of the race single row and all writers attached to it not only the uniqueness",
+      "text": "For a concurrency edge case, assert every stated outcome of the race (single row and all writers attached to it), not only the uniqueness",
+      "signal": "spec_precision_gap",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/tests/test_bill_service.py:330-335 (tests)"
+      ],
+      "created": "2026-10-13T06:24:57Z",
+      "last_seen": "2026-10-13T06:24:57Z"
+    },
+    {
+      "id": "L-004",
+      "key": "spec_precision_gap::when the spec says two screens must show equal figures assert both screens against the same fixture in one test",
+      "text": "When the spec says two screens must show equal figures, assert both screens against the same fixture in one test",
+      "signal": "spec_precision_gap",
+      "scope": "frontend",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "BVIEW AC 8 (frontend)"
+      ],
+      "created": "2026-10-13T06:24:58Z",
+      "last_seen": "2026-10-13T06:24:58Z"
+    },
+    {
+      "id": "L-005",
+      "key": "spec_deviation::name the outcome for every amount relation below equal above in a matching spec so implementers do not invent a category",
+      "text": "Name the outcome for every amount relation (below, equal, above) in a matching spec so implementers do not invent a category",
+      "signal": "spec_deviation",
+      "scope": "matching",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/services/bill_match_service.py:104 (matching)"
+      ],
+      "created": "2026-10-13T06:24:58Z",
+      "last_seen": "2026-10-13T06:24:58Z"
+    },
+    {
+      "id": "L-006",
+      "key": "spec_deviation::do not prescribe a savepoint per item in design when the called service commits internally check the callee s transaction behavior first",
+      "text": "Do not prescribe a savepoint per item in design when the called service commits internally; check the callee's transaction behavior first",
+      "signal": "spec_deviation",
+      "scope": "design",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/services/bill_match_service.py:316 (design)"
+      ],
+      "created": "2026-10-13T06:24:58Z",
+      "last_seen": "2026-10-13T06:24:58Z"
+    }
+  ]
+}
