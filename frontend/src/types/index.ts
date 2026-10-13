@@ -100,6 +100,8 @@ export interface Category {
   is_hidden: boolean
   treat_as_transfer: boolean
   is_ignored: boolean
+  // Payments of credit-card bills: excluded from income and expense totals.
+  is_bill_payment?: boolean
 }
 
 /** Active rules that assign a category, used when retiring one. */
@@ -191,14 +193,145 @@ export interface Account {
   closed_at: string | null
 }
 
+export type CreditCardBillStatus = 'paid' | 'open' | 'overdue' | 'partially_paid' | 'closed'
+
+export type CreditCardBillSource = 'provider' | 'auto' | 'manual'
+
+/** A transaction linked as a payment of a bill. */
+export interface BillPayment {
+  id: string
+  account_id: string
+  date: string // YYYY-MM-DD
+  description: string
+  amount: number
+  currency: string
+}
+
 export interface CreditCardBill {
   id: string
   account_id: string
-  external_id: string
+  external_id: string | null
+  // Nominal due date (the provider's due date for provider bills).
   due_date: string // YYYY-MM-DD
   total_amount: number
   currency: string
   minimum_payment: number | null
+  source: CreditCardBillSource | null
+  reference_month: string | null // YYYY-MM-01
+  period_start: string | null
+  period_end: string | null
+  close_date: string | null
+  effective_due_date: string | null
+  declared_total: number | null
+  computed_total: number
+  target_amount: number
+  paid_amount: number
+  remaining_amount: number
+  overpaid_amount: number
+  settled_on: string | null
+  status: CreditCardBillStatus | null
+  payments: BillPayment[]
+}
+
+/** POST /credit-card-bills: a manual bill; `reference_month` is day 1 of the due month. */
+export interface CreditCardBillCreate {
+  account_id: string
+  reference_month: string
+  close_date: string
+  due_date: string
+  declared_total?: number | null
+}
+
+export interface CreditCardBillUpdate {
+  declared_total?: number | null
+  reference_month?: string | null
+  close_date?: string | null
+  due_date?: string | null
+}
+
+/** The outcome of linking a payment: the refreshed bill and the transfer pairing. */
+export interface BillPaymentLinkResult {
+  transaction_id: string
+  bill: CreditCardBill
+  paired_credit_id: string | null
+  needs_counterpart: boolean
+}
+
+/** `exact` or `partial` inside the match window, `other` for the other unpaid bills. */
+export type BillCandidateKind = 'exact' | 'partial' | 'other'
+
+/** A bill offered for a payment in "Vincular a fatura" (BMATCH AC 8). */
+export interface BillCandidate {
+  bill_id: string
+  account_id: string
+  account_name: string
+  reference_month: string
+  effective_due_date: string
+  target_amount: number
+  remaining_amount: number
+  currency: string
+  kind: BillCandidateKind
+  reason: string
+  rank: number
+}
+
+/** `exact` (auto-linkable), `partial` or `suggestion`. */
+export type BillMatchProposalKind = 'exact' | 'partial' | 'suggestion'
+
+/** A proposed payment-bill link of the bulk preview (BMATCH AC 10). */
+export interface BillMatchProposal {
+  transaction_id: string
+  bill_id: string
+  kind: BillMatchProposalKind
+  reason: string
+  payment_account_id: string
+  payment_account_name: string
+  payment_date: string
+  payment_description: string
+  payment_amount: number
+  bill_account_id: string
+  bill_account_name: string
+  reference_month: string
+  effective_due_date: string
+  remaining_amount: number
+  currency: string
+}
+
+export interface BillMatchPair {
+  transaction_id: string
+  bill_id: string
+}
+
+export interface BillMatchFailure {
+  transaction_id: string
+  bill_id: string
+  reason: string
+}
+
+/** BMATCH AC 11: how many pairs were linked and which failed, with a reason. */
+export interface BillMatchApplyResult {
+  linked: number
+  failed: BillMatchFailure[]
+}
+
+/** The credit-card bill a payment pays. */
+export interface PaidBillRef {
+  id: string
+  account_id: string
+  account_name: string
+  reference_month: string
+}
+
+/** POST /transactions/import result. */
+export interface TransactionImportResult {
+  imported: number
+  skipped: number
+  excluded: number
+  import_log_id: string
+  // Card rows linked to a bill, bills created, and payments matched to a bill.
+  bills_linked: number
+  bills_created: number
+  payments_matched: number
 }
 
 export interface Collection {
@@ -297,6 +430,18 @@ export interface Transaction {
   is_ignored: boolean
   // Keeps the transaction in the ledger/balance while excluding it from P&L.
   exclude_from_pnl?: boolean
+  // Bill payment fields: the bill this debit pays, and whether it still
+  // lacks the card credit paired as its transfer leg.
+  paid_bill_id?: string | null
+  paid_bill?: PaidBillRef | null
+  needs_counterpart?: boolean
+  // An undismissed bill suggestion ("Possível pagamento de fatura"); list route only.
+  bill_payment_suggestion?: boolean
+  // The date the row is bucketed by in the active accounting mode (list
+  // route only), and whether `settlement` projects it as a purchase on an
+  // unpaid bill.
+  reporting_date?: string | null
+  is_bill_projected?: boolean
   virtual?: boolean
 }
 
@@ -716,6 +861,9 @@ export interface DashboardSummary {
   // Negative = net liability, positive = net receivable. Already
   // accounts for partial settlements.
   pending_shares_net: number
+  // In the `settlement` mode, the remaining amounts of the bills that are not
+  // paid, in primary currency. Null in `cash` and `accrual`.
+  open_bills_remaining_primary?: number | null
 }
 
 export interface SpendingByCategory {

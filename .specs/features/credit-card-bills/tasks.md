@@ -1115,8 +1115,8 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Typecheck passes
-- [ ] Gate passes: Build (frontend)
+- [x] Typecheck passes
+- [x] Gate passes: Build (frontend)
 
 **Tests**: none
 **Gate**: Build
