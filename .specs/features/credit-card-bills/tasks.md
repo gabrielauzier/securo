@@ -587,10 +587,10 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BPAY AC 3, 4, 9 pass; a pair made by the user before linking is not removed on unlink
-- [ ] Computed total ignores the paired card credit
-- [ ] New test `backend/tests/test_bill_payment_pairing.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_payment_pairing.py -q`
+- [x] BPAY AC 3, 4, 9 pass; a pair made by the user before linking is not removed on unlink
+- [x] Computed total ignores the paired card credit
+- [x] New test `backend/tests/test_bill_payment_pairing.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_payment_pairing.py -q`
 
 **Tests**: unit
 **Gate**: Quick

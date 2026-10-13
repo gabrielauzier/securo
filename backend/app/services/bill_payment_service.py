@@ -2,15 +2,20 @@
 
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
-from app.services import bill_service
+from app.services import bill_service, transaction_service
+from app.services import reconciliation_rule_service as rule_service
+from app.services.transfer_detection_service import NODE, _widest_window, unlink_transfer_pair
+
+CENT = Decimal("0.01")
 
 
 class BillPaymentError(Exception):
@@ -63,6 +68,32 @@ async def _transaction(
     return tx
 
 
+async def find_card_credit(
+    session: AsyncSession, payment: Transaction, bill: CreditCardBill
+) -> Transaction | None:
+    """The unpaired credit on the bill's card with the payment's amount, inside
+    the transfer rule's date window around the payment; the closest in date."""
+    policy = await rule_service.resolve(session, payment.workspace_id, NODE)
+    window = timedelta(days=_widest_window(policy))
+    amount = abs(Decimal(payment.amount)).quantize(CENT)
+    credits = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.workspace_id == payment.workspace_id,
+                Transaction.account_id == bill.account_id,
+                Transaction.type == "credit",
+                Transaction.transfer_pair_id.is_(None),
+                func.abs(Transaction.amount) == amount,
+                Transaction.date >= payment.date - window,
+                Transaction.date <= payment.date + window,
+            )
+        )
+    ).scalars().all()
+    if not credits:
+        return None
+    return min(credits, key=lambda tx: (abs((tx.date - payment.date).days), tx.date, str(tx.id)))
+
+
 async def link_payment(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -79,11 +110,26 @@ async def link_payment(
         raise BillPaymentError(404, "Transaction not found")
     validate_payment(tx, account, bill)
     tx.paid_bill_id = bill.id
-    await bill_service.refresh_bills(session, [bill.id])
+    paired_credit_id = None
+    if tx.transfer_pair_id is None:
+        credit = await find_card_credit(session, tx, bill)
+        if credit is not None:
+            # BPAY AC 3: the payment and the card credit are the two legs of a transfer.
+            await transaction_service.link_existing_as_transfer(
+                session, workspace_id, [tx.id, credit.id]
+            )
+            tx.bill_payment_pair = True
+            paired_credit_id = credit.id
+    refresh = {bill.id}
+    if tx.transfer_pair_id is not None:
+        # The card leg, paired now or by the user before, leaves its bill's total.
+        refresh |= await _pair_bill_ids(session, tx.transfer_pair_id)
+    await bill_service.refresh_bills(session, refresh)
     return LinkResult(
         payment=tx,
         bill=bill,
-        paired_credit_id=None,
+        paired_credit_id=paired_credit_id,
+        # BPAY AC 4: no card credit to pair with.
         needs_counterpart=tx.transfer_pair_id is None,
     )
 
@@ -99,5 +145,20 @@ async def unlink_payment(
     if bill is None:
         raise BillPaymentError(404, "Bill not found")
     tx.paid_bill_id = None
-    await bill_service.refresh_bills(session, [bill.id])
+    refresh = {bill.id}
+    if tx.transfer_pair_id is not None:
+        # The card leg counts in its bill's total again.
+        refresh |= await _pair_bill_ids(session, tx.transfer_pair_id)
+    if tx.bill_payment_pair and tx.transfer_pair_id is not None:
+        # Undo only the pair the link created, never one the user made.
+        await unlink_transfer_pair(session, workspace_id, tx.transfer_pair_id)
+    tx.bill_payment_pair = False
+    await bill_service.refresh_bills(session, refresh)
     return bill
+
+
+async def _pair_bill_ids(session: AsyncSession, pair_id: uuid.UUID) -> set[uuid.UUID]:
+    rows = await session.execute(
+        select(Transaction.id).where(Transaction.transfer_pair_id == pair_id)
+    )
+    return await bill_service.collect_bill_ids(session, [tx_id for (tx_id,) in rows])

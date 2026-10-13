@@ -1164,6 +1164,8 @@ async def link_existing_as_transfer(
     transfer_pair_id = uuid.uuid4()
     for tx in txns:
         tx.transfer_pair_id = transfer_pair_id
+    # The card leg of a bill payment leaves its bill's computed total (AD-004).
+    await bill_service.touch(session, [tx.id for tx in txns])
 
     await session.commit()
     for tx in txns:

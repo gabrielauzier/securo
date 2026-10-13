@@ -699,6 +699,22 @@ async def delete_bill(session: AsyncSession, workspace_id: uuid.UUID, bill_id: u
         raise BillNotFoundError("Bill not found")
     if bill.source == "provider":
         raise BillValidationError("A provider bill cannot be deleted")
+    from app.services.transfer_detection_service import unlink_transfer_pair  # local: circular
+
+    # Unlinked payments lose the transfer pair their link created (BPAY AC 9).
+    paired = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.paid_bill_id == bill.id,
+                Transaction.bill_payment_pair.is_(True),
+                Transaction.transfer_pair_id.is_not(None),
+            )
+        )
+    ).scalars().all()
+    for payment in paired:
+        if payment.transfer_pair_id is not None:
+            await unlink_transfer_pair(session, workspace_id, payment.transfer_pair_id)
+        payment.bill_payment_pair = False
     await session.execute(
         update(Transaction).where(Transaction.bill_id == bill.id).values(bill_id=None)
     )

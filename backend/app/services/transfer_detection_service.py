@@ -57,7 +57,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.transaction import Transaction
-from app.services import reconciliation_policy
+from app.services import bill_service, reconciliation_policy
 from app.services import reconciliation_rule_service as rule_service
 from app.services import reconciliation_suggestion_service as suggestions
 from app.services.reconciliation_engine import (
@@ -612,5 +612,7 @@ async def unlink_transfer_pair(
 
     for tx in transactions:
         tx.transfer_pair_id = None
+    # A former bill-payment pair puts the card credit back in its bill's total.
+    await bill_service.touch(session, [tx.id for tx in transactions])
 
     return len(transactions)
