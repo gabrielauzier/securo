@@ -60,6 +60,7 @@ A credit-card bill (`CreditCardBill`) exists only when a provider (Pluggy `/bill
 | Transactions list period filter in `settlement` | Buckets card rows by recognition date when paid, else by the bill's effective due date | Same month everywhere the user looks (existing `reporting_date_col` contract) | y |
 | Shared credit limit on the consolidated page | Accounts sharing a `shared_balance_group` add their limit once (the highest limit in the group) | Avoids double-counting a shared limit | y |
 | Amount equality for matching | Equal to the cent (`Decimal` quantized to 0.01) | PRD "centavos" tolerance, kept exact | y |
+| Close/due days near month end | Combinations that map two cycles to one reference month are rejected at account create/update (HTTP 422 `incompatible_cycle_days`) | Owner decision 2026-10-12; keeps one bill per reference month | y |
 | Permissions | Mutating endpoints require `current_writable_workspace`; reads require `current_workspace` | Existing convention | y |
 
 **Open questions:** none. All assumptions confirmed by the owner on 2026-10-12.
@@ -235,6 +236,7 @@ A credit-card bill (`CreditCardBill`) exists only when a provider (Pluggy `/bill
 - WHEN a card account is deleted THEN the system SHALL delete its bills and unlink their payments.
 - WHEN two imports create the same bill concurrently THEN the system SHALL keep one bill and link both batches to it.
 - WHEN a bill has no linked rows and no declared total THEN the system SHALL report computed total 0 and, once closed, status `paid`.
+- IF a card's `statement_close_day` and `payment_due_day` would map two consecutive close dates to the same reference month (e.g. close 30, due 31) THEN creating or updating the account SHALL respond HTTP 422 with detail `incompatible_cycle_days` and store nothing.
 
 ---
 

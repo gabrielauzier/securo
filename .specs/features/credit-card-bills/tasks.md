@@ -397,7 +397,7 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 ### T12: Relink on cycle change
 
-**What**: Call `relink_account` when `statement_close_day` or `payment_due_day` changes.
+**What**: Call `relink_account` when `statement_close_day` or `payment_due_day` changes, and reject incompatible close/due day combinations.
 **Where**: `backend/app/services/account_service.py`
 **Depends on**: T11
 **Reuses**: `_recompute_effective_dates` trigger point
@@ -411,6 +411,7 @@ T46 → T47 → T48 → T49 → T50 → T51
 **Done when**:
 
 - [ ] P1 AC 12 passes through `update_account`
+- [ ] Create and update reject close/due day combinations that map two consecutive closes to the same reference month (checked over 48 months including a leap year) with HTTP 422 `incompatible_cycle_days`; 5/12, 28/5 and 10/10 accepted (spec edge case, owner decision 2026-10-12)
 - [ ] New test `backend/tests/test_account_cycle_relink.py`
 - [ ] Gate passes: Build (backend)
 
