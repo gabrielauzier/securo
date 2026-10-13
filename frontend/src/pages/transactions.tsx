@@ -71,6 +71,9 @@ import { useWorkspace } from '@/contexts/workspace-context'
 import { useCollectionFilter } from '@/contexts/collection-filter-context'
 import { formatCurrency } from '@/lib/format'
 import { shouldShowPendingBadge } from '@/lib/transaction-status'
+import { settlementRowDates } from '@/lib/settlement-dates'
+import { SettlementDate } from '@/components/settlement-date'
+import { ProjectedTransactionBadge } from '@/components/projected-transaction-badge'
 
 type TransactionUpdatePayload = TransactionEditPayload & {
   apply_to_transfer_pair?: boolean
@@ -572,6 +575,7 @@ export default function TransactionsPage() {
     staleTime: 5 * 60 * 1000,
   })
   const isAccrual = accountingModeData?.mode === 'accrual'
+  const accountingMode = accountingModeData?.mode
 
   const invalidateAfterTxMutation = () => invalidateFinancialQueries(queryClient)
 
@@ -827,10 +831,12 @@ export default function TransactionsPage() {
     const groups: { date: string; label: string; items: Transaction[] }[] = []
     let current: { date: string; label: string; items: Transaction[] } | null = null
     for (const tx of filteredItems) {
-      if (!current || current.date !== tx.date) {
+      // In `settlement` a card row with a bill sits under its bill date (ADJ AC 2).
+      const day = settlementRowDates(tx, accountingMode)?.date ?? tx.date
+      if (!current || current.date !== day) {
         current = {
-          date: tx.date,
-          label: new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale, {
+          date: day,
+          label: new Date(day + 'T00:00:00').toLocaleDateString(dateLocale, {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
@@ -843,7 +849,7 @@ export default function TransactionsPage() {
       current.items.push(tx)
     }
     return groups
-  }, [filteredItems, dateLocale])
+  }, [filteredItems, dateLocale, accountingMode])
 
   // Pre-resolve accounts into a Map for O(1) lookup in the mobile card view
   const accountById = useMemo(() => {
@@ -1184,6 +1190,7 @@ export default function TransactionsPage() {
               </Link>
             )}
             <BillPaymentRowBadge tx={tx} canWrite={canWrite} onConfirmSuggestion={setLinkBillTx} />
+            {accountingMode === 'settlement' && tx.is_bill_projected && <ProjectedTransactionBadge />}
             {(tx.invoice_links ?? []).map((link) => (
               <Link
                 key={link.invoice_id}
@@ -1256,9 +1263,16 @@ export default function TransactionsPage() {
               <Paperclip size={12} className="text-muted-foreground shrink-0" />
             )}
           </div>
-          {showInlineDate && (
-            <p className="text-xs text-muted-foreground mt-0.5">{new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}</p>
-          )}
+          {showInlineDate && (() => {
+            const settlement = settlementRowDates(tx, accountingMode)
+            return settlement ? (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                <SettlementDate dates={settlement} dateLocale={dateLocale} />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-0.5">{new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}</p>
+            )
+          })()}
           {(showInlineNotes || showInlineTags) && tx.notes && (
             <div className="mt-1 space-y-0.5">
               {showInlineNotes && noteText && (
@@ -1289,12 +1303,16 @@ export default function TransactionsPage() {
     const alignClass = col.align === 'right' ? 'text-right' : ''
     const baseClass = `py-2.5 ${alignClass}`
     switch (col.id) {
-      case 'date':
+      case 'date': {
+        const settlement = settlementRowDates(tx, accountingMode)
         return (
           <TableCell key={col.id} style={widthStyle} className={`${baseClass} text-sm text-muted-foreground tabular-nums`}>
-            {new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}
+            {settlement
+              ? <SettlementDate dates={settlement} dateLocale={dateLocale} />
+              : new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}
           </TableCell>
         )
+      }
       case 'description':
         return (
           <TableCell key={col.id} style={widthStyle} className={`${baseClass} pl-2 max-w-0`}>
@@ -1606,6 +1624,8 @@ export default function TransactionsPage() {
                     locale={locale}
                     userCurrency={userCurrency}
                     onSelect={toggleSelect}
+                    settlementDates={settlementRowDates(tx, accountingMode)}
+                    dateLocale={dateLocale}
                     badge={tx.paid_bill || tx.bill_payment_suggestion
                       ? <BillPaymentRowBadge tx={tx} canWrite={canWrite} onConfirmSuggestion={setLinkBillTx} />
                       : undefined}

@@ -1912,10 +1912,10 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] ADJ AC 2, 3, 4 and the spec Independent Test (Petz Digital: "Pagar até 13/10/2026", "Lançada em 05/09/2026", Prevista)
-- [ ] Backend already returns `reporting_date`/`is_bill_projected`; add the bill paid state to the row if missing (smallest change, documented)
-- [ ] New test `frontend/src/pages/transactions-settlement-dates.test.tsx`
-- [ ] Gate passes: Quick-FE
+- [x] ADJ AC 2, 3, 4 and the spec Independent Test (Petz Digital: "Pagar até 13/10/2026", "Lançada em 05/09/2026", Prevista)
+- [x] Backend already returns `reporting_date`/`is_bill_projected`; add the bill paid state to the row if missing (smallest change, documented)
+- [x] New test `frontend/src/pages/transactions-settlement-dates.test.tsx`
+- [x] Gate passes: Quick-FE
 
 **Tests**: unit
 **Gate**: Quick-FE
