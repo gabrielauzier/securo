@@ -1988,8 +1988,8 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] Notes updated in Portuguese
-- [ ] Gate passes: Build (backend and frontend)
+- [x] Notes updated in Portuguese
+- [x] Gate passes: Build (backend and frontend)
 
 **Tests**: none
 **Gate**: Build

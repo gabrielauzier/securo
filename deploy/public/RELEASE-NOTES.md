@@ -81,6 +81,45 @@ para reconstruir as faturas.
   limite contam esse limite uma vez só (o maior do grupo). Abaixo vêm as faturas do mês, com links para os pagamentos, e as
   compras do mês.
 
+### Ajustes depois da revisão
+- **Selo "Pagamento de fatura" em Categorias.** A categoria marcada como pagamento de fatura mostra o selo na lista, como já
+  acontece com "Transferência" e "Ignorado".
+- **Datas da fatura na lista de transações.** No modo "Na liquidação da fatura", uma compra de cartão ligada a uma fatura mostra a
+  data usada na conta como data da linha. Acima dela vem "Paga em" (fatura quitada) ou "Pagar até" (fatura em aberto). Abaixo vem
+  "Lançada em <data da compra>". Assim o filtro de outubro não parece mostrar gastos de setembro. Exemplo: "Petz Digital",
+  comprada em 05/09/2026 na fatura que vence em 13/10/2026, aparece com "Pagar até 13/10/2026" e "Lançada em 05/09/2026". Vale
+  na tabela e no celular; no celular, a compra fica no grupo da data da fatura.
+- **Selo "Prevista" na lista.** No mesmo modo, compras de faturas ainda não quitadas mostram o selo "Prevista".
+- Nos modos "Regime de caixa" e "Regime de competência", a lista continua como antes.
+- **Fatura no diálogo da transação de cartão.** O diálogo mostra, só para leitura, a fatura da compra (cartão e mês), a situação e
+  "Quitada em <data>" ou "Não quitada · vence em <vencimento efetivo>". Para mudar a fatura, use o campo "Fatura", como antes.
+- **Compras previstas por categoria no painel.** No modo "Na liquidação da fatura", o quadro "Gastos por Categoria" mostra ao lado
+  da categoria quantas compras ainda estão previstas, por exemplo "Compras (2 previstas)". Categorias sem compras previstas não
+  mostram nada.
+- **Limite disponível do cartão corrigido.** O detalhe do cartão mostrava o limite inteiro como disponível. Agora o disponível é o
+  limite menos o valor devido, calculado com o saldo inicial e a data do saldo, igual à lista de contas. A conta recém-criada já
+  volta com o saldo e o disponível certos.
+- **O link do pagamento abre a transação.** Na lista de pagamentos de uma fatura (detalhe do cartão e página "Cartão de
+  Crédito"), o link abre **Transações** no mês do pagamento, com a transação de pagamento destacada. Antes, abria a conta
+  corrente que pagou.
+
+### Extrato de cartão com sinais invertidos
+- Alguns bancos exportam o CSV do cartão com os sinais trocados: a compra vem positiva e o pagamento da fatura vem negativo.
+  Não há mudança de código para isso. Na importação, marque **"Inverter valores (trocar entrada/saída)"** e salve o mapeamento
+  com a conta do cartão. Nas próximas importações desse arquivo, o mapeamento salvo já aplica a inversão.
+
+### Faturas sempre atualizadas
+- Os totais e a situação das faturas passam a ser recalculados também quando:
+  - uma importação é desfeita;
+  - uma conta é excluída (a fatura que ela pagou deixa de constar como paga);
+  - um usuário é excluído e os pagamentos dele quitavam faturas de cartões de outros membros do workspace;
+  - regras são aplicadas às transações existentes;
+  - uma categoria é excluída e as transações dela vão para outra categoria;
+  - uma importação substitui uma transação recorrente prevista;
+  - a sincronização remove duplicatas de pagamentos.
+- Um teste automático passou a barrar qualquer gravação em massa de transações que não recalcule as faturas. Uma exceção só entra
+  com o motivo escrito.
+
 ### Backups e operação
 - **Comando para reconstruir as faturas**, para corrigir totais que fiquem fora do lugar (por exemplo, depois de editar dados direto
   no banco). Ele religa as transações de todos os cartões às faturas, cria as que faltam e recalcula os totais:
