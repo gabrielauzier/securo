@@ -1495,10 +1495,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] Undoing a card import drops the bill's computed total to the remaining rows
-- [ ] Undoing a checking import that holds a linked payment drops `paid_amount`, clears `settled_on` and the bill status leaves `paid`
-- [ ] New test `backend/tests/test_import_undo_bills.py`
-- [ ] Gate passes: Full
+- [x] Undoing a card import drops the bill's computed total to the remaining rows
+- [x] Undoing a checking import that holds a linked payment drops `paid_amount`, clears `settled_on` and the bill status leaves `paid`
+- [x] New test `backend/tests/test_import_undo_bills.py`
+- [x] Gate passes: Full
 
 **Tests**: integration
 **Gate**: Full
