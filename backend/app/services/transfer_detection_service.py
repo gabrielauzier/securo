@@ -503,6 +503,8 @@ async def detect_transfer_pairs(
         other_tx.transfer_pair_id = pair_id
         paired.update({tx.id, other_tx.id})
         pairs_created += 1
+    # A card credit paired with a bill payment leaves its bill's total (AD-004).
+    await bill_service.touch(session, paired)
 
     # Pass two: everything that looked like a transfer and was not certain.
     # Keyed on the unordered pair, because the same two rows reach here
@@ -577,6 +579,7 @@ async def apply_pairs(
         )
     ).scalars()
     by_id = {tx.id: tx for tx in rows}
+    linked_ids: set[uuid.UUID] = set()
 
     for a, b in pairs:
         tx_a, tx_b = by_id.get(a), by_id.get(b)
@@ -591,8 +594,11 @@ async def apply_pairs(
             tx_a.transfer_pair_id = pair_id
             tx_b.transfer_pair_id = pair_id
             result.linked += 1
+            linked_ids.update({a, b})
             continue
         result.skipped.append(SkippedPair(a=a, b=b, reason=reason))
+    # A card credit paired with a bill payment leaves its bill's total (AD-004).
+    await bill_service.touch(session, linked_ids)
     return result
 
 

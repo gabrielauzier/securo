@@ -838,9 +838,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] A card credit paired by `apply_pairs` and by `detect_transfer_pairs` is excluded from the bill's computed total right after pairing
-- [ ] New test `backend/tests/test_transfer_pairing_bills.py`
-- [ ] Gate passes: Build (backend)
+- [x] A card credit paired by `apply_pairs` and by `detect_transfer_pairs` is excluded from the bill's computed total right after pairing
+- [x] New test `backend/tests/test_transfer_pairing_bills.py`
+- [x] Gate passes: Build (backend)
 
 **Tests**: unit
 **Gate**: Build
