@@ -876,6 +876,7 @@
     "drillDownEmpty": "Nenašli sa žiadne transakcie",
     "drillDownClose": "Zavrieť",
     "accrualNote": "Transakcie kreditnou kartou sú zoskupené podľa dátumu splatnosti výpisu (akruálny režim).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Miera úspor",
     "savingsRateCaption": "z príjmu tento mesiac usporené",
     "spendingProjection": "Týmto tempom minieš do konca mesiaca {{amount}}",

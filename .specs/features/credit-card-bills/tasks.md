@@ -1189,9 +1189,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BREP AC 12-15 pass, including the PRD Google example (12/11 main, "Lançada em 11/10/2026 · Cartão de Crédito Nubank")
-- [ ] Tests added to `frontend/src/components/transaction-drill-down.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/transaction-drill-down.test.tsx`
+- [x] BREP AC 12-15 pass, including the PRD Google example (12/11 main, "Lançada em 11/10/2026 · Cartão de Crédito Nubank")
+- [x] Tests added to `frontend/src/components/transaction-drill-down.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/transaction-drill-down.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

@@ -864,6 +864,7 @@
     "drillDownEmpty": "No transactions found",
     "drillDownClose": "Close",
     "accrualNote": "Credit-card transactions are grouped by bill due date (accrual mode).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Savings Rate",
     "savingsRateCaption": "share of income saved this month",
     "spendingProjection": "At this pace, you'll spend {{amount}} by month end",

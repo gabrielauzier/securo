@@ -872,6 +872,7 @@
     "drillDownEmpty": "Транзакції не знайдено",
     "drillDownClose": "Закрити",
     "accrualNote": "Кредитні картки: транзакції групуються за датою платежу (метод нарахування).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Норма заощаджень",
     "savingsRateCaption": "доходу заощаджено цього місяця",
     "spendingProjection": "Такими темпами ви витратите {{amount}} до кінця місяця",

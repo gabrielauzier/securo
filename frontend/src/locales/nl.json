@@ -864,6 +864,7 @@
     "drillDownEmpty": "Geen transacties gevonden",
     "drillDownClose": "Sluiten",
     "accrualNote": "Creditcardtransacties worden gegroepeerd op vervaldatum van de factuur (toerekeningsmodus).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Spaarquote",
     "savingsRateCaption": "van het inkomen deze maand gespaard",
     "spendingProjection": "In dit tempo geeft u aan het einde van de maand {{amount}} uit",

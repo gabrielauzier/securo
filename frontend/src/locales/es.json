@@ -866,6 +866,7 @@
     "drillDownEmpty": "No se encontraron transacciones",
     "drillDownClose": "Cerrar",
     "accrualNote": "Las transacciones con tarjeta de crédito se agrupan por la fecha de vencimiento de la factura (modo acumulado).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Tasa de ahorro",
     "savingsRateCaption": "de tus ingresos ahorrado este mes",
     "spendingProjection": "A este ritmo, gastarás {{amount}} para fin de mes",

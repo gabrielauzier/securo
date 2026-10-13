@@ -864,6 +864,7 @@
     "drillDownEmpty": "कोई लेन-देन नहीं मिला",
     "drillDownClose": "बंद करें",
     "accrualNote": "क्रेडिट-कार्ड लेन-देन बिल की देय तिथि के अनुसार समूहित होते हैं (प्रोद्भवन मोड)।",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "बचत दर",
     "savingsRateCaption": "इस महीने की आय का बचाया गया हिस्सा",
     "spendingProjection": "इस रफ़्तार से, आप महीने के अंत तक {{amount}} खर्च करेंगे",

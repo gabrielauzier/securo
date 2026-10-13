@@ -864,6 +864,7 @@
     "drillDownEmpty": "Keine Transaktionen gefunden",
     "drillDownClose": "Schließen",
     "accrualNote": "Kreditkartentransaktionen werden nach dem Fälligkeitsdatum der Abrechnung gruppiert (Soll-Modus).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Sparquote",
     "savingsRateCaption": "des Einkommens diesen Monat gespart",
     "spendingProjection": "Bei diesem Tempo wirst du bis Ende des Monats {{amount}} ausgeben",

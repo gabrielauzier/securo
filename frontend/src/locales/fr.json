@@ -866,6 +866,7 @@
     "drillDownEmpty": "Aucune transaction trouvée",
     "drillDownClose": "Fermer",
     "accrualNote": "Les transactions par carte de crédit sont regroupées par date d'échéance de la facture (mode comptabilité d'engagement).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Taux d'épargne",
     "savingsRateCaption": "de vos revenus épargnés ce mois-ci",
     "spendingProjection": "À ce rythme, vous dépenserez {{amount}} d'ici la fin du mois",

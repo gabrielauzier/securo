@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDisplayLocale, useDateLocale } from '@/hooks/use-display-locale'
 import { useQuery } from '@tanstack/react-query'
-import { transactions as transactionsApi, dashboard, admin } from '@/lib/api'
+import { transactions as transactionsApi, dashboard, admin, accounts as accountsApi } from '@/lib/api'
 import { AlertTriangle, Clock, Info, Paperclip, X } from 'lucide-react'
 import { CategoryIcon } from '@/components/category-icon'
 import { ProjectedTransactionBadge } from '@/components/projected-transaction-badge'
@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import type { Transaction } from '@/types'
 import { formatCurrency } from '@/lib/format'
+import { getAccountName } from '@/lib/account-utils'
 
 export type DrillDownFilter = {
   title: string
@@ -29,7 +30,11 @@ export type DrillDownFilter = {
 type DisplayItem = {
   key: string
   description: string
+  // The main date: the date the row is bucketed by in the accounting mode.
   date: string
+  // "Lançada em <purchase date> · <card>", for card purchases in `accrual`
+  // and `settlement` (BREP AC 12).
+  postedOn: { date: string; account: string } | null
   type: 'debit' | 'credit'
   amount: number
   amountPrimary: number | null
@@ -92,16 +97,31 @@ export function TransactionDrillDown({
     staleTime: 5 * 60 * 1000,
   })
   const isAccrual = accountingModeData?.mode === 'accrual'
+  // Both modes move card purchases off their purchase date, so the row says
+  // when and on which card the purchase was made.
+  const showsPostedOn =
+    accountingModeData?.mode === 'accrual' || accountingModeData?.mode === 'settlement'
+
+  const { data: accountsList } = useQuery({
+    queryKey: ['accounts', 'closed'],
+    queryFn: () => accountsApi.list(true),
+    enabled: !!filter && showsPostedOn,
+  })
 
   // Merge real + projected transactions, filtering projected by drill-down criteria
   const displayItems = useMemo((): DisplayItem[] => {
     const items: DisplayItem[] = []
+    const cards = new Map(
+      (accountsList ?? []).filter((a) => a.type === 'credit_card').map((a) => [a.id, getAccountName(a)]),
+    )
 
     for (const tx of data?.items ?? []) {
+      const card = showsPostedOn && tx.account_id ? cards.get(tx.account_id) : undefined
       items.push({
         key: tx.id,
         description: tx.description,
-        date: tx.date,
+        date: tx.reporting_date ?? tx.date,
+        postedOn: card ? { date: tx.date, account: card } : null,
         type: tx.type as 'debit' | 'credit',
         amount: Number(tx.amount),
         amountPrimary: tx.amount_primary != null ? Number(tx.amount_primary) : null,
@@ -109,7 +129,8 @@ export function TransactionDrillDown({
         categoryIcon: tx.category?.icon ?? null,
         categoryName: tx.category?.name ?? null,
         categoryColor: tx.category?.color ?? null,
-        isProjected: false,
+        // A purchase on an unpaid bill in `settlement` (BREP AC 13).
+        isProjected: tx.is_bill_projected ?? false,
         isPending: tx.status === 'pending',
         attachmentCount: tx.attachment_count ?? 0,
         transaction: tx,
@@ -128,6 +149,7 @@ export function TransactionDrillDown({
         key: `proj-${pt.recurring_id}-${pt.date}`,
         description: pt.description,
         date: pt.date,
+        postedOn: null,
         type: pt.type,
         amount: pt.amount,
         amountPrimary: pt.amount_primary ?? null,
@@ -144,7 +166,7 @@ export function TransactionDrillDown({
 
     items.sort((a, b) => a.date.localeCompare(b.date))
     return items
-  }, [data, projectedTxs, filter])
+  }, [data, projectedTxs, filter, accountsList, showsPostedOn])
 
   // Close on Escape, unless the key belongs to a dialog opened from the
   // panel (Radix marks the Escape it handled as defaultPrevented).
@@ -241,13 +263,14 @@ export function TransactionDrillDown({
               {t('dashboard.drillDownEmpty')}
             </p>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border" role="list">
               {displayItems.map((item) => (
                 <div
                   key={item.key}
-                  className={`flex items-center gap-3 px-5 py-3 hover:bg-muted transition-colors ${!item.isProjected ? 'cursor-pointer' : ''}`}
+                  role="listitem"
+                  className={`flex items-center gap-3 px-5 py-3 hover:bg-muted transition-colors ${item.transaction ? 'cursor-pointer' : ''}`}
                   onClick={() => {
-                    if (!item.isProjected && item.transaction) {
+                    if (item.transaction) {
                       onTransactionClick?.(item.transaction)
                     }
                   }}
@@ -281,6 +304,14 @@ export function TransactionDrillDown({
                       {new Date(item.date + 'T00:00:00').toLocaleDateString(dateLocale)}
                       {item.categoryName && ` · ${item.categoryName}`}
                     </p>
+                    {item.postedOn && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {t('dashboard.drillDownPostedOn', {
+                          date: new Date(item.postedOn.date + 'T00:00:00').toLocaleDateString(dateLocale),
+                          account: item.postedOn.account,
+                        })}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <span

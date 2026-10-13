@@ -875,6 +875,7 @@
     "drillDownEmpty": "Nie znaleziono transakcji",
     "drillDownClose": "Zamknij",
     "accrualNote": "Transakcje kartą kredytową są grupowane wg terminu płatności rachunku (tryb memoriałowy).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Stopa oszczędności",
     "savingsRateCaption": "dochodu z tego miesiąca zaoszczędzone",
     "spendingProjection": "W tym tempie do końca miesiąca wydasz {{amount}}",

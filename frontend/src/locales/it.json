@@ -866,6 +866,7 @@
     "drillDownEmpty": "Nessuna transazione trovata",
     "drillDownClose": "Chiudi",
     "accrualNote": "Le transazioni con carta di credito sono raggruppate per scadenza dell'estratto conto (modalità per competenza).",
+    "drillDownPostedOn": "Posted on {{date}} · {{account}}",
     "savingsRate": "Tasso di risparmio",
     "savingsRateCaption": "del reddito di questo mese risparmiato",
     "spendingProjection": "A questo ritmo, spenderai {{amount}} entro fine mese",
