@@ -888,10 +888,10 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Expression returns payment date, effective due date, today for overdue, and purchase date without bill (BREP AC 2, 3, 4, 9)
-- [ ] `cash`/`accrual` expressions unchanged (regression test on compiled SQL)
-- [ ] New test `backend/tests/test_settlement_filters.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_settlement_filters.py -q`
+- [x] Expression returns payment date, effective due date, today for overdue, and purchase date without bill (BREP AC 2, 3, 4, 9)
+- [x] `cash`/`accrual` expressions unchanged (regression test on compiled SQL)
+- [x] New test `backend/tests/test_settlement_filters.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_settlement_filters.py -q`
 
 **Tests**: unit
 **Gate**: Quick

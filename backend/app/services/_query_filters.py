@@ -8,13 +8,14 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import Date, and_, case, false, func, literal, or_, select, true
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.app_clock import app_today
 from app.models.account import Account
 from app.models.category import Category
+from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
 
 
@@ -113,12 +114,105 @@ def reporting_date_col(accounting_mode: str):
     spend under the purchase month instead of the invoice month (issue
     #232).
     """
+    if accounting_mode == "settlement":
+        return _settlement_date_col(app_today())
     base = (
         Transaction.effective_date
         if accounting_mode == "accrual"
         else Transaction.date
     )
     return func.coalesce(Transaction.effective_bill_date, base)
+
+
+def _bill_value(column: str):
+    """Scalar subquery reading one column of the row's bill by primary key.
+
+    Aliased so the subquery never auto-correlates with an outer
+    ``credit_card_bills`` in queries that already select from that table.
+    """
+    bill = aliased(CreditCardBill)
+    return (
+        select(getattr(bill, column))
+        .where(bill.id == Transaction.bill_id)
+        .scalar_subquery()
+    )
+
+
+def _settlement_date_col(today: date):
+    """`settlement` bucketing date (BREP AC 2, 3, 4, 9).
+
+    - no bill: the cash date (the manual override, else the purchase date);
+    - paid bill: the date of the payment that made it paid (`settled_on`);
+    - unpaid bill due in a past month: today, since the debt is still due;
+    - unpaid bill otherwise: its effective due date.
+
+    ``today`` and the current month start are bound as parameters when the
+    query is built (AD-003: nothing that depends on today is stored). Plain
+    CASE and scalar subqueries keep it portable across SQLite and
+    PostgreSQL.
+    """
+    settled_on = _bill_value("settled_on")
+    due = _bill_value("effective_due_date")
+    return case(
+        (
+            Transaction.bill_id.is_(None),
+            func.coalesce(Transaction.effective_bill_date, Transaction.date),
+        ),
+        (settled_on.is_not(None), settled_on),
+        (due < literal(today.replace(day=1), Date), literal(today, Date)),
+        else_=due,
+    )
+
+
+def is_recognized(accounting_mode: str):
+    """SQL filter: the row may count as a *realized* income or expense.
+
+    Only `settlement` holds rows back: a card purchase is recognized once its
+    bill is fully paid, so rows on an unpaid bill stay projected. Rows with
+    no bill are recognized as in `cash`. Other modes recognize everything,
+    and ``true()`` drops out of the WHERE clause, so their SQL is unchanged.
+    """
+    if accounting_mode != "settlement":
+        return true()
+    return or_(Transaction.bill_id.is_(None), _bill_value("settled_on").is_not(None))
+
+
+def is_bill_projected(accounting_mode: str):
+    """SQL filter: in `settlement`, the row is a purchase on an unpaid bill.
+
+    Such rows are projected expenses at the bill's effective due date (or
+    today, when overdue) until the bill is paid. Always false in other
+    modes.
+    """
+    if accounting_mode != "settlement":
+        return false()
+    return and_(Transaction.bill_id.is_not(None), _bill_value("settled_on").is_(None))
+
+
+def reporting_date_of(tx: Transaction, accounting_mode: str, today: Optional[date] = None) -> date:
+    """Python twin of ``reporting_date_col`` for an already loaded row.
+
+    In `settlement` the row's ``bill`` relationship must be loaded.
+    """
+    if accounting_mode == "settlement" and tx.bill_id is not None:
+        bill = tx.bill
+        if bill.settled_on is not None:
+            return bill.settled_on
+        current = today or app_today()
+        if bill.effective_due_date < current.replace(day=1):
+            return current
+        return bill.effective_due_date
+    base = tx.effective_date if accounting_mode == "accrual" else tx.date
+    return tx.effective_bill_date or base
+
+
+def bill_projected_row(tx: Transaction, accounting_mode: str) -> bool:
+    """Python twin of ``is_bill_projected`` for an already loaded row."""
+    return (
+        accounting_mode == "settlement"
+        and tx.bill_id is not None
+        and tx.bill.settled_on is None
+    )
 
 
 def is_not_ignored():
