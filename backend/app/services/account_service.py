@@ -58,6 +58,26 @@ def _opening_balance_values(account_type: str, balance: Decimal) -> tuple[Decima
 
 
 async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_closed: bool = False) -> list[dict]:
+    return await _serialized_accounts(session, workspace_id, include_closed=include_closed)
+
+
+async def get_serialized_account(
+    session: AsyncSession, account_id: uuid.UUID, workspace_id: uuid.UUID
+) -> Optional[dict]:
+    """One account with the same floored balances the accounts list shows (ADJ-05)."""
+    rows = await _serialized_accounts(
+        session, workspace_id, include_closed=True, account_id=account_id
+    )
+    return rows[0] if rows else None
+
+
+async def _serialized_accounts(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    include_closed: bool,
+    account_id: Optional[uuid.UUID] = None,
+) -> list[dict]:
     today = app_today()
     # Subquery: compute current_balance per account from transactions in one pass
     # Use amount_primary only when tx currency differs from account currency
@@ -136,6 +156,8 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
     )
     if not include_closed:
         query = query.where(Account.is_closed == False)
+    if account_id is not None:
+        query = query.where(Account.id == account_id)
     query = query.order_by(Account.name)
     result = await session.execute(query)
     return [

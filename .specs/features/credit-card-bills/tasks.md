@@ -1786,9 +1786,9 @@ T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] A card with an opening balance and older transactions shows the same owed amount in list and detail, and `available_credit = limit − owed`
-- [ ] New test `backend/tests/test_card_available_credit.py` that fails before the fix
-- [ ] Gate passes: Build (backend)
+- [x] A card with an opening balance and older transactions shows the same owed amount in list and detail, and `available_credit = limit − owed`
+- [x] New test `backend/tests/test_card_available_credit.py` that fails before the fix
+- [x] Gate passes: Build (backend)
 
 **Tests**: integration
 **Gate**: Build
