@@ -190,6 +190,13 @@ async def delete_user(
         )
     )
 
+    # Bills of other users' cards that the user's rows belong to or pay
+    # (shared workspace). The user's own cards and bills go with the accounts.
+    from app.services import bill_service
+
+    user_tx_ids = (await session.execute(tx_ids_query)).scalars().all()
+    bill_ids = await bill_service.collect_bill_ids(session, user_tx_ids)
+
     # Delete in dependency order
     await session.execute(delete(Transaction).where(Transaction.user_id == user_id))
     await session.execute(delete(Budget).where(Budget.user_id == user_id))
@@ -210,6 +217,9 @@ async def delete_user(
     await session.execute(delete(Category).where(Category.user_id == user_id))
     await session.execute(delete(CategoryGroup).where(CategoryGroup.user_id == user_id))
     await session.execute(delete(BankConnection).where(BankConnection.user_id == user_id))
+
+    # Refresh after the accounts are gone so only the surviving bills remain.
+    await bill_service.refresh_bills(session, bill_ids)
 
     # Delete the user
     await session.delete(user)

@@ -32,8 +32,6 @@ ROW_MUTATORS = {"apply_rule_actions"}
 
 # "module:function" -> why it needs no bill refresh of its own.
 ALLOWED = {
-    "services/admin_service.py:delete_user":
-        "deletes the user's accounts in the same call; their bills cascade with them",
     "services/bill_service.py:delete_bill":
         "unlinks rows from the bill it deletes; no stored aggregate is left to refresh",
     "services/import_service.py:enrich_with_category_suggestions":

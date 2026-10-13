@@ -1811,10 +1811,10 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] Deleting user A whose payment paid user B's card bill drops that bill's `paid_amount` and status
-- [ ] `delete_user` no longer allow-listed in `backend/tests/test_ad004_guard.py` (feature-created file)
-- [ ] New test `backend/tests/test_delete_user_bills.py` that fails before the fix
-- [ ] Gate passes: Full
+- [x] Deleting user A whose payment paid user B's card bill drops that bill's `paid_amount` and status
+- [x] `delete_user` no longer allow-listed in `backend/tests/test_ad004_guard.py` (feature-created file)
+- [x] New test `backend/tests/test_delete_user_bills.py` that fails before the fix
+- [x] Gate passes: Full (4759 passed, 21 skipped; ruff and ty clean; run by the orchestrator after the owner approved the guard change)
 
 **Tests**: unit
 **Gate**: Full
