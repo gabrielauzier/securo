@@ -144,11 +144,11 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Spec P1 AC 2, 3, 4 and the close-day-equals-due-day edge case pass with the exact dates
-- [ ] A purchase on the close day belongs to the next period (BIMP AC 3)
-- [ ] `bill_period_for(d).nominal_due_date == compute_effective_date(d)` for every day of 2026 with close 5/due 12 and close 28/due 5
-- [ ] New test `backend/tests/test_bill_period.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_period.py -q`
+- [x] Spec P1 AC 2, 3, 4 and the close-day-equals-due-day edge case pass with the exact dates
+- [x] A purchase on the close day belongs to the next period (BIMP AC 3)
+- [x] `bill_period_for(d).nominal_due_date == compute_effective_date(d)` for every day of 2026 with close 5/due 12 and close 28/due 5
+- [x] New test `backend/tests/test_bill_period.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_period.py -q`
 
 **Tests**: unit
 **Gate**: Quick
