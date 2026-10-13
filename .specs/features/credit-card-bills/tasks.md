@@ -117,11 +117,11 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Every holiday listed in the spec Assumptions is returned for 2026, 2027 and 2028, with Easter on 2026-04-05, 2027-03-28, 2028-04-16
-- [ ] `next_business_day(2026-09-12) == 2026-09-14` (Saturday) and `next_business_day(2026-09-07) == 2026-09-08` (holiday)
-- [ ] A business day returns itself
-- [ ] New test `backend/tests/test_business_days.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_business_days.py -q`
+- [x] Every holiday listed in the spec Assumptions is returned for 2026, 2027 and 2028, with Easter on 2026-04-05, 2027-03-28, 2028-04-16
+- [x] `next_business_day(2026-09-12) == 2026-09-14` (Saturday) and `next_business_day(2026-09-07) == 2026-09-08` (holiday)
+- [x] A business day returns itself
+- [x] New test `backend/tests/test_business_days.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_business_days.py -q`
 
 **Tests**: unit
 **Gate**: Quick
