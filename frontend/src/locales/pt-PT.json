@@ -2917,6 +2917,34 @@
       "partially_paid": "Parcialmente paga",
       "closed": "Fechada"
     },
-    "originalDueDate": "Vencimento original {{date}} ({{weekday}})"
+    "originalDueDate": "Vencimento original {{date}} ({{weekday}})",
+    "reason": {
+      "exact_amount": "Valor exato",
+      "partial_amount": "Pagamento parcial",
+      "amount_above_remaining": "Acima do valor restante",
+      "outside_window": "Fora da janela de pagamento"
+    },
+    "link": {
+      "title": "Vincular a fatura",
+      "description": "Escolha a fatura de cartão que este pagamento quita.",
+      "payment": "Pagamento",
+      "candidatesHeader": "Faturas sugeridas",
+      "otherHeader": "Outras faturas em aberto",
+      "empty": "Nenhuma fatura em aberto encontrada.",
+      "dueOn": "Vence em {{date}}",
+      "target": "Total {{amount}}",
+      "remaining": "Restante {{amount}}",
+      "confirmTitle": "Confirmar vínculo",
+      "confirm": "Vincular",
+      "back": "Voltar",
+      "success": "Pagamento vinculado à fatura",
+      "alreadyLinked": "Esta transação já paga outra fatura.",
+      "notEligible": "Esta transação não pode pagar esta fatura: {{detail}}",
+      "counterpartTitle": "Pagamento vinculado",
+      "counterpartDescription": "Não encontramos o crédito deste pagamento em {{card}}. Crie a contrapartida para que o saldo do cartão reflita o pagamento.",
+      "counterpartCreate": "Criar contrapartida",
+      "counterpartSkip": "Agora não",
+      "counterpartSuccess": "Contrapartida criada"
+    }
   }
 }

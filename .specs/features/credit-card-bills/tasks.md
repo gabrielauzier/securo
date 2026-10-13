@@ -1264,9 +1264,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH AC 8 rendering, confirm calls the link endpoint, 409/422 messages shown, counterpart action offered when flagged
-- [ ] New test `frontend/src/components/link-bill-dialog.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/link-bill-dialog.test.tsx`
+- [x] BMATCH AC 8 rendering, confirm calls the link endpoint, 409/422 messages shown, counterpart action offered when flagged
+- [x] New test `frontend/src/components/link-bill-dialog.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/link-bill-dialog.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

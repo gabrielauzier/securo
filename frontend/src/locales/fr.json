@@ -2917,6 +2917,34 @@
       "partially_paid": "Partially paid",
       "closed": "Closed"
     },
-    "originalDueDate": "Original due date {{date}} ({{weekday}})"
+    "originalDueDate": "Original due date {{date}} ({{weekday}})",
+    "reason": {
+      "exact_amount": "Exact amount",
+      "partial_amount": "Partial payment",
+      "amount_above_remaining": "Above the remaining amount",
+      "outside_window": "Outside the payment window"
+    },
+    "link": {
+      "title": "Link to bill",
+      "description": "Choose the credit card bill this payment pays.",
+      "payment": "Payment",
+      "candidatesHeader": "Suggested bills",
+      "otherHeader": "Other unpaid bills",
+      "empty": "No unpaid bills found.",
+      "dueOn": "Due {{date}}",
+      "target": "Total {{amount}}",
+      "remaining": "Remaining {{amount}}",
+      "confirmTitle": "Confirm the link",
+      "confirm": "Link",
+      "back": "Back",
+      "success": "Payment linked to the bill",
+      "alreadyLinked": "This transaction already pays another bill.",
+      "notEligible": "This transaction cannot pay this bill: {{detail}}",
+      "counterpartTitle": "Payment linked",
+      "counterpartDescription": "No matching credit was found on {{card}}. Create it so the card balance reflects the payment.",
+      "counterpartCreate": "Create counterpart",
+      "counterpartSkip": "Not now",
+      "counterpartSuccess": "Counterpart created"
+    }
   }
 }
