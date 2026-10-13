@@ -1618,6 +1618,7 @@
     "ignoreTransferBadge": "अनदेखा करें",
     "billPayment": "Credit card bill payment",
     "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
+    "billPaymentBadge": "Bill payment",
     "hiddenScopeDescription": "छिपाए गए डिफ़ॉल्ट श्रेणी चयनकर्ताओं से हट जाते हैं और नियमों द्वारा नहीं सौंपे जाते। मौजूदा लेन-देन, बजट, डैशबोर्ड और रिपोर्ट उनका उपयोग जारी रखते हैं।",
     "hiddenBadge": "छिपा हुआ",
     "showDefault": "डिफ़ॉल्ट श्रेणी दिखाएँ",

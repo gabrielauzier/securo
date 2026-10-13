@@ -1622,6 +1622,7 @@
     "ignoreTransferBadge": "Ignorado",
     "billPayment": "Pagamento de fatura",
     "billPaymentDesc": "Transações nesta categoria pagam uma fatura de cartão e não contam como receita ou despesa. As compras no cartão já são a despesa.",
+    "billPaymentBadge": "Pagamento de fatura",
     "hiddenScopeDescription": "As categorias predefinidas ocultas deixam de aparecer nos seletores e deixam de ser atribuídas por regras. As transações, os orçamentos, os painéis e os relatórios existentes continuam a utilizá-las.",
     "hiddenBadge": "Oculta",
     "showDefault": "Mostrar categoria predefinida",

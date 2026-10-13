@@ -277,6 +277,14 @@ export default function CategoriesPage() {
             {t('categories.ignoreTransferBadge')}
           </span>
         )}
+        {cat.is_bill_payment && (
+          <span
+            className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border shrink-0"
+            title={t('categories.billPaymentDesc')}
+          >
+            {t('categories.billPaymentBadge')}
+          </span>
+        )}
       </div>
       <div className="hidden sm:flex items-center gap-2 shrink-0">
         <span className="inline-block w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: cat.color }} />

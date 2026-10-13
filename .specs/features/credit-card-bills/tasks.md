@@ -1862,9 +1862,9 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] Badge shown only for flagged categories; keys in every locale
-- [ ] Tests added to `frontend/src/pages/categories-bill-payment.test.tsx`
-- [ ] Gate passes: Quick-FE
+- [x] Badge shown only for flagged categories; keys in every locale
+- [x] Tests added to `frontend/src/pages/categories-bill-payment.test.tsx`
+- [x] Gate passes: Quick-FE
 
 **Tests**: unit
 **Gate**: Quick-FE

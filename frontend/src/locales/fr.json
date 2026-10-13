@@ -1622,6 +1622,7 @@
     "ignoreTransferBadge": "Ignorer",
     "billPayment": "Credit card bill payment",
     "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
+    "billPaymentBadge": "Bill payment",
     "hiddenScopeDescription": "Les catégories par défaut masquées sont retirées des sélecteurs et ne sont plus attribuées par les règles. Les transactions, budgets, tableaux de bord et rapports existants continuent de les utiliser.",
     "hiddenBadge": "Masquée",
     "showDefault": "Afficher la catégorie par défaut",

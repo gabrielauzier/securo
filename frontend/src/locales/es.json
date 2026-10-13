@@ -1622,6 +1622,7 @@
     "ignoreTransferBadge": "Ignorar",
     "billPayment": "Credit card bill payment",
     "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
+    "billPaymentBadge": "Bill payment",
     "hiddenScopeDescription": "Las categorías predeterminadas ocultas se eliminan de los selectores y las reglas dejan de asignarlas. Las transacciones, los presupuestos, los paneles y los informes existentes siguen utilizándolas.",
     "hiddenBadge": "Oculta",
     "showDefault": "Mostrar categoría predeterminada",

@@ -120,3 +120,26 @@ describe('bill payment toggle', () => {
     })
   })
 })
+
+describe('bill payment badge in the list (ADJ AC 1)', () => {
+  it('shows the badge only next to categories flagged as bill payment', async () => {
+    api.categories.listIncludingHidden.mockResolvedValue([
+      category('cat-1', 'Fatura do cartão', { is_bill_payment: true }),
+      category('cat-2', 'Mercado'),
+    ])
+    renderWithProviders(<CategoriesPage />)
+
+    const flagged = (await screen.findByText('Fatura do cartão')).parentElement!
+    expect(within(flagged).getByText('Bill payment')).toBeInTheDocument()
+    const plain = screen.getByText('Mercado').parentElement!
+    expect(within(plain).queryByText('Bill payment')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Bill payment')).toHaveLength(1)
+  })
+})
+
+describe('bill payment badge label in pt-BR (ADJ AC 1)', () => {
+  it('reads "Pagamento de fatura"', async () => {
+    const ptBR = (await import('@/locales/pt-BR.json')).default
+    expect(ptBR.categories.billPaymentBadge).toBe('Pagamento de fatura')
+  })
+})
