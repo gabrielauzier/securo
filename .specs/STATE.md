@@ -18,13 +18,29 @@
 - **Date**: 2026-10-10
 - **Status**: active
 
+### AD-003
+- **Decision**: Bill aggregates (`computed_total`, `paid_amount`, `settled_on`) are stored on `credit_card_bills` and written only by `bill_service.refresh_bills`; bill status, remaining and overpaid amounts are derived at read time.
+- **Reason**: The `settlement` accounting mode buckets every card purchase by the date its bill was paid; reading a stored `settled_on` by primary key keeps dashboard, report and budget queries cheap, the same trade AD-002 made for `balance_date`.
+- **Trade-off**: Stored values can drift if a write path skips the refresh; AD-004 and the `rebuild-bills` CLI are the guard.
+- **Scope**: `backend/app/services/bill_service.py`, `reporting_date_col` in `backend/app/services/_query_filters.py`, migrations `099`/`100`
+- **Date**: 2026-10-12
+- **Status**: active
+
+### AD-004
+- **Decision**: Every write path that creates, changes or deletes a credit-card transaction or a bill payment calls `bill_service.link_account_transactions` or `bill_service.touch` in the same transaction.
+- **Reason**: Bills are the anchor for card purchases and payments; a row created outside them breaks the bill totals and the `settlement` mode.
+- **Trade-off**: New write paths must remember the call; each existing path has a test asserting the bill after the write.
+- **Scope**: `transaction_service`, `import_service`, `connection_service`, `recurring_transaction_service`, `account_service`, `category_service`
+- **Date**: 2026-10-12
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: .specs/features/account-balance-date
-- **Phase / Task**: Done (T1-T10 + verification fixes F1-F6), validation.md PASS
-- **Completed**: T1-T10, F1-F6
+- **Feature**: .specs/features/credit-card-bills
+- **Phase / Task**: Execute, batch B1 (Phase 1, T1-T5) dispatched to a sub-agent
+- **Completed**: PRD `.specs/prd/v0.16.3-selfhost.4-cartao-de-credito.md`, spec.md, design.md, tasks.md
 - **In-progress** (file:line): none
-- **Next step**: owner reviews the branch and opens the PR (not pushed yet); it is stacked on feat/selfhost-3-adjustments (PR #2), so merge #2 first or target that branch
+- **Next step**: B1 summary, then B2 (Phase 2)
 - **Blockers**: none
-- **Uncommitted files**: .gitignore, frontend/package-lock.json (pre-existing, not ours)
-- **Branch**: feat/account-balance-date
+- **Uncommitted files**: none
+- **Branch**: claude/credit-card-improvements-e85788
