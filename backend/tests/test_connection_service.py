@@ -2589,8 +2589,10 @@ async def test_sync_falls_back_to_cycle_math_when_bill_missing(
     session: AsyncSession, test_user, test_workspace,
 ):
     """A tx with bill_external_id that isn't in the bills feed (older bill,
-    bills 4xx, etc.) leaves bill_id null and uses local cycle math —
-    nothing about the legacy path may regress."""
+    bills 4xx, etc.) uses local cycle math and joins the auto bill of its
+    period."""
+    from app.models.credit_card_bill import CreditCardBill
+
     conn = await _make_connection(session, test_user.id, "Cycle Bank")
 
     # CC account with explicit close/due so cycle math has something to compute
@@ -2622,7 +2624,16 @@ async def test_sync_falls_back_to_cycle_math_when_bill_missing(
     tx_row = (await session.execute(
         select(Transaction).where(Transaction.external_id == "tx-orphan")
     )).scalar_one()
-    assert tx_row.bill_id is None
+    # Without a provider bill the row joins the auto bill of its period
+    # (T11, BIMP AC 1/2, AD-004): close 20, due 28 -> reference month 2026-04.
+    auto_bill = (await session.execute(
+        select(CreditCardBill).where(
+            CreditCardBill.account_id == tx_row.account_id,
+            CreditCardBill.reference_month == date(2026, 4, 1),
+            CreditCardBill.source == "auto",
+        )
+    )).scalar_one()
+    assert tx_row.bill_id == auto_bill.id
     # close=20 (>tx_date=5) → cycle ends 2026-04-20, due=28 → effective=2026-04-28
     assert tx_row.effective_date == date(2026, 4, 28)
 

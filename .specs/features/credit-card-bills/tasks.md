@@ -384,10 +384,10 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Provider bills get `source='provider'`, period and effective due date; existing tests in `backend/tests/test_providers_pluggy_bills.py` stay green
-- [ ] Synced rows without a provider bill join an auto bill
-- [ ] New test `backend/tests/test_sync_bills.py`
-- [ ] Gate passes: Full
+- [x] Provider bills get `source='provider'`, period and effective due date; existing tests in `backend/tests/test_providers_pluggy_bills.py` stay green
+- [x] Synced rows without a provider bill join an auto bill
+- [x] New test `backend/tests/test_sync_bills.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

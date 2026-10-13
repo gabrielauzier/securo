@@ -37,7 +37,7 @@ from app.providers.base import (
 )
 from app.services import oauth_state
 from app.services import admin_service
-from app.services import reconciliation_service, recurring_match_service
+from app.services import bill_service, reconciliation_service, recurring_match_service
 from app.services.text_similarity import token_overlap
 from app.services.account_service import (
     _simplefin_to_internal_balance,
@@ -47,7 +47,7 @@ from app.services.asset_group_service import (
     _unique_default_name,
     ensure_group_for_connection,
 )
-from app.services.credit_card_service import apply_effective_date
+from app.services.credit_card_service import apply_effective_date, bill_period_for_due_date
 from app.services.rule_engine import merge_notes
 from app.services.rule_service import apply_rules_to_transaction, preview_rules_for_transaction
 from app.services.transfer_detection_service import detect_transfer_pairs
@@ -1267,6 +1267,7 @@ async def handle_oauth_callback(
         # history that falls outside the provider's lookback window gets
         # absorbed into this synthetic transaction.
         await sync_opening_balance_for_connected_account(session, account)
+        await _sync_account_bills(session, account)
 
     # Detect transfer pairs among newly synced transactions
     await detect_transfer_pairs(session, workspace_id, candidate_ids=new_tx_ids)
@@ -1797,6 +1798,23 @@ async def _sync_bill_finance_charges(
             await session.delete(tx)
 
 
+async def _sync_account_bills(session: AsyncSession, account: Account) -> None:
+    """Link a synced card's rows to their bills and refresh every bill of the card.
+
+    Rows the sync linked to a provider bill stay there; the others join the
+    bill of their period, creating `auto` bills for months no provider bill
+    covers."""
+    if account.type != "credit_card":
+        return
+    await bill_service.link_account_transactions(session, account)
+    bill_ids = (
+        await session.execute(
+            select(CreditCardBill.id).where(CreditCardBill.account_id == account.id)
+        )
+    ).scalars().all()
+    await bill_service.refresh_bills(session, bill_ids)
+
+
 async def _sync_credit_card_bills(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -1855,6 +1873,16 @@ async def _sync_credit_card_bills(
             session.add(bill)
             by_external_id[bd.external_id] = bill
         else:
+            if bill.due_date != bd.due_date:
+                period = bill_period_for_due_date(bd.due_date, account.statement_close_day)
+                bill.reference_month = period.reference_month
+                bill.period_start = period.period_start
+                bill.period_end = period.period_end
+                bill.close_date = period.close_date
+                bill.effective_due_date = period.effective_due_date
+            # The declared total follows the bank's total unless the user typed one.
+            if bill.declared_total is None or bill.declared_total == bill.total_amount:
+                bill.declared_total = bd.total_amount
             bill.due_date = bd.due_date
             bill.total_amount = bd.total_amount
             bill.currency = bd.currency
@@ -1970,6 +1998,7 @@ async def sync_connection(
         user = await session.get(User, user_id)
         user_currency = user.primary_currency if user else get_settings().default_currency
         new_tx_ids: list[uuid.UUID] = []
+        synced_cards: list[Account] = []
         merged_count = 0
         accounts_data = await provider.get_accounts(credentials)
         incoming_external_ids = {acc.external_id for acc in accounts_data}
@@ -2097,6 +2126,8 @@ async def sync_connection(
             bills_by_external_id = await _sync_credit_card_bills(
                 session, user_id, account, provider, credentials
             )
+            if account.type == "credit_card":
+                synced_cards.append(account)
 
             # Fetch and sync transactions. The 14-day rewind is on Pluggy's
             # `createdAt` (when their row was inserted), so it covers two
@@ -2403,6 +2434,12 @@ async def sync_connection(
             )
             for touched_account in touched_accounts.scalars():
                 await sync_opening_balance_for_connected_account(session, touched_account)
+
+        # Synced card rows join their bills; months the provider did not
+        # cover get auto bills (AD-004). Runs after the phantom cleanup so the
+        # aggregates count only the rows that stay.
+        for card in synced_cards:
+            await _sync_account_bills(session, card)
 
         # Refresh investment holdings (brokerage, fixed income, funds,
         # etc.) when enabled for this connection. Errors here are logged but
