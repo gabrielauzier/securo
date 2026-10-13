@@ -152,7 +152,8 @@ async def create_account(
         account = await account_service.create_account(session, ctx.workspace.id, ctx.user_id, data)
     except account_service.IncompatibleCycleDaysError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
-    return account_service.serialize_account(account, None, None)
+    # Same floored balances as GET, so an opening balance shows up at once (ADJ-05).
+    return await account_service.get_serialized_account(session, account.id, ctx.workspace.id)
 
 
 @router.patch("/{account_id}", response_model=AccountRead)

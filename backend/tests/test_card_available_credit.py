@@ -54,3 +54,24 @@ async def test_detail_and_list_show_the_same_owed_amount_and_available_credit(
     assert in_list["available_credit"] == 3800.0
     assert detail.json()["current_balance"] == -1200.0
     assert detail.json()["available_credit"] == 3800.0
+
+
+# --- T74: the create response carries the computed balance ---------------------
+
+
+async def test_create_returns_the_floored_balance_and_available_credit(
+    monkeypatch, client: AsyncClient, auth_headers
+):
+    freeze_today(monkeypatch, date(2026, 9, 25))
+    created = await client.post(
+        "/api/accounts", headers=auth_headers,
+        json={
+            "name": "Cartão de Crédito Nubank", "type": "credit_card", "currency": "BRL",
+            "balance": "300.00", "balance_date": "2026-09-01", "credit_limit": "1000.00",
+            "statement_close_day": 5, "payment_due_day": 12,
+        },
+    )
+
+    assert created.status_code == 201, created.text
+    assert created.json()["current_balance"] == -300.0
+    assert created.json()["available_credit"] == 700.0

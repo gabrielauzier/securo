@@ -1837,9 +1837,9 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] Creating a card with balance owed 300 and limit 1000 returns `current_balance` -300 (card sign convention as in the list) and `available_credit` 700
-- [ ] Tests added to `backend/tests/test_card_available_credit.py`
-- [ ] Gate passes: Build (backend)
+- [x] Creating a card with balance owed 300 and limit 1000 returns `current_balance` -300 (card sign convention as in the list) and `available_credit` 700
+- [x] Tests added to `backend/tests/test_card_available_credit.py`
+- [x] Gate passes: Build (backend)
 
 **Tests**: integration
 **Gate**: Build
