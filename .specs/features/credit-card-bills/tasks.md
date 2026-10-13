@@ -1464,8 +1464,8 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Notes cover every migration and operator action
-- [ ] Gate passes: Build (backend and frontend)
+- [x] Notes cover every migration and operator action
+- [x] Gate passes: Build (backend and frontend)
 
 **Tests**: none
 **Gate**: Build
