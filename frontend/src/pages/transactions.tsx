@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, Eye, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, Eye, ChartNoAxesColumn, SlidersHorizontal, Receipt, CreditCard } from 'lucide-react'
 import type { Transaction, Rule, InstallmentSeriesInput, TransactionApplyScope, TransactionEditPayload, ReconciliationSuggestion } from '@/types'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
 import { PageHeader } from '@/components/page-header'
@@ -54,6 +54,9 @@ import { TransferDialog } from '@/components/transfer-dialog'
 import { useSidebarState } from '@/contexts/sidebar-state-context'
 import { cn } from '@/lib/utils'
 import { LinkTransferDialog } from '@/components/link-transfer-dialog'
+import { LinkBillDialog } from '@/components/link-bill-dialog'
+import { BillPaymentRowBadge } from '@/components/bill-payment-row-badge'
+import { canLinkBill } from '@/lib/bill-payment'
 import { BulkTransferDialog } from '@/components/bulk-transfer-dialog'
 import { BulkAddToGroupDialog, type BulkAddToGroupSubmission } from '@/components/bulk-add-to-group-dialog'
 import { TransactionsFilterBar } from '@/components/transactions-filter-bar'
@@ -251,6 +254,7 @@ export default function TransactionsPage() {
   const [exporting, setExporting] = useState(false)
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [linkTransferDialogOpen, setLinkTransferDialogOpen] = useState(false)
+  const [linkBillTx, setLinkBillTx] = useState<Transaction | null>(null)
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
@@ -1177,6 +1181,7 @@ export default function TransactionsPage() {
                 {t('transactions.suggestionBadge')}
               </Link>
             )}
+            <BillPaymentRowBadge tx={tx} canWrite={canWrite} onConfirmSuggestion={setLinkBillTx} />
             {(tx.invoice_links ?? []).map((link) => (
               <Link
                 key={link.invoice_id}
@@ -1399,6 +1404,12 @@ export default function TransactionsPage() {
   const duplicableTx = selectedSingleTx && !selectedSingleTx.is_shared && !selectedSingleTx.transfer_pair_id
     ? selectedSingleTx
     : null
+  const billLinkTx = selectedSingleTx && canLinkBill(
+    selectedSingleTx,
+    selectedSingleTx.account_id ? accountById.get(selectedSingleTx.account_id) : undefined,
+  )
+    ? selectedSingleTx
+    : null
   const exportLabel = exporting
     ? t('transactions.exporting')
     : selectedIds.size > 0
@@ -1592,6 +1603,9 @@ export default function TransactionsPage() {
                     locale={locale}
                     userCurrency={userCurrency}
                     onSelect={toggleSelect}
+                    badge={tx.paid_bill || tx.bill_payment_suggestion
+                      ? <BillPaymentRowBadge tx={tx} canWrite={canWrite} onConfirmSuggestion={setLinkBillTx} />
+                      : undefined}
                     onClick={(t) => {
                       if (t.is_shared) {
                         if (t.group_id) navigate(`/groups/${t.group_id}`)
@@ -1861,6 +1875,9 @@ export default function TransactionsPage() {
               onMarkTransfer={() => setBulkTransferOpen(true)}
               markTransferDisabled={bulkIgnoreOverLimit}
               markTransferHint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
+              onLinkBill={() => billLinkTx && setLinkBillTx(billLinkTx)}
+              linkBillDisabled={!billLinkTx}
+              linkBillHint={billLinkTx ? t('bills.link.title') : t('bills.link.disabledHint')}
               onCreateRule={selectedSingleTx && !selectedSingleTx.is_shared
                 ? () => handleCreateRuleFromTransaction(selectedSingleTx)
                 : undefined}
@@ -2005,6 +2022,16 @@ export default function TransactionsPage() {
               <ArrowLeftRight size={15} />
             </BulkIconButton>
 
+            {/* Link to bill: one debit outside a card account that pays no bill yet */}
+            <BulkIconButton
+              label={t('bills.link.title')}
+              hint={billLinkTx ? undefined : t('bills.link.disabledHint')}
+              disabled={!billLinkTx}
+              onClick={() => billLinkTx && setLinkBillTx(billLinkTx)}
+            >
+              <CreditCard size={15} />
+            </BulkIconButton>
+
             <div className="w-px bg-border/60 self-stretch" />
 
             {/* Create Rule — only when exactly one non-shared transaction is selected */}
@@ -2109,6 +2136,13 @@ export default function TransactionsPage() {
           createCounterpartMutation.mutate({ anchorId, toAccountId })
         }}
         loading={linkTransferMutation.isPending || createCounterpartMutation.isPending}
+      />
+
+      <LinkBillDialog
+        open={!!linkBillTx}
+        onClose={() => setLinkBillTx(null)}
+        transaction={linkBillTx}
+        accounts={accountsList ?? []}
       />
 
       {/* Transfer Dialog */}

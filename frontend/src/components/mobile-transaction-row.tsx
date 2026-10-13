@@ -28,6 +28,8 @@ interface MobileTransactionRowProps {
   onClick: (tx: Transaction) => void
   /** Show the payee instead of the account name in an account-scoped view. */
   showPayee?: boolean
+  /** Extra marker under the description (the bill payment badge). */
+  badge?: React.ReactNode
 }
 
 export function MobileTransactionRow({
@@ -44,6 +46,7 @@ export function MobileTransactionRow({
   onSelect,
   onClick,
   showPayee = false,
+  badge,
 }: MobileTransactionRowProps) {
   const { mask } = usePrivacyMode()
   const { t } = useTranslation()
@@ -147,6 +150,8 @@ export function MobileTransactionRow({
             <Paperclip size={11} className="text-muted-foreground shrink-0" />
           )}
         </div>
+
+        {badge && <div className="mt-0.5 flex min-w-0">{badge}</div>}
 
         {/* Account row or payee row */}
         {showPayee ? (

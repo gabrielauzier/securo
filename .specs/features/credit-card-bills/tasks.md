@@ -1289,9 +1289,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH AC 14 and the unlink flow pass; button disabled for credits and card rows
-- [ ] New test `frontend/src/pages/transactions-bill-payment.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/transactions-bill-payment.test.tsx`
+- [x] BMATCH AC 14 and the unlink flow pass; button disabled for credits and card rows
+- [x] New test `frontend/src/pages/transactions-bill-payment.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/transactions-bill-payment.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

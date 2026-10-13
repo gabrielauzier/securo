@@ -3086,7 +3086,17 @@
       "counterpartDescription": "No matching credit was found on {{card}}. Create it so the card balance reflects the payment.",
       "counterpartCreate": "Create counterpart",
       "counterpartSkip": "Not now",
-      "counterpartSuccess": "Counterpart created"
+      "counterpartSuccess": "Counterpart created",
+      "disabledHint": "Select one debit from a non-card account that pays no bill yet."
+    },
+    "row": {
+      "paidBill": "Bill payment {{card}} {{month}}",
+      "unlink": "Unlink from bill",
+      "unlinkSuccess": "Payment unlinked from the bill",
+      "suggestion": "Possible bill payment",
+      "confirm": "Confirm bill payment",
+      "dismiss": "Dismiss suggestion",
+      "dismissSuccess": "Suggestion dismissed"
     }
   }
 }

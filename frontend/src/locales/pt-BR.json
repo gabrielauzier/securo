@@ -2944,7 +2944,17 @@
       "counterpartDescription": "Não encontramos o crédito deste pagamento em {{card}}. Crie a contrapartida para que o saldo do cartão reflita o pagamento.",
       "counterpartCreate": "Criar contrapartida",
       "counterpartSkip": "Agora não",
-      "counterpartSuccess": "Contrapartida criada"
+      "counterpartSuccess": "Contrapartida criada",
+      "disabledHint": "Selecione um débito de uma conta que não seja cartão e que ainda não pague uma fatura."
+    },
+    "row": {
+      "paidBill": "Pagamento da fatura {{card}} {{month}}",
+      "unlink": "Desvincular da fatura",
+      "unlinkSuccess": "Pagamento desvinculado da fatura",
+      "suggestion": "Possível pagamento de fatura",
+      "confirm": "Confirmar pagamento de fatura",
+      "dismiss": "Descartar sugestão",
+      "dismissSuccess": "Sugestão descartada"
     }
   }
 }
