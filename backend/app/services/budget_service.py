@@ -15,6 +15,7 @@ from app.models.user import User
 from app.schemas.budget import BudgetCreate, BudgetUpdate, BudgetVsActual
 from app.services._query_filters import (
     counts_as_user_pnl,
+    is_recognized,
     owner_split_offset_by_category,
     reporting_date_col,
 )
@@ -287,6 +288,7 @@ async def get_budget_vs_actual(
             report_date <= app_today(),
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
         )
         .group_by(Transaction.category_id)
     )
@@ -345,6 +347,7 @@ async def get_budget_vs_actual(
     forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, month_start, month_end,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for tx in forecast_transactions:
         if tx.type != "debit" or not tx.category_id or not _counts_as_user_pnl_row(tx):
@@ -381,6 +384,7 @@ async def get_budget_vs_actual(
             report_date <= app_today(),
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
         )
         .group_by(Transaction.category_id)
     )
@@ -434,6 +438,7 @@ async def get_budget_vs_actual(
     prev_forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, prev_month_start, prev_month_end,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for tx in prev_forecast_transactions:
         if tx.type != "debit" or not tx.category_id or not _counts_as_user_pnl_row(tx):

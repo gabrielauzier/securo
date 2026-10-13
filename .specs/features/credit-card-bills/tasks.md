@@ -1014,9 +1014,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Budget actual for Mercado in September = 600.00 only after the bill is paid
-- [ ] New test `backend/tests/test_budget_settlement.py`
-- [ ] Gate passes: Full
+- [x] Budget actual for Mercado in September = 600.00 only after the bill is paid
+- [x] New test `backend/tests/test_budget_settlement.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
