@@ -13,6 +13,7 @@ from app.models.account import Account
 from app.models.bank_connection import BankConnection
 from app.models.transaction import Transaction
 from app.models.category import Category
+from app.models.credit_card_bill import CreditCardBill
 from app.models.recurring_transaction import RecurringTransaction
 from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, DailyBalance, BalanceHistory
 from app.services._query_filters import (
@@ -27,7 +28,7 @@ from app.services._query_filters import (
     viewer_shared_spending_by_category,
     within_opening_floor,
 )
-from app.services import invoice_forecast_service
+from app.services import bill_service, invoice_forecast_service
 from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.recurring_transaction_service import get_occurrences_in_range
 from app.services.asset_service import get_asset_values_at
@@ -682,7 +683,14 @@ async def get_summary(
         )
     )
 
+    open_bills_remaining_primary = (
+        await _open_bills_remaining(session, workspace_id, today, primary_currency, account_ids)
+        if accounting_mode == "settlement"
+        else None
+    )
+
     return DashboardSummary(
+        open_bills_remaining_primary=open_bills_remaining_primary,
         total_balance=total_balance,
         total_balance_primary=round(total_balance_primary, 2),
         projected_balance=projected_balance,
@@ -704,6 +712,29 @@ async def get_summary(
         primary_currency=primary_currency,
         pending_shares_net=round(pending_shares_net, 2),
     )
+
+
+async def _open_bills_remaining(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    today: date,
+    primary_currency: str,
+    account_ids: Optional[list[uuid.UUID]] = None,
+) -> float:
+    """Sum of the remaining amounts of the bills that are not paid (BREP AC 11)."""
+    stmt = select(CreditCardBill).where(CreditCardBill.workspace_id == workspace_id)
+    if account_ids is not None:
+        stmt = stmt.where(CreditCardBill.account_id.in_(account_ids))
+    total = 0.0
+    for bill in (await session.execute(stmt)).scalars().all():
+        if bill_service.bill_status(bill, today) == bill_service.STATUS_PAID:
+            continue
+        remaining = bill_service.bill_amounts(bill).remaining
+        if remaining <= 0:
+            continue
+        converted, _ = await convert(session, remaining, bill.currency, primary_currency)
+        total += float(converted)
+    return round(total, 2)
 
 
 async def _compute_pending_shares_net(

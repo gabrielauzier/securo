@@ -12,9 +12,10 @@ import pytest_asyncio
 from sqlalchemy import select
 
 from app.models.transaction import Transaction
-from app.services import dashboard_service
+from app.services import bill_payment_service, bill_service, dashboard_service
 from app.services._query_filters import reporting_date_col
-from tests.settlement_fixtures import AUG, OCT, SEP, freeze_today, pay, seed_reference, set_mode, unpay
+from app.services.credit_card_service import bill_period_for_month
+from tests.settlement_fixtures import AUG, OCT, SEP, freeze_today, pay, seed_reference, set_mode, tx, unpay
 
 
 @pytest_asyncio.fixture
@@ -168,6 +169,49 @@ async def test_paid_bill_is_not_projected_twice(session, test_user, test_workspa
         1000.0,
         {"Mercado": (600.0, 600.0), "Restaurantes": (400.0, 400.0)},
     )
+
+
+# --- T33: open bills balance ----------------------------------------------------
+
+
+async def _bill_with_purchase(session, ref, month, on, amount):
+    bill, _ = await bill_service.get_or_create_bill(
+        session, ref.card, bill_period_for_month(month, 5, 12)
+    )
+    session.add(tx(ref.card, on, amount, bill_id=bill.id))
+    await bill_service.refresh_bills(session, [bill.id])
+    await session.commit()
+    return bill
+
+
+async def test_open_bills_balance_sums_remaining_of_unpaid_bills(
+    session, test_user, test_workspace, ref
+):
+    """AC 11: unpaid 2026-09 bill (500.00 left) + open 2026-10 bill (200.00); paid 2026-08 is out."""
+    august = await _bill_with_purchase(session, ref, AUG, date(2026, 7, 20), "300.00")
+    await _bill_with_purchase(session, ref, OCT, date(2026, 9, 10), "200.00")
+    payment = tx(ref.checking, date(2026, 8, 14), "300.00")
+    session.add(payment)
+    await session.flush()
+    await bill_payment_service.link_payment(session, test_workspace.id, payment.id, august.id)
+    await session.commit()
+    await pay(session, ref, "500.00", date(2026, 9, 14))
+
+    summary = await dashboard_service.get_summary(
+        session, test_workspace.id, test_user.id, month=SEP
+    )
+    assert summary.open_bills_remaining_primary == 700.0
+
+
+@pytest.mark.parametrize("mode", ["cash", "accrual"])
+async def test_open_bills_balance_is_left_to_the_accounts_in_other_modes(
+    session, test_user, test_workspace, ref, mode
+):
+    await set_mode(session, mode)
+    summary = await dashboard_service.get_summary(
+        session, test_workspace.id, test_user.id, month=SEP
+    )
+    assert summary.open_bills_remaining_primary is None
 
 
 class TestTrendOnPostgres:

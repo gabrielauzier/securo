@@ -29,6 +29,11 @@ class DashboardSummary(BaseModel):
     # waiting to be paid back). Computed from group balance lines so
     # it already accounts for any partial settlements.
     pending_shares_net: float = 0.0
+    # BREP AC 11: in the `settlement` mode, "Faturas de cartão em aberto" is
+    # the sum of the remaining amounts of the bills that are not paid, in
+    # primary currency. None in `cash` and `accrual`, where the card account
+    # balances keep feeding that value.
+    open_bills_remaining_primary: Optional[float] = None
 
 
 class SpendingByCategory(BaseModel):
