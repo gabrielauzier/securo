@@ -17,6 +17,7 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, DailyBalance, BalanceHistory
 from app.services._query_filters import (
     counts_as_user_pnl,
+    is_recognized,
     owner_split_offset_by_category,
     owner_split_offset_pnl,
     reporting_date_col,
@@ -356,6 +357,7 @@ async def get_summary(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
     )
@@ -501,6 +503,7 @@ async def get_summary(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             Transaction.amount_primary.isnot(None),
             *acct_filter,
         )
@@ -565,6 +568,7 @@ async def get_summary(
                 report_date <= today,
                 Transaction.status == "posted",
                 counts_as_user_pnl(),
+                is_recognized(accounting_mode),
             )
             .group_by(Transaction.currency)
         )
@@ -754,6 +758,7 @@ async def get_spending_by_category(
             report_date <= today,
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(Category.id, Category.name, Category.icon, Category.color)
@@ -956,6 +961,7 @@ async def get_monthly_trend(
             report_date <= today,
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(month_label)

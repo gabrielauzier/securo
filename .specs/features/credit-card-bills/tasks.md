@@ -914,9 +914,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BREP AC 5, 7, 8 pass
-- [ ] New test `backend/tests/test_dashboard_settlement.py`
-- [ ] Gate passes: Full
+- [x] BREP AC 5, 7, 8 pass
+- [x] New test `backend/tests/test_dashboard_settlement.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
