@@ -83,7 +83,7 @@ T29 → T30 → T31 → T32 → T33 → T34 → T35 → T36 → T37
 ### Phase 7: Frontend foundations
 
 ```
-T38 → T39 → T40 → T41
+T53 → T38 → T39 → T40 → T41 → T54
 ```
 
 ### Phase 8: Frontend payments
@@ -1075,11 +1075,36 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 ---
 
+### T53: Exclude bill payments from forecast rows
+
+**What**: `dashboard_service._counts_as_user_pnl_row` matches `counts_as_user_pnl`: it also drops rows with `paid_bill_id` and rows in `is_bill_payment` categories, so a pending "Pagamento de fatura" never adds to projected expenses (gap found in B5).
+**Where**: `backend/app/services/dashboard_service.py`
+**Depends on**: None (phase order)
+**Reuses**: `counts_as_user_pnl`
+**Requirement**: BPAY-03
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] A pending debit in an `is_bill_payment` category does not change projected expenses (BPAY AC 13), in every mode
+- [ ] New test `backend/tests/test_forecast_bill_payment.py`
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `fix(bills): leave bill payments out of projected expenses`
+
+---
+
 ### T38: Frontend types and API client
 
 **What**: Types for bills, payments, candidates, proposals, new transaction and category fields; `creditCardBills` API client.
 **Where**: `frontend/src/lib/api.ts` (types in `frontend/src/types/index.ts`)
-**Depends on**: None (phase order)
+**Depends on**: T53
 **Reuses**: `accounts.bills` client
 **Requirement**: BILL-01, BPAY-01, BMATCH-02
 
@@ -1171,6 +1196,31 @@ T46 → T47 → T48 → T49 → T50 → T51
 **Tests**: unit
 **Gate**: Quick-FE
 **Commit**: `feat(dashboard): show the recognition date of card purchases`
+
+---
+
+### T54: Open bills value on the dashboard
+
+**What**: In `settlement`, the dashboard "Faturas de cartão em aberto" shows `open_bills_remaining_primary` from the summary instead of summing card balances; other modes unchanged.
+**Where**: `frontend/src/pages/dashboard.tsx`
+**Depends on**: T41
+**Reuses**: existing `creditCardBalance` block
+**Requirement**: BREP-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: `react-best-practices`
+
+**Done when**:
+
+- [ ] BREP AC 11 visible: settlement shows the API value; cash/accrual keep the card-balance sum; hidden when 0
+- [ ] Tests added to `frontend/src/pages/dashboard.test.tsx`
+- [ ] Gate passes: Build (frontend)
+
+**Tests**: unit
+**Gate**: Build
+**Commit**: `feat(dashboard): show remaining open bills in settlement mode`
 
 ---
 
@@ -1434,12 +1484,12 @@ Phase 3:  T13 → T14 → T15
 Phase 4:  T16 → T17 → T18 → T19 → T20 → T21
 Phase 5:  T22 → T23 → T24 → T25 → T26 → T27 → T28 → T52
 Phase 6:  T29 → T30 → T31 → T32 → T33 → T34 → T35 → T36 → T37
-Phase 7:  T38 → T39 → T40 → T41
+Phase 7:  T53 → T38 → T39 → T40 → T41 → T54
 Phase 8:  T42 → T43 → T44 → T45
 Phase 9:  T46 → T47 → T48 → T49 → T50 → T51
 ```
 
-Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phases 7-8 (8), B7 = Phase 9 (6).
+Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phases 7-8 (10), B7 = Phase 9 (6).
 
 ---
 
@@ -1470,8 +1520,10 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | T52 | T28 | chain (end of Phase 5) | ✅ Match |
 | T29 | None (phase order) | start of Phase 6 | ✅ Match |
 | T30-T37 | previous task | chain | ✅ Match |
-| T38 | None (phase order) | start of Phase 7 | ✅ Match |
+| T53 | None (phase order) | start of Phase 7 | ✅ Match |
+| T38 | T53 | chain | ✅ Match |
 | T39-T41 | previous task | chain | ✅ Match |
+| T54 | T41 | chain (end of Phase 7) | ✅ Match |
 | T42 | None (phase order) | start of Phase 8 | ✅ Match |
 | T43-T45 | previous task | chain | ✅ Match |
 | T46 | None (phase order) | start of Phase 9 | ✅ Match |
@@ -1483,11 +1535,11 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | ---- | --------------------------- | --------------- | --------- | ------ |
 | T1, T2 | Backend pure domain | unit | unit | ✅ OK |
 | T3 | Model / schema-only migration | none | none | ✅ OK |
-| T4, T5, T7-T12, T14, T16, T18, T19, T22-T27, T30-T36, T52 | Backend service / SQL filter | unit | unit | ✅ OK |
+| T4, T5, T7-T12, T14, T16, T18, T19, T22-T27, T30-T36, T52, T53 | Backend service / SQL filter | unit | unit | ✅ OK |
 | T6 | Backend data migration | unit | unit | ✅ OK |
 | T13, T15, T17, T20, T21, T28, T29, T37 | Backend route (and its service) | integration | integration | ✅ OK |
 | T38 | Frontend api client / types | none | none | ✅ OK |
-| T39-T49 | Frontend page / component | unit | unit | ✅ OK |
+| T39-T49, T54 | Frontend page / component | unit | unit | ✅ OK |
 | T50 | Frontend wiring (route/nav) | unit | unit (contract test) | ✅ OK |
 | T51 | Docs | none | none | ✅ OK |
 
@@ -1502,11 +1554,11 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | BIMP-01 | T5, T8, T9, T10, T11 |
 | BPAY-01 | T16, T18, T20, T21, T38, T43, T44 |
 | BPAY-02 | T19, T52 |
-| BPAY-03 | T16, T17, T40 |
+| BPAY-03 | T16, T17, T40, T53 |
 | BDAY-01 | T1 |
 | BMATCH-01 | T22, T23, T25, T26, T27 |
 | BMATCH-02 | T24, T28, T38, T43, T44 |
 | BMATCH-03 | T23, T28, T45 |
-| BREP-01 | T29-T37, T39, T51 |
+| BREP-01 | T29-T37, T39, T51, T54 |
 | BREP-02 | T37, T41 |
 | BVIEW-01 | T48, T49, T50 |
