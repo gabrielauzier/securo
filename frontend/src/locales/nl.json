@@ -2906,5 +2906,15 @@
     "to": "Naar",
     "empty": "Geen overboekingsparen om te koppelen",
     "selectPair": "Paar selecteren"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

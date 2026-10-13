@@ -2904,5 +2904,15 @@
     "to": "To",
     "empty": "No transfer pairs to link",
     "selectPair": "Select pair"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

@@ -1239,9 +1239,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Five statuses render distinct text; tooltip only when effective ≠ nominal
-- [ ] New test `frontend/src/components/credit-card/bill-status-badge.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/credit-card/bill-status-badge.test.tsx`
+- [x] Five statuses render distinct text; tooltip only when effective ≠ nominal
+- [x] New test `frontend/src/components/credit-card/bill-status-badge.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/credit-card/bill-status-badge.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

@@ -3050,5 +3050,15 @@
     "to": "Na",
     "empty": "Žiadne páry prevodov na prepojenie",
     "selectPair": "Vybrať pár"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

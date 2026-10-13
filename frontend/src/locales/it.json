@@ -2908,5 +2908,15 @@
     "to": "A",
     "empty": "Nessuna coppia di trasferimento da collegare",
     "selectPair": "Seleziona coppia"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

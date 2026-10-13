@@ -2904,5 +2904,15 @@
     "to": "Προς",
     "empty": "Δεν υπάρχουν ζεύγη μεταφοράς για σύνδεση",
     "selectPair": "Επιλογή ζεύγους"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

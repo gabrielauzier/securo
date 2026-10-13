@@ -3019,5 +3019,15 @@
     "to": "Do",
     "empty": "Brak par transferów do powiązania",
     "selectPair": "Zaznacz parę"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

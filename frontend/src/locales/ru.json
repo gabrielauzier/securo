@@ -2923,5 +2923,15 @@
     "to": "Куда",
     "empty": "Нет пар переводов для связывания",
     "selectPair": "Выбрать пару"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

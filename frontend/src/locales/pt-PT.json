@@ -2908,5 +2908,15 @@
     "to": "Para",
     "empty": "Nenhum par de transferência para associar",
     "selectPair": "Selecionar par"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paga",
+      "open": "Aberta",
+      "overdue": "Vencida",
+      "partially_paid": "Parcialmente paga",
+      "closed": "Fechada"
+    },
+    "originalDueDate": "Vencimento original {{date}} ({{weekday}})"
   }
 }

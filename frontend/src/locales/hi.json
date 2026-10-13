@@ -2904,5 +2904,15 @@
     "to": "को",
     "empty": "जोड़ने के लिए कोई ट्रांसफ़र जोड़ी नहीं",
     "selectPair": "जोड़ी चुनें"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }

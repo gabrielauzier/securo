@@ -2908,5 +2908,15 @@
     "to": "Vers",
     "empty": "Aucune paire de virement à lier",
     "selectPair": "Sélectionner la paire"
+  },
+  "bills": {
+    "status": {
+      "paid": "Paid",
+      "open": "Open",
+      "overdue": "Overdue",
+      "partially_paid": "Partially paid",
+      "closed": "Closed"
+    },
+    "originalDueDate": "Original due date {{date}} ({{weekday}})"
   }
 }
