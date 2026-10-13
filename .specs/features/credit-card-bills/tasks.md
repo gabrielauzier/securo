@@ -989,9 +989,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] AC 5 bill reports in September only, realized when paid and projected when not
-- [ ] New test `backend/tests/test_report_settlement.py`
-- [ ] Gate passes: Full
+- [x] AC 5 bill reports in September only, realized when paid and projected when not
+- [x] New test `backend/tests/test_report_settlement.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

@@ -18,8 +18,10 @@ from app.models.user import User
 from app.services._query_filters import (
     counts_as_pnl,
     counts_as_user_pnl,
+    is_recognized,
     owner_split_offset_by_category,
     reporting_date_col,
+    reporting_date_of,
 )
 from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.account_service import get_account_name
@@ -531,6 +533,7 @@ async def get_income_expenses_report(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(label_expr)
@@ -591,6 +594,7 @@ async def get_income_expenses_report(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
         )
         .group_by(label_expr, Transaction.currency)
     )
@@ -655,6 +659,7 @@ async def get_income_expenses_report(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
         )
         .group_by(label_expr, Transaction.currency)
     )
@@ -710,6 +715,7 @@ async def get_income_expenses_report(
         forecast_transactions = await _get_forecast_transactions(
             session, workspace_id, max(m_start, start), m_end, account_ids,
             range_date_col=report_date,
+            accounting_mode=accounting_mode,
         )
         for tx in forecast_transactions:
             if not _counts_as_user_pnl_row(tx):
@@ -721,10 +727,7 @@ async def get_income_expenses_report(
                     session, Decimal(str(abs(tx.amount))), tx.currency, primary_currency,
                 )
                 amount = abs(float(converted))
-            tx_report_date = (
-                tx.effective_bill_date
-                or (tx.effective_date if accounting_mode == "accrual" else tx.date)
-            )
+            tx_report_date = reporting_date_of(tx, accounting_mode, real_today)
             label = _format_date_label(tx_report_date, interval)
             existing_income, existing_expenses = forecast_map.get(label, (0.0, 0.0))
             if tx.type == "credit":
@@ -868,6 +871,7 @@ async def get_income_expenses_report(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(Category.id, Category.name, Category.color, Transaction.type)
@@ -936,6 +940,7 @@ async def get_income_expenses_report(
             Transaction.exclude_from_pnl.is_(False),
             Category.treat_as_transfer.is_(True),
             Category.is_ignored.is_(False),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(Category.id, Category.name, Category.color)
@@ -971,6 +976,7 @@ async def get_income_expenses_report(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(label_expr, Category.id, Category.name, Category.color, Transaction.type)
@@ -1019,6 +1025,7 @@ async def get_income_expenses_report(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
         )
         .group_by(label_expr, Transaction.category_id, Transaction.currency)
     )
@@ -1101,16 +1108,14 @@ async def get_income_expenses_report(
         forecast_transactions = await _get_forecast_transactions(
             session, workspace_id, m_start, m_end, account_ids,
             range_date_col=report_date,
+            accounting_mode=accounting_mode,
         )
         for tx in forecast_transactions:
             if not _counts_as_user_pnl_row(tx):
                 continue
             cat_id_str = str(tx.category_id) if tx.category_id else "uncategorized"
             group = "income" if tx.type == "credit" else "expenses"
-            tx_report_date = (
-                tx.effective_bill_date
-                or (tx.effective_date if accounting_mode == "accrual" else tx.date)
-            )
+            tx_report_date = reporting_date_of(tx, accounting_mode, real_today)
             forecast_period_label = _format_date_label(tx_report_date, interval)
             if cat_id_str != "uncategorized" and cat_id_str not in cat_cache:
                 cat_row = await session.execute(
@@ -1412,6 +1417,9 @@ async def get_cash_flow_report(
 
     accounting_mode = await get_credit_card_accounting_mode(session)
     accrual = accounting_mode == "accrual"
+    # `settlement` moves cash on the bill payment date; purchases on unpaid
+    # bills are future outflows at the bill's effective due date.
+    settlement = accounting_mode == "settlement"
 
     # "Saldo Atual" shown in the hero card. The walk is anchored at this
     # value (not at balance-at-chart_start) so opening-balance transactions
@@ -1442,6 +1450,8 @@ async def get_cash_flow_report(
             bucket["outflow"] += amount
 
     flow_date_col = Transaction.effective_date if accrual else Transaction.date
+    if settlement:
+        flow_date_col = reporting_date_col(accounting_mode)
 
     # 1a. Past actual transactions (chart_start, today]. Gives the chart a
     #     "real" section before the forecast so the today-marker has meaning.
@@ -1462,6 +1472,7 @@ async def get_cash_flow_report(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
     )
@@ -1515,11 +1526,16 @@ async def get_cash_flow_report(
     pending_forecast = await _get_forecast_transactions(
         session, workspace_id, date.min, end + timedelta(days=1), account_ids,
         range_date_col=flow_date_col,
+        accounting_mode=accounting_mode,
     )
     for tx in pending_forecast:
         if tx.status != "pending" or not _counts_as_user_pnl_row(tx):
             continue
-        flow_date = tx.effective_bill_date or (tx.effective_date if accrual else tx.date)
+        flow_date = (
+            reporting_date_of(tx, accounting_mode, today)
+            if settlement
+            else tx.effective_bill_date or (tx.effective_date if accrual else tx.date)
+        )
         if flow_date > end:
             continue
         if tx.amount_primary is not None:
@@ -1542,13 +1558,18 @@ async def get_cash_flow_report(
     # before the booked future flow is applied. Pending rows intentionally do
     # not use this adjustment: their posted-only current balance has excluded
     # them and the generic pending handling above is sufficient.
-    if accrual:
+    # The same holds in `settlement` for a purchase on an unpaid bill.
+    if accrual or settlement:
         for tx in pending_forecast:
             if tx.status != "posted" or not _counts_as_user_pnl_row(tx):
                 continue
             if not tx.account or tx.account.type != "credit_card" or tx.date > today:
                 continue
-            flow_date = tx.effective_bill_date or tx.effective_date
+            flow_date = (
+                reporting_date_of(tx, accounting_mode, today)
+                if settlement
+                else tx.effective_bill_date or tx.effective_date
+            )
             if flow_date <= today or flow_date > end:
                 continue
             if tx.amount_primary is not None:
