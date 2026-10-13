@@ -1644,7 +1644,7 @@ async def _cleanup_phantom_duplicates(
                 sibling.original_description or sibling.description,
                 tx.original_description or tx.description,
             ) >= 0.9:
-                bill_ids |= {tx.bill_id, tx.paid_bill_id} - {None}
+                bill_ids |= {b for b in (tx.bill_id, tx.paid_bill_id) if b is not None}
                 await session.delete(tx)
                 touched.add(tx.account_id)
                 break

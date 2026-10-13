@@ -104,7 +104,8 @@ async def delete_import_log(
         )
     ).scalars().all()
     for pair_id in pair_ids:
-        await unlink_transfer_pair(session, ctx.workspace.id, pair_id)
+        if pair_id is not None:
+            await unlink_transfer_pair(session, ctx.workspace.id, pair_id)
 
     # Delete all transactions from this import
     await session.execute(
