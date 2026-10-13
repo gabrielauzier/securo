@@ -2,7 +2,7 @@
 
 import unicodedata
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from decimal import Decimal
 from typing import Iterable, Sequence
@@ -173,3 +173,130 @@ async def candidates_for(session: AsyncSession, payment: Transaction) -> list[Ca
     bills = await _workspace_bills(session, payment.workspace_id)
     categories = await _bill_payment_categories(session, payment.workspace_id)
     return rank_candidates(payment, bills, hinted=_has_hint(payment, categories))
+
+
+# --- Proposals ---------------------------------------------------------------
+
+#: The single exact pair of BMATCH AC 4; the only kind linked automatically.
+PROPOSAL_EXACT = "exact"
+#: BMATCH AC 5: the payment is below the remaining amount of its only candidate.
+PROPOSAL_PARTIAL = "partial"
+#: BMATCH AC 6: more than one bill or more than one payment qualifies.
+PROPOSAL_SUGGESTION = "suggestion"
+
+
+@dataclass(frozen=True)
+class Proposal:
+    payment: Transaction
+    bill: CreditCardBill
+    kind: str
+    reason: str
+
+    @property
+    def payment_id(self) -> uuid.UUID:
+        return self.payment.id
+
+    @property
+    def bill_id(self) -> uuid.UUID:
+        return self.bill.id
+
+
+@dataclass
+class ApplyResult:
+    linked: int = 0
+    #: `(payment_id, bill_id, reason)` of every pair that was not linked.
+    failed: list[tuple[uuid.UUID, uuid.UUID, str]] = field(default_factory=list)
+
+
+def _proposals_for(
+    candidates: dict[uuid.UUID, list[Candidate]], payments: Sequence[Transaction]
+) -> list[Proposal]:
+    """Classify each payment's window candidates (BMATCH AC 4-6)."""
+    exact_payments: dict[uuid.UUID, int] = {}
+    for listed in candidates.values():
+        for c in listed:
+            if c.kind == KIND_EXACT:
+                exact_payments[c.bill.id] = exact_payments.get(c.bill.id, 0) + 1
+    proposals: list[tuple[tuple, Proposal]] = []
+    for payment in payments:
+        inside = [c for c in candidates[payment.id] if c.kind != KIND_OTHER]
+        if not inside:
+            continue
+        exact = [c for c in inside if c.kind == KIND_EXACT]
+        if len(exact) == 1 and exact_payments[exact[0].bill.id] == 1:
+            chosen = [(exact[0], PROPOSAL_EXACT)]
+        elif len(inside) == 1 and inside[0].reason == REASON_PARTIAL:
+            chosen = [(inside[0], PROPOSAL_PARTIAL)]
+        else:
+            chosen = [(c, PROPOSAL_SUGGESTION) for c in inside]
+        for c, kind in chosen:
+            proposals.append(
+                ((payment.date, c.sort_key, str(payment.id)), Proposal(payment, c.bill, kind, c.reason))
+            )
+    proposals.sort(key=lambda item: item[0])
+    return [proposal for _, proposal in proposals]
+
+
+async def _candidates_by_payment(
+    session: AsyncSession, workspace_id: uuid.UUID, payments: Sequence[Transaction]
+) -> dict[uuid.UUID, list[Candidate]]:
+    bills = await _workspace_bills(session, workspace_id)
+    categories = await _bill_payment_categories(session, workspace_id)
+    return {
+        payment.id: rank_candidates(payment, bills, hinted=_has_hint(payment, categories))
+        for payment in payments
+    }
+
+
+async def propose_matches(session: AsyncSession, workspace_id: uuid.UUID) -> list[Proposal]:
+    """Every payment-bill pair worth proposing, without writing anything (BMATCH AC 10)."""
+    payments = await eligible_payments(session, workspace_id)
+    if not payments:
+        return []
+    candidates = await _candidates_by_payment(session, workspace_id, payments)
+    return _proposals_for(candidates, payments)
+
+
+async def run_auto_match(session: AsyncSession, workspace_id: uuid.UUID) -> int:
+    """Link the unambiguous exact pairs (BMATCH AC 4); returns how many were linked.
+
+    `link_payment` commits when it pairs the payment with the card credit."""
+    from app.services import bill_payment_service  # local: circular
+
+    linked = 0
+    for proposal in await propose_matches(session, workspace_id):
+        if proposal.kind != PROPOSAL_EXACT:
+            continue
+        try:
+            await bill_payment_service.link_payment(
+                session, workspace_id, proposal.payment_id, proposal.bill_id
+            )
+        except bill_payment_service.BillPaymentError:
+            continue
+        linked += 1
+    return linked
+
+
+async def apply_matches(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    pairs: Iterable[tuple[uuid.UUID, uuid.UUID]],
+) -> ApplyResult:
+    """Link the `(payment_id, bill_id)` pairs the user checked (BMATCH AC 11).
+
+    A pair that cannot be linked is reported with its reason; the others land."""
+    from app.services import bill_payment_service  # local: circular
+
+    result = ApplyResult()
+    for payment_id, bill_id in pairs:
+        # SPEC_DEVIATION: design.md asks for a savepoint per pair. Reason:
+        # `link_payment` commits when it pairs the card credit, which would end
+        # the savepoint; it validates before writing anything instead, so a
+        # refused pair leaves nothing behind.
+        try:
+            await bill_payment_service.link_payment(session, workspace_id, payment_id, bill_id)
+        except bill_payment_service.BillPaymentError as exc:
+            result.failed.append((payment_id, bill_id, exc.detail))
+            continue
+        result.linked += 1
+    return result

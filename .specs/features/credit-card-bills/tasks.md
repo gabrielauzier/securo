@@ -688,9 +688,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH AC 4, 6 (both ambiguity directions), 11 (per-pair failure) pass
-- [ ] New test `backend/tests/test_bill_match_apply.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_match_apply.py -q`
+- [x] BMATCH AC 4, 6 (both ambiguity directions), 11 (per-pair failure) pass
+- [x] New test `backend/tests/test_bill_match_apply.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_match_apply.py -q`
 
 **Tests**: unit
 **Gate**: Quick
