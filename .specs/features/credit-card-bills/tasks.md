@@ -71,7 +71,7 @@ T16 → T17 → T18 → T19 → T20 → T21
 ### Phase 5: Payment matching
 
 ```
-T22 → T23 → T24 → T25 → T26 → T27 → T28
+T22 → T23 → T24 → T25 → T26 → T27 → T28 → T52
 ```
 
 ### Phase 6: Settlement mode (backend)
@@ -823,6 +823,31 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 ---
 
+### T52: Refresh bills after automatic transfer pairing
+
+**What**: `transfer_detection_service.apply_pairs` and the sync/import detection path call `bill_service.touch` for the paired rows, so a card credit paired automatically leaves the bill's computed total current (AD-004 gap found in B3).
+**Where**: `backend/app/services/transfer_detection_service.py`
+**Depends on**: T28
+**Reuses**: `bill_service.touch`
+**Requirement**: BPAY-02
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] A card credit paired by `apply_pairs` and by `detect_transfer_pairs` is excluded from the bill's computed total right after pairing
+- [ ] New test `backend/tests/test_transfer_pairing_bills.py`
+- [ ] Gate passes: Build (backend)
+
+**Tests**: unit
+**Gate**: Build
+**Commit**: `fix(bills): refresh bills after automatic transfer pairing`
+
+---
+
 ### T29: Accept the settlement mode
 
 **What**: Admin setting whitelist accepts `settlement`; `get_credit_card_accounting_mode` returns it.
@@ -1407,14 +1432,14 @@ Phase 1:  T1 → T2 → T3 → T4 → T5
 Phase 2:  T6 → T7 → T8 → T9 → T10 → T11 → T12
 Phase 3:  T13 → T14 → T15
 Phase 4:  T16 → T17 → T18 → T19 → T20 → T21
-Phase 5:  T22 → T23 → T24 → T25 → T26 → T27 → T28
+Phase 5:  T22 → T23 → T24 → T25 → T26 → T27 → T28 → T52
 Phase 6:  T29 → T30 → T31 → T32 → T33 → T34 → T35 → T36 → T37
 Phase 7:  T38 → T39 → T40 → T41
 Phase 8:  T42 → T43 → T44 → T45
 Phase 9:  T46 → T47 → T48 → T49 → T50 → T51
 ```
 
-Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (7), B5 = Phase 6 (9), B6 = Phases 7-8 (8), B7 = Phase 9 (6).
+Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phases 7-8 (8), B7 = Phase 9 (6).
 
 ---
 
@@ -1442,6 +1467,7 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | T17-T21 | previous task | chain | ✅ Match |
 | T22 | None (phase order) | start of Phase 5 | ✅ Match |
 | T23-T28 | previous task | chain | ✅ Match |
+| T52 | T28 | chain (end of Phase 5) | ✅ Match |
 | T29 | None (phase order) | start of Phase 6 | ✅ Match |
 | T30-T37 | previous task | chain | ✅ Match |
 | T38 | None (phase order) | start of Phase 7 | ✅ Match |
@@ -1457,7 +1483,7 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | ---- | --------------------------- | --------------- | --------- | ------ |
 | T1, T2 | Backend pure domain | unit | unit | ✅ OK |
 | T3 | Model / schema-only migration | none | none | ✅ OK |
-| T4, T5, T7-T12, T14, T16, T18, T19, T22-T27, T30-T36 | Backend service / SQL filter | unit | unit | ✅ OK |
+| T4, T5, T7-T12, T14, T16, T18, T19, T22-T27, T30-T36, T52 | Backend service / SQL filter | unit | unit | ✅ OK |
 | T6 | Backend data migration | unit | unit | ✅ OK |
 | T13, T15, T17, T20, T21, T28, T29, T37 | Backend route (and its service) | integration | integration | ✅ OK |
 | T38 | Frontend api client / types | none | none | ✅ OK |
@@ -1475,7 +1501,7 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | BILL-04 | T6, T7, T51 |
 | BIMP-01 | T5, T8, T9, T10, T11 |
 | BPAY-01 | T16, T18, T20, T21, T38, T43, T44 |
-| BPAY-02 | T19 |
+| BPAY-02 | T19, T52 |
 | BPAY-03 | T16, T17, T40 |
 | BDAY-01 | T1 |
 | BMATCH-01 | T22, T23, T25, T26, T27 |
