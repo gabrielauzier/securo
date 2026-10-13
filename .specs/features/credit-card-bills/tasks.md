@@ -1572,8 +1572,8 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] Assertion on both batches' `bill_id` equal to the one bill id added (test created by this feature, so no owner approval needed)
-- [ ] Gate passes: `cd backend && $V/python -m pytest tests/test_bill_service.py -q` with `POSTGRES_TEST_URL`
+- [x] Assertion on both batches' `bill_id` equal to the one bill id added (test created by this feature, so no owner approval needed)
+- [x] Gate passes: `cd backend && $V/python -m pytest tests/test_bill_service.py -q` with `POSTGRES_TEST_URL`
 
 **Tests**: unit
 **Gate**: Quick

@@ -20,6 +20,7 @@ from app.services.bill_service import (
     bill_amounts,
     bill_status,
     get_or_create_bill,
+    link_account_transactions,
     refresh_bills,
 )
 from app.services.credit_card_service import bill_period_for_month
@@ -322,14 +323,26 @@ async def test_concurrent_get_or_create_keeps_one_bill(postgres_sessions):
     async def create():
         async with postgres_sessions() as s:
             acc = await s.get(Account, account.id)
+            # Each import batch brings one row of the 2026-09 period.
+            row = _tx(acc, "10.00", workspace_id=acc.workspace_id)
+            s.add(row)
             bill, _ = await get_or_create_bill(s, acc, SEPT)
+            await link_account_transactions(s, acc, [row.id])
             await s.commit()
-            return bill.id
+            return bill.id, row.id
 
-    ids = await asyncio.gather(create(), create(), create())
+    results = await asyncio.gather(create(), create(), create())
+    ids = [bill_id for bill_id, _ in results]
     assert len(set(ids)) == 1
     async with postgres_sessions() as check:
         count = await check.scalar(
             select(func.count()).select_from(CreditCardBill).where(CreditCardBill.account_id == account.id)
         )
+        # ...and every batch's row is linked to that one bill.
+        linked = (
+            await check.execute(
+                select(Transaction.bill_id).where(Transaction.id.in_([r for _, r in results]))
+            )
+        ).scalars().all()
     assert count == 1
+    assert linked == [ids[0]] * 3
