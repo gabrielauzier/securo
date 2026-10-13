@@ -562,9 +562,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BPAY AC 1, 5, 6, 7, 8, 10, 11, 12 and the zero/negative and closed-card edge cases pass
-- [ ] New test `backend/tests/test_bill_payment_service.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_payment_service.py -q`
+- [x] BPAY AC 1, 5, 6, 7, 8, 10, 11, 12 and the zero/negative and closed-card edge cases pass
+- [x] New test `backend/tests/test_bill_payment_service.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_payment_service.py -q`
 
 **Tests**: unit
 **Gate**: Quick
