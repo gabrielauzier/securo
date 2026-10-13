@@ -94,6 +94,17 @@ class Transaction(Base):
         nullable=True,
         index=True,
     )
+    # The bill this transaction pays, when it is a bill payment made from a
+    # non-card account. ON DELETE SET NULL: deleting the bill unlinks it.
+    paid_bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("credit_card_bills.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # True when linking the payment created its transfer pair with the card
+    # credit, so unlinking undoes only a pair it made.
+    bill_payment_pair: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # Ignore the row everywhere monetary totals are calculated, including the
     # account balance. The row remains stored and can still be shown in ledger
     # views unless the caller explicitly hides ignored transactions.
@@ -119,7 +130,7 @@ class Transaction(Base):
 
     account: Mapped["Account"] = relationship(back_populates="transactions")
     category: Mapped[Optional["Category"]] = relationship()
-    bill: Mapped[Optional["CreditCardBill"]] = relationship()
+    bill: Mapped[Optional["CreditCardBill"]] = relationship(foreign_keys=[bill_id])
     payee_entity: Mapped[Optional["Payee"]] = relationship(back_populates="transactions")
     recurring_transaction: Mapped[Optional["RecurringTransaction"]] = relationship(
         back_populates="transactions"

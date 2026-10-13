@@ -206,3 +206,31 @@ def bill_period_for_month(reference_month: date, close_day: int, due_day: int) -
     if close_date >= nominal_due:
         close_date = _clamp_day(*_shift_month(reference_month, -1), close_day)
     return _period(close_date, close_day, due_day)
+
+
+# Days between close and due assumed for a provider bill whose card has no
+# statement close day configured.
+PROVIDER_BILL_DEFAULT_CLOSE_GAP = 7
+
+
+def bill_period_for_due_date(due_date: date, close_day: Optional[int]) -> BillPeriod:
+    """The period of a provider bill, whose nominal due date the bank gave.
+
+    The close is the last close day strictly before the due date. Without a
+    configured close day the close is assumed `PROVIDER_BILL_DEFAULT_CLOSE_GAP`
+    days before the due date."""
+    if close_day:
+        close_date = _clamp_day(due_date.year, due_date.month, close_day)
+        if close_date >= due_date:
+            close_date = _clamp_day(*_shift_month(due_date, -1), close_day)
+    else:
+        close_date = due_date - timedelta(days=PROVIDER_BILL_DEFAULT_CLOSE_GAP)
+    day = close_day or close_date.day
+    return BillPeriod(
+        reference_month=due_date.replace(day=1),
+        period_start=_clamp_day(*_shift_month(close_date, -1), day),
+        period_end=close_date - timedelta(days=1),
+        close_date=close_date,
+        nominal_due_date=due_date,
+        effective_due_date=next_business_day(due_date),
+    )

@@ -1834,7 +1834,10 @@ async def _sync_credit_card_bills(
             select(CreditCardBill).where(CreditCardBill.account_id == account.id)
         )
     ).scalars().all()
-    by_external_id: dict[str, CreditCardBill] = {b.external_id: b for b in existing}
+    # Auto and manual bills have no external id; only provider bills match.
+    by_external_id: dict[str, CreditCardBill] = {
+        b.external_id: b for b in existing if b.external_id is not None
+    }
 
     for bd in bills_data:
         bill = by_external_id.get(bd.external_id)

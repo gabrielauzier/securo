@@ -40,5 +40,10 @@ class Category(Base):
     # for income/expense calculations.
     is_ignored: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
+    # Flag for credit-card bill payments: transactions in these categories
+    # are left out of income/expense totals even before they are linked to a
+    # bill, and never count in a bill's computed total.
+    is_bill_payment: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
     user: Mapped["User"] = relationship(back_populates="categories")
     group: Mapped[Optional["CategoryGroup"]] = relationship(back_populates="categories")

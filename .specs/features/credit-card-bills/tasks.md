@@ -171,10 +171,10 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] `alembic upgrade head` and `downgrade -1` run on PostgreSQL
-- [ ] `backend/scripts/check_migration_chain.py` passes
-- [ ] Partial index declared with `postgresql_where` and `sqlite_where`
-- [ ] Gate passes: Build (backend)
+- [x] `alembic upgrade head` and `downgrade -1` run on PostgreSQL
+- [x] `backend/scripts/check_migration_chain.py` passes
+- [x] Partial index declared with `postgresql_where` and `sqlite_where`
+- [x] Gate passes: Build (backend)
 
 **Tests**: none
 **Gate**: Build

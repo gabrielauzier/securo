@@ -7,6 +7,7 @@ import pytest
 from app.services.credit_card_service import (
     BillPeriod,
     bill_period_for,
+    bill_period_for_due_date,
     bill_period_for_month,
     compute_effective_date,
 )
@@ -81,3 +82,17 @@ def test_nominal_due_matches_compute_effective_date_for_every_day_of_2026(close_
         assert period.period_start <= d <= period.period_end, d
         assert period == bill_period_for_month(period.reference_month, close_day, due_day), d
         d += timedelta(days=1)
+
+
+def test_provider_bill_period_uses_card_close_day_around_provider_due_date():
+    # Provider bills keep the provider due date as nominal due; period from cycle math.
+    period = bill_period_for_due_date(date(2026, 9, 12), 5)
+    assert period == bill_period_for_month(date(2026, 9, 1), 5, 12)
+
+
+def test_provider_bill_without_close_day_assumes_close_seven_days_before_due():
+    period = bill_period_for_due_date(date(2026, 9, 7), None)
+    assert period.close_date == date(2026, 8, 31)
+    assert period.period_start == date(2026, 7, 31)
+    assert period.period_end == date(2026, 8, 30)
+    assert period.effective_due_date == date(2026, 9, 8)
