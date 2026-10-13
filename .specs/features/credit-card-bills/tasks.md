@@ -1364,9 +1364,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Picking a bill saves its due date as override; option to clear
-- [ ] Tests added to `frontend/src/components/transaction-dialog.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/transaction-dialog.test.tsx`
+- [x] Picking a bill saves its due date as override; option to clear
+- [x] Tests added to `frontend/src/components/transaction-dialog.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/transaction-dialog.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

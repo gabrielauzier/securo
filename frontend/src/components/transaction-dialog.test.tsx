@@ -71,3 +71,82 @@ it.each(['America/Los_Angeles', 'Pacific/Kiritimati'])(
     }
   },
 )
+
+// Bill override (T47). Separate imports so the lines above stay untouched.
+import { waitFor } from '@testing-library/react'
+import { describe } from 'vitest'
+import { creditCardBills } from '@/lib/api'
+import type { CreditCardBill, Transaction } from '@/types'
+
+describe('moving a card transaction to another bill', () => {
+  const card = { id: 'acc-card', name: 'Cartão de Crédito Nubank', type: 'credit_card', currency: 'BRL' }
+  const cardTx = {
+    id: 'tx-card',
+    account_id: 'acc-card',
+    description: 'Mercado',
+    amount: 120,
+    currency: 'BRL',
+    date: '2026-09-04',
+    type: 'debit',
+    status: 'posted',
+    source: 'manual',
+    category_id: null,
+    payee_id: null,
+    notes: null,
+    effective_bill_date: null,
+  } as unknown as Transaction
+
+  const billOf = (id: string, month: string, due: string, effective: string) =>
+    ({ id, account_id: 'acc-card', reference_month: `${month}-01`, due_date: due, effective_due_date: effective }) as CreditCardBill
+
+  function renderCardDialog(transaction: Transaction) {
+    vi.spyOn(currencies, 'list').mockResolvedValue([])
+    vi.spyOn(payees, 'list').mockResolvedValue([])
+    vi.spyOn(groups, 'list').mockResolvedValue([])
+    vi.spyOn(creditCardBills, 'list').mockResolvedValue([
+      billOf('bill-oct', '2026-10', '2026-10-12', '2026-10-13'),
+      billOf('bill-sep', '2026-09', '2026-09-12', '2026-09-14'),
+    ])
+    const onSave = vi.fn()
+    const rendered = renderWithProviders(
+      <TransactionDialog
+        open
+        onClose={vi.fn()}
+        transaction={transaction}
+        categories={[]}
+        categoryGroups={[]}
+        accounts={[card]}
+        onSave={onSave}
+        loading={false}
+        error={null}
+      />,
+    )
+    return { ...rendered, onSave }
+  }
+
+  it("lists the card's bills and saves the picked bill's due date as the override", async () => {
+    const { user, onSave } = renderCardDialog(cardTx)
+
+    await user.click(await screen.findByRole('combobox', { name: 'Bill' }))
+    expect(creditCardBills.list).toHaveBeenCalledWith({ accountId: 'acc-card' })
+    expect(await screen.findByRole('option', { name: 'September 2026 · Due 9/14/2026' })).toBeInTheDocument()
+    await user.click(screen.getByRole('option', { name: 'October 2026 · Due 10/13/2026' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave.mock.calls[0][0]).toMatchObject({ effective_bill_date: '2026-10-12' })
+  })
+
+  it('clears the override back to automatic', async () => {
+    const { user, onSave } = renderCardDialog({ ...cardTx, effective_bill_date: '2026-10-12' } as Transaction)
+
+    const picker = await screen.findByRole('combobox', { name: 'Bill' })
+    await waitFor(() => expect(picker).toHaveTextContent('October 2026 · Due 10/13/2026'))
+    await user.click(picker)
+    await user.click(await screen.findByRole('option', { name: 'Automatic (by date)' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave.mock.calls[0][0]).toMatchObject({ effective_bill_date: null })
+  })
+})

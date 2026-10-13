@@ -40,6 +40,7 @@ import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog
 import { TransactionAttachments } from '@/components/transaction-attachments'
 import type { AttachmentPreview } from '@/components/transaction-attachments'
 import { TransactionSplitsSection } from '@/components/transaction-splits-section'
+import { BillOverrideSelect } from '@/components/credit-card/bill-override-select'
 import { buildInstallmentSeriesInput, hasNonStatusChange, isManualInstallmentSeriesRow } from '@/lib/installment-series'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import type { Transaction, RecurringTransaction, TransactionSplitsInput, TransactionEditPayload, InstallmentSeriesInput, TransactionApplyScope, CategoryGroup, Category, Rule, RuleCondition, RuleConditionNode } from '@/types'
@@ -1211,38 +1212,25 @@ function TransactionForm({
         </label>
       )}
 
-      {/* Manual bill-cycle override (issue #92). CC accounts only. Empty
-          input = use auto bucketing (Pluggy bill_id when available, cycle
-          math otherwise). Setting the date forces this tx into the bill
-          whose due_date matches. */}
+      {/* Manual bill override (issue #92). CC accounts only. "Automatic" =
+          bucket by date; picking a bill stores its due date, which moves the
+          transaction into that bill. */}
       {(() => {
         const selectedAcc = accounts.find(a => a.id === accountId)
         if (selectedAcc?.type !== 'credit_card') return null
         return (
           <div className="space-y-2">
             <Label>
-              {t('transactions.effectiveBillDate', 'Effective bill date')}{' '}
+              {t('bills.override.label')}{' '}
               <span className="text-muted-foreground font-normal text-xs">
                 ({t('transactions.effectiveBillDateHint', 'manual, overrides the automatic cycle')})
               </span>
             </Label>
-            <div className="inline-flex items-center gap-1">
-              <DatePickerInput
-                value={effectiveBillDate}
-                onChange={setEffectiveBillDate}
-                placeholder={t('transactions.effectiveBillDatePlaceholder', 'Bill due date (optional)')}
-              />
-              {effectiveBillDate && (
-                <button
-                  type="button"
-                  className="h-9 w-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0"
-                  onClick={() => setEffectiveBillDate('')}
-                  title={t('transactions.clearOverride', 'Remover sobrescrição')}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+            <BillOverrideSelect
+              accountId={selectedAcc.id}
+              value={effectiveBillDate}
+              onChange={setEffectiveBillDate}
+            />
           </div>
         )
       })()}

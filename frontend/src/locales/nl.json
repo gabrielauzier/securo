@@ -3007,6 +3007,11 @@
       "delete": "Delete bill",
       "deleteTitle": "Delete this bill?",
       "deleteDescription": "Its transactions and payments stay, unlinked from the bill."
+    },
+    "override": {
+      "label": "Bill",
+      "auto": "Automatic (by date)",
+      "unknown": "Bill due {{date}}"
     }
   }
 }

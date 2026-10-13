@@ -3009,6 +3009,11 @@
       "delete": "Excluir fatura",
       "deleteTitle": "Excluir esta fatura?",
       "deleteDescription": "As transações e os pagamentos continuam, desvinculados da fatura."
+    },
+    "override": {
+      "label": "Fatura",
+      "auto": "Automática (pela data)",
+      "unknown": "Fatura com vencimento em {{date}}"
     }
   }
 }
