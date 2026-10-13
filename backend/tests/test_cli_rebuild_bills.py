@@ -71,11 +71,18 @@ async def test_rebuild_corrects_corrupted_aggregates_and_prints_counts(
     # A row added behind the bill service's back, and a payment whose refresh was missed.
     session.add(_tx(card, date(2026, 8, 20), "400.00"))
     session.add(_tx(checking, date(2026, 9, 14), "1000.00", paid_bill_id=bill.id))
-    await session.flush()
+    await session.commit()
+    # Corrupt the aggregates in a commit of their own, touching only bill columns.
     bill.paid_amount = Decimal("1.00")
     bill.computed_total = Decimal("5.00")
     bill.settled_on = None
     await session.commit()
+    stale = await _bill(card.id)
+    assert (stale.computed_total, stale.paid_amount, stale.settled_on) == (
+        Decimal("5.00"),
+        Decimal("1.00"),
+        None,
+    )
 
     monkeypatch.setattr(cli, "async_session_maker", TestSessionLocal)
     await cli.rebuild_bills()
@@ -96,8 +103,11 @@ async def test_rebuild_limited_to_a_workspace_leaves_other_workspaces_alone(
     await session.flush()
     await link_account_transactions(session, card, [row.id])
     bill = (await session.execute(select(CreditCardBill))).scalar_one()
+    await session.commit()
+    # Corrupt the aggregate in a commit of its own, touching only bill columns.
     bill.computed_total = Decimal("5.00")
     await session.commit()
+    assert (await _bill(card.id)).computed_total == Decimal("5.00")
 
     monkeypatch.setattr(cli, "async_session_maker", TestSessionLocal)
     await cli.rebuild_bills(uuid.uuid4())

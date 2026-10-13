@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, Iterable, Sequence
 
-from sqlalchemy import case, func, or_, select, update
+from sqlalchemy import case, event, func, inspect, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -196,6 +196,85 @@ async def refresh_bills(session: AsyncSession, bill_ids: Iterable[uuid.UUID]) ->
     if not ids:
         return
     await session.run_sync(refresh_bills_sync, ids)
+
+
+# --- Session safety net (AD-005) ----------------------------------------------
+
+# A change to any of these on a Transaction can move a bill aggregate.
+_WATCHED = (
+    "amount",
+    "type",
+    "date",
+    "account_id",
+    "category_id",
+    "is_ignored",
+    "exclude_from_pnl",
+    "status",
+    "source",
+    "transfer_pair_id",
+    "bill_id",
+    "paid_bill_id",
+    "effective_bill_date",
+)
+_BILL_IDS = "bill_refresh_ids"
+_PAIR_IDS = "bill_refresh_pairs"
+_REFRESHING = "bill_refreshing"
+
+
+def _collect_touched_bills(session: Session, flush_context: Any, instances: Any) -> None:
+    """`before_flush`: remember the bills that new, changed or deleted rows belong to or pay."""
+    bill_ids: set[uuid.UUID] = set()
+    pair_ids: set[uuid.UUID] = set()
+    for obj, is_dirty in (
+        *((o, False) for o in session.new),
+        *((o, True) for o in session.dirty),
+        *((o, False) for o in session.deleted),
+    ):
+        if not isinstance(obj, Transaction):
+            continue
+        attrs = inspect(obj).attrs
+        if is_dirty and not any(attrs[name].history.has_changes() for name in _WATCHED):
+            continue
+        # Old and new values both: a move leaves one bill and enters another.
+        for name, target in (("bill_id", bill_ids), ("paid_bill_id", bill_ids), ("transfer_pair_id", pair_ids)):
+            history = attrs[name].load_history()
+            target.update(v for v in (*history.added, *history.unchanged, *history.deleted) if v is not None)
+    if bill_ids:
+        session.info.setdefault(_BILL_IDS, set()).update(bill_ids)
+    if pair_ids:
+        session.info.setdefault(_PAIR_IDS, set()).update(pair_ids)
+
+
+def _refresh_touched_bills(session: Session) -> None:
+    """`before_commit`: refresh the collected bills once per commit."""
+    if session.info.get(_REFRESHING) or session.in_nested_transaction():
+        return
+    # Flush first so the rows still pending are collected too.
+    session.flush()
+    bill_ids = session.info.pop(_BILL_IDS, None)
+    pair_ids = session.info.pop(_PAIR_IDS, None)
+    if not bill_ids and not pair_ids:
+        return
+    bill_ids = set(bill_ids or ())
+    if pair_ids:
+        # SPEC_DEVIATION: the addendum adds pair legs only when transfer_pair_id
+        # changes. Reason: linking or unlinking an already paired payment
+        # (paid_bill_id) also moves its card credit in or out of that card bill.
+        rows = session.execute(
+            select(Transaction.bill_id, Transaction.paid_bill_id).where(
+                Transaction.transfer_pair_id.in_(pair_ids)
+            )
+        )
+        bill_ids.update(v for row in rows for v in row if v is not None)
+    session.info[_REFRESHING] = True
+    try:
+        refresh_bills_sync(session, bill_ids)
+    finally:
+        session.info.pop(_REFRESHING, None)
+
+
+event.listen(Session, "before_flush", _collect_touched_bills)
+event.listen(Session, "before_commit", _refresh_touched_bills)
 
 
 async def refresh_workspace_bills(session: AsyncSession, workspace_id: uuid.UUID) -> None:

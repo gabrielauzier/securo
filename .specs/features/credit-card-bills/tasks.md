@@ -2043,11 +2043,11 @@ T75 → T76 → T77 → T78
 
 **Done when**:
 
-- [ ] With NO explicit refresh call, committing each of these ORM changes leaves the bill aggregates equal to a full recompute: change `amount`, `category_id` (into an `is_ignored` category), `is_ignored`, `transfer_pair_id` (pair a payment with the card credit), `paid_bill_id` (link and unlink), delete a payment, insert a card row with `bill_id`
-- [ ] No refresh runs (no extra queries on `credit_card_bills`) for commits that touch no watched attribute
-- [ ] The refresh does not recurse (re-entrancy test)
-- [ ] New test `backend/tests/test_bill_refresh_listener.py`, each case failing before the listener
-- [ ] Gate passes: Full
+- [x] With NO explicit refresh call, committing each of these ORM changes leaves the bill aggregates equal to a full recompute: change `amount`, `category_id` (into an `is_ignored` category), `is_ignored`, `transfer_pair_id` (pair a payment with the card credit), `paid_bill_id` (link and unlink), delete a payment, insert a card row with `bill_id`
+- [x] No refresh runs (no extra queries on `credit_card_bills`) for commits that touch no watched attribute
+- [x] The refresh does not recurse (re-entrancy test)
+- [x] New test `backend/tests/test_bill_refresh_listener.py`, each case failing before the listener
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
