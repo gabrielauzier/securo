@@ -50,6 +50,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: backend/app/services/bill_match_service.py:316 (design)
 - last seen: 2026-10-13T06:24:58Z
 
+### L-007 - When a stored aggregate depends on a row field, audit every bulk writer of that field in other services (rule re-application, category merge or transfer), not only the owning service
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `write-paths` · harmful: 0
+- features: credit-card-bills
+- evidence: validation.md round 2: category_service.py:448, rule_service.py:1382-1523 (write-paths)
+- last seen: 2026-10-13T10:53:11Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
