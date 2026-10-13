@@ -16,6 +16,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.app_clock import app_today
 from app.models.account import Account
 from app.models.category import Category
 from app.models.credit_card_bill import CreditCardBill
@@ -394,3 +395,98 @@ async def touch(session: AsyncSession, tx_ids: Iterable[uuid.UUID]) -> set[uuid.
     bill_ids = await collect_bill_ids(session, tx_ids)
     await refresh_bills(session, bill_ids)
     return bill_ids
+
+
+# --- Reading bills -----------------------------------------------------------
+
+
+async def list_bills(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    reference_month: date | None = None,
+    account_id: uuid.UUID | None = None,
+) -> list[CreditCardBill]:
+    """The workspace's bills, newest reference month first."""
+    query = select(CreditCardBill).where(CreditCardBill.workspace_id == workspace_id)
+    if reference_month is not None:
+        query = query.where(CreditCardBill.reference_month == reference_month)
+    if account_id is not None:
+        query = query.where(CreditCardBill.account_id == account_id)
+    query = query.order_by(
+        CreditCardBill.reference_month.desc(), CreditCardBill.effective_due_date, CreditCardBill.id
+    )
+    return list((await session.execute(query)).scalars().all())
+
+
+async def get_bill(
+    session: AsyncSession, workspace_id: uuid.UUID, bill_id: uuid.UUID
+) -> CreditCardBill | None:
+    return (
+        await session.execute(
+            select(CreditCardBill).where(
+                CreditCardBill.id == bill_id, CreditCardBill.workspace_id == workspace_id
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def describe_bills(
+    session: AsyncSession, bills: Sequence[CreditCardBill], today: date | None = None
+) -> list[dict[str, Any]]:
+    """Bills with their derived status and amounts, and their linked payments."""
+    today = today or app_today()
+    payments: dict[uuid.UUID, list[dict[str, Any]]] = {b.id: [] for b in bills}
+    if bills:
+        rows = (
+            await session.execute(
+                select(Transaction)
+                .where(Transaction.paid_bill_id.in_(list(payments)))
+                .order_by(Transaction.date, Transaction.created_at)
+            )
+        ).scalars().all()
+        for tx in rows:
+            payments[tx.paid_bill_id].append(
+                {
+                    "id": tx.id,
+                    "account_id": tx.account_id,
+                    "date": tx.date,
+                    "description": tx.description,
+                    "amount": float(abs(tx.amount)),
+                    "currency": tx.currency,
+                }
+            )
+    described = []
+    for bill in bills:
+        amounts = bill_amounts(bill)
+        described.append(
+            {
+                "id": bill.id,
+                "account_id": bill.account_id,
+                "external_id": bill.external_id,
+                "due_date": bill.due_date,
+                "total_amount": float(bill.total_amount),
+                "currency": bill.currency,
+                "minimum_payment": (
+                    float(bill.minimum_payment) if bill.minimum_payment is not None else None
+                ),
+                "source": bill.source,
+                "reference_month": bill.reference_month,
+                "period_start": bill.period_start,
+                "period_end": bill.period_end,
+                "close_date": bill.close_date,
+                "effective_due_date": bill.effective_due_date,
+                "declared_total": (
+                    float(bill.declared_total) if bill.declared_total is not None else None
+                ),
+                "computed_total": float(bill.computed_total or ZERO),
+                "target_amount": float(amounts.target),
+                "paid_amount": float(bill.paid_amount or ZERO),
+                "remaining_amount": float(amounts.remaining),
+                "overpaid_amount": float(amounts.overpaid),
+                "settled_on": bill.settled_on,
+                "status": bill_status(bill, today),
+                "payments": payments[bill.id],
+            }
+        )
+    return described

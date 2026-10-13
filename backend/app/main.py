@@ -13,6 +13,7 @@ from app.api.groups import router as groups_router
 from app.api.categories import router as categories_router
 from app.api.category_groups import router as category_groups_router
 from app.api.connections import router as connections_router
+from app.api.credit_card_bills import router as credit_card_bills_router
 from app.api.custom_auth import router as custom_auth_router
 from app.api.dashboard import router as dashboard_router
 from app.api.import_logs import router as import_logs_router
@@ -180,6 +181,7 @@ app.include_router(import_router)
 app.include_router(import_logs_router)
 app.include_router(import_mappings_router)
 app.include_router(accounts_router)
+app.include_router(credit_card_bills_router)
 app.include_router(connections_router)
 app.include_router(recurring_router)
 app.include_router(budgets_router)

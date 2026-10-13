@@ -436,10 +436,10 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Filters return the right bills; other workspace → 404; viewer can read
-- [ ] `GET /accounts/{id}/bills` returns the new fields without breaking existing tests
-- [ ] New test `backend/tests/test_credit_card_bills_api.py`
-- [ ] Gate passes: Full
+- [x] Filters return the right bills; other workspace → 404; viewer can read
+- [x] `GET /accounts/{id}/bills` returns the new fields without breaking existing tests
+- [x] New test `backend/tests/test_credit_card_bills_api.py`
+- [x] Gate passes: Full
 
 **Tests**: integration
 **Gate**: Full

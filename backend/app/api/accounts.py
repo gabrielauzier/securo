@@ -19,7 +19,7 @@ from app.schemas.account import (
     AccountUpdate,
     CreditCardBillRead,
 )
-from app.services import account_service
+from app.services import account_service, bill_service
 from app.services.fx_rate_service import convert
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
@@ -127,7 +127,7 @@ async def get_account_bills(
     )
     if bills is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
-    return bills
+    return await bill_service.describe_bills(session, bills)
 
 
 @router.get("/{account_id}", response_model=AccountRead)

@@ -76,6 +76,17 @@ class AccountRead(AccountBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class BillPaymentRead(BaseModel):
+    """A transaction linked as a payment of a bill."""
+
+    id: uuid.UUID
+    account_id: uuid.UUID
+    date: date
+    description: str
+    amount: float
+    currency: str
+
+
 class CreditCardBillRead(BaseModel):
     """Provider-agnostic credit-card bill (fatura) — issue #92.
 
@@ -86,10 +97,26 @@ class CreditCardBillRead(BaseModel):
     id: uuid.UUID
     account_id: uuid.UUID
     external_id: Optional[str] = None
+    # Nominal due date (the provider's due date for provider bills).
     due_date: date
     total_amount: float
     currency: str
     minimum_payment: Optional[float] = None
+    source: Optional[str] = None
+    reference_month: Optional[date] = None
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    close_date: Optional[date] = None
+    effective_due_date: Optional[date] = None
+    declared_total: Optional[float] = None
+    computed_total: float = 0.0
+    target_amount: float = 0.0
+    paid_amount: float = 0.0
+    remaining_amount: float = 0.0
+    overpaid_amount: float = 0.0
+    settled_on: Optional[date] = None
+    status: Optional[str] = None
+    payments: list[BillPaymentRead] = []
 
     model_config = ConfigDict(from_attributes=True)
 
