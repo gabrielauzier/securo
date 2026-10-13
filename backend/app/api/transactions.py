@@ -56,6 +56,18 @@ async def _attach_invoice_links(session, ctx, items: list) -> None:
         ]
 
 
+async def _attach_paid_bills(session, items: list) -> None:
+    """Name the bill each linked payment on this page pays, in one query."""
+    from app.schemas.transaction import PaidBillRef
+
+    refs = await transaction_service.paid_bill_refs(
+        session, [item.id for item in items if item.paid_bill_id is not None]
+    )
+    for item in items:
+        ref = refs.get(item.id)
+        item.paid_bill = PaidBillRef(**ref) if ref else None
+
+
 def _tag_fx_fallback(tx: TransactionRead, primary_currency: str) -> TransactionRead:
     """Set fx_fallback=True when a cross-currency tx isn't backed by a real rate.
 
@@ -164,6 +176,7 @@ async def list_transactions(
     primary_currency = ctx.user.primary_currency
     items = [_tag_fx_fallback(TransactionRead.model_validate(tx, from_attributes=True), primary_currency) for tx in transactions]
     await _attach_invoice_links(session, ctx, items)
+    await _attach_paid_bills(session, items)
     summary_out = (
         TransactionsSummary(**summary, currency=primary_currency)
         if summary is not None
@@ -490,7 +503,9 @@ async def get_transaction(
     if not transaction:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     primary_currency = ctx.user.primary_currency
-    return _tag_fx_fallback(TransactionRead.model_validate(transaction, from_attributes=True), primary_currency)
+    item = _tag_fx_fallback(TransactionRead.model_validate(transaction, from_attributes=True), primary_currency)
+    await _attach_paid_bills(session, [item])
+    return item
 
 
 @router.post("/installments", response_model=list[TransactionRead], status_code=status.HTTP_201_CREATED)

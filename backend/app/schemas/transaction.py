@@ -157,6 +157,15 @@ class TransactionInvoiceLink(BaseModel):
     amount: Decimal
 
 
+class PaidBillRef(BaseModel):
+    """The credit-card bill a payment pays."""
+
+    id: uuid.UUID
+    account_id: uuid.UUID
+    account_name: str
+    reference_month: _Date
+
+
 class TransactionRead(TransactionBase):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -202,11 +211,22 @@ class TransactionRead(TransactionBase):
     parent_owner_name: Optional[str] = None
     is_ignored: bool = False
     exclude_from_pnl: bool = False
+    # Bill payment fields. `paid_bill` is filled by the list and detail
+    # routes; `needs_counterpart` flags a linked payment with no card credit
+    # paired as its transfer leg.
+    paid_bill_id: Optional[uuid.UUID] = None
+    paid_bill: Optional[PaidBillRef] = None
+    needs_counterpart: bool = False
 
     @model_validator(mode="after")
     def reflect_ignored_category(self):
         if self.category and self.category.is_ignored:
             self.is_ignored = True
+        return self
+
+    @model_validator(mode="after")
+    def flag_missing_counterpart(self):
+        self.needs_counterpart = self.paid_bill_id is not None and self.transfer_pair_id is None
         return self
 
     model_config = ConfigDict(from_attributes=True)

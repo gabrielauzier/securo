@@ -1317,6 +1317,37 @@ async def _resync_bill_link_from_override(
         transaction.bill_id = None
 
 
+async def paid_bill_refs(
+    session: AsyncSession, tx_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, dict]:
+    """The bill each of the rows pays: id, card, card name and reference month."""
+    from app.models.credit_card_bill import CreditCardBill  # local: avoid circular
+
+    if not tx_ids:
+        return {}
+    rows = await session.execute(
+        select(
+            Transaction.id,
+            CreditCardBill.id,
+            CreditCardBill.account_id,
+            Account.name,
+            CreditCardBill.reference_month,
+        )
+        .join(CreditCardBill, CreditCardBill.id == Transaction.paid_bill_id)
+        .join(Account, Account.id == CreditCardBill.account_id)
+        .where(Transaction.id.in_(tx_ids))
+    )
+    return {
+        tx_id: {
+            "id": bill_id,
+            "account_id": account_id,
+            "account_name": name,
+            "reference_month": reference_month,
+        }
+        for tx_id, bill_id, account_id, name, reference_month in rows
+    }
+
+
 async def _sync_card_bills(
     session: AsyncSession,
     tx_ids: list[uuid.UUID],

@@ -638,9 +638,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Linked payment exposes its bill; unlinked returns null
-- [ ] New test `backend/tests/test_transactions_bill_fields_api.py`
-- [ ] Gate passes: Build (backend)
+- [x] Linked payment exposes its bill; unlinked returns null
+- [x] New test `backend/tests/test_transactions_bill_fields_api.py`
+- [x] Gate passes: Build (backend)
 
 **Tests**: integration
 **Gate**: Build
