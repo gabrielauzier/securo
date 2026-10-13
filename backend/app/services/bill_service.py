@@ -8,20 +8,27 @@ amounts depend on "today" and are derived at read time by the pure
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, Iterable, Sequence
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.app_clock import app_today
+from app.core.business_days import next_business_day
 from app.models.account import Account
 from app.models.category import Category
 from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
-from app.services.credit_card_service import BillPeriod, bill_period_for, bill_period_for_month
+from app.services.credit_card_service import (
+    BillPeriod,
+    _clamp_day,
+    _shift_month,
+    bill_period_for,
+    bill_period_for_month,
+)
 
 ZERO = Decimal("0.00")
 
@@ -490,3 +497,201 @@ async def describe_bills(
             }
         )
     return described
+
+
+# --- Manual bill management --------------------------------------------------
+
+
+class BillError(Exception):
+    """A bill request the service refuses; `status_code` is the HTTP answer."""
+
+    status_code = 422
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
+class BillNotFoundError(BillError):
+    status_code = 404
+
+
+class BillConflictError(BillError):
+    status_code = 409
+
+
+class BillValidationError(BillError):
+    status_code = 422
+
+
+_DATE_FIELDS = ("reference_month", "close_date", "due_date")
+
+
+def _check_declared_total(value: Decimal | None) -> None:
+    if value is not None and Decimal(value) < 0:
+        raise BillValidationError("declared_total must not be negative")
+
+
+def _manual_period(account: Account, close_date: date, due_date: date) -> BillPeriod:
+    if due_date <= close_date:
+        raise BillValidationError("due_date must be after close_date")
+    close_day = account.statement_close_day or close_date.day
+    return BillPeriod(
+        reference_month=due_date.replace(day=1),
+        period_start=_clamp_day(*_shift_month(close_date, -1), close_day),
+        period_end=close_date - timedelta(days=1),
+        close_date=close_date,
+        nominal_due_date=due_date,
+        effective_due_date=next_business_day(due_date),
+    )
+
+
+def _apply_period(bill: CreditCardBill, period: BillPeriod) -> None:
+    bill.reference_month = period.reference_month
+    bill.period_start = period.period_start
+    bill.period_end = period.period_end
+    bill.close_date = period.close_date
+    bill.due_date = period.nominal_due_date
+    bill.effective_due_date = period.effective_due_date
+
+
+async def _card(session: AsyncSession, workspace_id: uuid.UUID, account_id: uuid.UUID) -> Account:
+    account = (
+        await session.execute(
+            select(Account).where(Account.id == account_id, Account.workspace_id == workspace_id)
+        )
+    ).scalar_one_or_none()
+    if account is None:
+        raise BillNotFoundError("Account not found")
+    if account.type != "credit_card":
+        raise BillValidationError("Bills exist only for credit card accounts")
+    return account
+
+
+async def _claim_period_rows(session: AsyncSession, bill: CreditCardBill) -> set[uuid.UUID]:
+    """Move into `bill` the card rows dated in its period that have no manual
+    override and are not on a provider bill; returns the bills they left."""
+    provider_bills = select(CreditCardBill.id).where(CreditCardBill.source == "provider")
+    rows = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.account_id == bill.account_id,
+                Transaction.source != "opening_balance",
+                Transaction.effective_bill_date.is_(None),
+                Transaction.date >= bill.period_start,
+                Transaction.date <= bill.period_end,
+                or_(Transaction.bill_id.is_(None), Transaction.bill_id.not_in(provider_bills)),
+            )
+        )
+    ).scalars().all()
+    left: set[uuid.UUID] = set()
+    for tx in rows:
+        if tx.bill_id != bill.id:
+            if tx.bill_id is not None:
+                left.add(tx.bill_id)
+            tx.bill_id = bill.id
+    return left
+
+
+async def create_manual_bill(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    account_id: uuid.UUID,
+    *,
+    reference_month: date,
+    close_date: date,
+    due_date: date,
+    declared_total: Decimal | None = None,
+) -> CreditCardBill:
+    """Store a `manual` bill and link the card rows dated in its period (P1 AC 7)."""
+    account = await _card(session, workspace_id, account_id)
+    _check_declared_total(declared_total)
+    period = _manual_period(account, close_date, due_date)
+    if period.reference_month != reference_month.replace(day=1):
+        raise BillValidationError("reference_month must be the month of due_date")
+    if await _find_bill(session, account.id, period.reference_month) is not None:
+        raise BillConflictError("The card already has a bill for this reference month")
+    bill = CreditCardBill(
+        user_id=account.user_id,
+        workspace_id=account.workspace_id,
+        account_id=account.id,
+        source="manual",
+        total_amount=ZERO,
+        currency=account.currency,
+        declared_total=declared_total,
+    )
+    _apply_period(bill, period)
+    try:
+        async with session.begin_nested():
+            session.add(bill)
+    except IntegrityError:
+        raise BillConflictError("The card already has a bill for this reference month")
+    left = await _claim_period_rows(session, bill)
+    await refresh_bills(session, left | {bill.id})
+    return bill
+
+
+async def update_bill(
+    session: AsyncSession, workspace_id: uuid.UUID, bill_id: uuid.UUID, changes: dict[str, Any]
+) -> CreditCardBill:
+    """Edit a bill's declared total (any bill) or dates (auto and manual bills)."""
+    bill = await get_bill(session, workspace_id, bill_id)
+    if bill is None:
+        raise BillNotFoundError("Bill not found")
+    date_changes = {k: v for k, v in changes.items() if k in _DATE_FIELDS}
+    if date_changes and bill.source == "provider":
+        raise BillValidationError("The dates of a provider bill cannot be edited")
+    if "declared_total" in changes:
+        _check_declared_total(changes["declared_total"])
+        bill.declared_total = changes["declared_total"]
+    touched = {bill.id}
+    if date_changes:
+        account = await _card(session, workspace_id, bill.account_id)
+        period = _manual_period(
+            account,
+            date_changes.get("close_date") or bill.close_date,
+            date_changes.get("due_date") or bill.due_date,
+        )
+        wanted = date_changes.get("reference_month")
+        if wanted is not None and wanted.replace(day=1) != period.reference_month:
+            raise BillValidationError("reference_month must be the month of due_date")
+        if period.reference_month != bill.reference_month:
+            other = await _find_bill(session, account.id, period.reference_month)
+            if other is not None and other.id != bill.id:
+                raise BillConflictError("The card already has a bill for this reference month")
+        _apply_period(bill, period)
+        # Rows that no longer fall in the period go back to the bill of their date.
+        outside = (
+            await session.execute(
+                select(Transaction).where(
+                    Transaction.bill_id == bill.id,
+                    Transaction.effective_bill_date.is_(None),
+                    or_(Transaction.date < bill.period_start, Transaction.date > bill.period_end),
+                )
+            )
+        ).scalars().all()
+        for tx in outside:
+            tx.bill_id = None
+        touched |= await _claim_period_rows(session, bill)
+        await session.flush()
+        if outside:
+            await link_account_transactions(session, account, [tx.id for tx in outside])
+    await refresh_bills(session, touched)
+    return bill
+
+
+async def delete_bill(session: AsyncSession, workspace_id: uuid.UUID, bill_id: uuid.UUID) -> None:
+    """Delete an `auto` or `manual` bill; its rows and payments stay, unlinked (P1 AC 11)."""
+    bill = await get_bill(session, workspace_id, bill_id)
+    if bill is None:
+        raise BillNotFoundError("Bill not found")
+    if bill.source == "provider":
+        raise BillValidationError("A provider bill cannot be deleted")
+    await session.execute(
+        update(Transaction).where(Transaction.bill_id == bill.id).values(bill_id=None)
+    )
+    await session.execute(
+        update(Transaction).where(Transaction.paid_bill_id == bill.id).values(paid_bill_id=None)
+    )
+    await session.delete(bill)
+    await session.flush()

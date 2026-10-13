@@ -462,9 +462,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] P1 AC 7, 9, 11 pass; AC 8 raises a conflict; AC 10 raises on provider dates; negative declared total rejected
-- [ ] New test `backend/tests/test_bill_manual.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_manual.py -q`
+- [x] P1 AC 7, 9, 11 pass; AC 8 raises a conflict; AC 10 raises on provider dates; negative declared total rejected
+- [x] New test `backend/tests/test_bill_manual.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_manual.py -q`
 
 **Tests**: unit
 **Gate**: Quick
