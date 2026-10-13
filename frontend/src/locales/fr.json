@@ -132,7 +132,8 @@
     "agents": "Agents",
     "aiAgents": "Agents IA",
     "collapseSidebar": "Réduire la barre latérale",
-    "expandSidebar": "Développer la barre latérale"
+    "expandSidebar": "Développer la barre latérale",
+    "creditCards": "Credit Card"
   },
   "invoices": {
     "title": "Invoices",

@@ -132,7 +132,8 @@
     "agents": "Agents",
     "aiAgents": "AI Agents",
     "collapseSidebar": "Collapse sidebar",
-    "expandSidebar": "Expand sidebar"
+    "expandSidebar": "Expand sidebar",
+    "creditCards": "Credit Card"
   },
   "invoices": {
     "title": "Invoices",

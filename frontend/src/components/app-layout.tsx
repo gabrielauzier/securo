@@ -429,10 +429,12 @@ export function AppLayout() {
                 )
               }
 
+              // A child page highlights itself, not its parent.
+              const onChild = item.children?.some((c) => location.pathname.startsWith(c.path)) ?? false
               const isActive =
                 item.path === '/'
                   ? location.pathname === '/'
-                  : location.pathname.startsWith(item.path)
+                  : location.pathname.startsWith(item.path) && !onChild
               const Icon = item.icon
               const showQuickAdd = item.key === 'transactions' && canWrite
               const link = (
@@ -462,6 +464,40 @@ export function AppLayout() {
                   <span className={cn(desktopSidebarCollapsed && 'lg:hidden')}>{t(`nav.${item.key}`)}</span>
                 </Link>
               )
+              if (item.children?.length) {
+                return (
+                  <div key={item.key} className={cn('flex flex-col gap-0.5', desktopSidebarCollapsed && 'lg:items-center lg:gap-1')}>
+                    {link}
+                    {item.children.map((child) => {
+                      const childActive = location.pathname.startsWith(child.path)
+                      const ChildIcon = child.icon
+                      return (
+                        <Link
+                          key={child.key}
+                          to={child.path}
+                          data-tour={`nav-${child.key}`}
+                          onClick={() => setSidebarOpen(false)}
+                          title={t(`nav.${child.key}`)}
+                          aria-label={t(`nav.${child.key}`)}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg py-1.5 pl-9 pr-3 text-[12.5px] font-medium transition-all',
+                            childActive
+                              ? 'bg-primary/[0.08] text-primary'
+                              : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                            desktopSidebarCollapsed && 'lg:h-10 lg:w-10 lg:justify-center lg:px-0 lg:pl-0',
+                          )}
+                        >
+                          <ChildIcon
+                            size={15}
+                            className={cn('shrink-0', childActive ? 'text-primary' : 'text-sidebar-muted')}
+                          />
+                          <span className={cn(desktopSidebarCollapsed && 'lg:hidden')}>{t(`nav.${child.key}`)}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )
+              }
               if (!showQuickAdd) return link
               return (
                 <div key={item.key} className="relative flex items-center">

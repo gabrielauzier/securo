@@ -132,7 +132,8 @@
     "agents": "Agenten",
     "aiAgents": "KI-Agenten",
     "collapseSidebar": "Seitenleiste einklappen",
-    "expandSidebar": "Seitenleiste ausklappen"
+    "expandSidebar": "Seitenleiste ausklappen",
+    "creditCards": "Credit Card"
   },
   "invoices": {
     "title": "Invoices",

@@ -1440,8 +1440,8 @@ T46 → T47 → T48 → T49 → T50 → T51
 **Done when**:
 
 - [ ] BVIEW AC 1 and AC 11 (375 px, no horizontal scroll) verified in the browser preview
-- [ ] `frontend/src/pages/pages.contract.test.ts` updated for the new page
-- [ ] Gate passes: Build (frontend)
+- [x] `frontend/src/pages/pages.contract.test.ts` updated for the new page
+- [x] Gate passes: Build (frontend)
 
 **Tests**: unit
 **Gate**: Build

@@ -112,3 +112,18 @@ describe('visibleNavItems', () => {
     expect(result.map((i) => (i.type === 'separator' ? i.labelKey : i.key))).toEqual(['one'])
   })
 })
+
+describe('credit card page in the navigation', () => {
+  it('nests "Cartão de Crédito" under Accounts (BVIEW AC 1)', () => {
+    const accounts = navItems.find((i) => i.type === 'link' && i.key === 'accounts')
+    expect(accounts?.type === 'link' && accounts.children?.map((c) => [c.key, c.path])).toEqual([
+      ['creditCards', '/accounts/credit-cards'],
+    ])
+  })
+
+  it('goes away with the accounts module', () => {
+    const result = visibleNavItems(navItems, allExcept('accounts'))
+    const paths = result.flatMap((i) => (i.type === 'link' ? [i.path, ...(i.children ?? []).map((c) => c.path)] : []))
+    expect(paths).not.toContain('/accounts/credit-cards')
+  })
+})

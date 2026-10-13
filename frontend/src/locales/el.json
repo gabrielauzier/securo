@@ -132,7 +132,8 @@
     "agents": "Βοηθοί",
     "aiAgents": "Βοηθοί AI",
     "collapseSidebar": "Σύμπτυξη πλευρικής γραμμής",
-    "expandSidebar": "Ανάπτυξη πλευρικής γραμμής"
+    "expandSidebar": "Ανάπτυξη πλευρικής γραμμής",
+    "creditCards": "Credit Card"
   },
   "invoices": {
     "title": "Τιμολόγια",

@@ -132,7 +132,8 @@
     "agents": "Agentes",
     "aiAgents": "Agentes de IA",
     "collapseSidebar": "Recolher barra lateral",
-    "expandSidebar": "Expandir barra lateral"
+    "expandSidebar": "Expandir barra lateral",
+    "creditCards": "Cartão de Crédito"
   },
   "invoices": {
     "title": "Cobranças",
