@@ -332,11 +332,11 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] One test per listed function asserting bill links and aggregates after the call (AD-004)
-- [ ] BIMP AC 4 (override) and AC 5 (date/account change relinks) pass
-- [ ] Deleting a linked payment recomputes the bill (edge case)
-- [ ] New test `backend/tests/test_transaction_bill_hooks.py`
-- [ ] Gate passes: Full
+- [x] One test per listed function asserting bill links and aggregates after the call (AD-004)
+- [x] BIMP AC 4 (override) and AC 5 (date/account change relinks) pass
+- [x] Deleting a linked payment recomputes the bill (edge case)
+- [x] New test `backend/tests/test_transaction_bill_hooks.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

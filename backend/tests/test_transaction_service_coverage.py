@@ -823,7 +823,20 @@ async def test_update_transaction_clear_bill_override_no_raw(session, test_user,
         TransactionUpdate(effective_bill_date=None),
     )
     assert updated is not None
-    assert updated.bill_id is None
+    # Without an override or a Pluggy bill the row joins the auto bill of its
+    # period (BIMP AC 1/5, AD-004): close 10, due 20 -> reference month 2025-05.
+    from sqlalchemy import select as _select
+
+    auto_bill = (
+        await session.execute(
+            _select(CreditCardBill).where(
+                CreditCardBill.account_id == cc_account.id,
+                CreditCardBill.reference_month == date(2025, 5, 1),
+                CreditCardBill.source == "auto",
+            )
+        )
+    ).scalar_one()
+    assert updated.bill_id == auto_bill.id
 
 
 # ---------------------------------------------------------------------------
