@@ -344,6 +344,9 @@ export default function TransactionsPage() {
         ['min_amount', filterMinAmount],
         ['max_amount', filterMaxAmount],
         ['hide_ignored', hideIgnored ? 'true' : ''],
+        // Keep the row to flash: dropping it here stripped the link target
+        // before the rows had loaded (ADJ-06).
+        ['highlight', highlightId ?? ''],
       ].filter(([, v]) => v.length),
     );
 
@@ -369,6 +372,7 @@ export default function TransactionsPage() {
     filterMinAmount,
     filterMaxAmount,
     hideIgnored,
+    highlightId,
   ]);
 
   useEffect(() => {
@@ -400,27 +404,6 @@ export default function TransactionsPage() {
   useEffect(() => {
     setBulkCategory('')
   }, [selectedIds])
-
-  // Scroll to and flash a highlighted row after navigation (e.g. opened via
-  // the command palette). Re-runs whenever highlightId or the current data
-  // set changes so that when results finish loading we animate the row.
-  useEffect(() => {
-    if (!highlightId) return
-    const el = highlightedRowRef.current
-    if (!el) return
-    const raf = requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el.classList.add('securo-highlight-flash')
-    })
-    const timer = setTimeout(() => {
-      el.classList.remove('securo-highlight-flash')
-    }, 2500)
-    return () => {
-      cancelAnimationFrame(raf)
-      clearTimeout(timer)
-      el.classList.remove('securo-highlight-flash')
-    }
-  }, [highlightId, searchQuery, filterPayee, filterCategoryIds, page])
 
   // Merge the global active-collection filter with the page's own account
   // filter (issue #105): an explicit on-page account selection wins; otherwise
@@ -460,6 +443,27 @@ export default function TransactionsPage() {
         ...(isMobile ? { sort_by: 'date', sort_dir: 'desc' as const } : grid.apiSort),
       }),
   })
+
+  // Scroll to and flash a highlighted row after navigation (e.g. opened via
+  // the command palette or a bill payment). Re-runs whenever highlightId or the
+  // current data set changes so that when results finish loading we animate the row.
+  useEffect(() => {
+    if (!highlightId) return
+    const el = highlightedRowRef.current
+    if (!el) return
+    const raf = requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('securo-highlight-flash')
+    })
+    const timer = setTimeout(() => {
+      el.classList.remove('securo-highlight-flash')
+    }, 2500)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(timer)
+      el.classList.remove('securo-highlight-flash')
+    }
+  }, [highlightId, searchQuery, filterPayee, filterCategoryIds, page, data])
 
   const calendarMonth = steppedMonth
   const calendarAccountIds = filterAccountIds.length === 1 ? filterAccountIds : []

@@ -2095,9 +2095,9 @@ T75 → T76 → T77 → T78
 
 **Done when**:
 
-- [ ] Test renders the page with `highlight` + `from`/`to`, asserts the row gets `securo-highlight-flash` and `highlight` survives until then
-- [ ] Existing transactions tests stay green without edits
-- [ ] Gate passes: Build (frontend)
+- [x] Test renders the page with `highlight` + `from`/`to`, asserts the row gets `securo-highlight-flash` and `highlight` survives until then
+- [x] Existing transactions tests stay green without edits
+- [x] Gate passes: Build (frontend)
 
 **Tests**: unit
 **Gate**: Build
