@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { billPaymentHref } from '@/lib/bill-payment'
 import { useTranslation } from 'react-i18next'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, CreditCard } from 'lucide-react'
@@ -225,7 +226,7 @@ export default function CreditCardsPage() {
                         <ul className="space-y-0.5">
                           {b.payments.map((p) => (
                             <li key={p.id}>
-                              <Link to={`/accounts/${p.account_id}`} className="hover:underline">
+                              <Link to={billPaymentHref(p)} className="hover:underline">
                                 {formatDate(p.date)} · {money(p.amount, p.currency)}
                               </Link>
                             </li>

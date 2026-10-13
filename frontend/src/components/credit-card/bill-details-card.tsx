@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { billPaymentHref } from '@/lib/bill-payment'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
@@ -153,7 +154,7 @@ export function BillDetailsCard({ account, bill, canWrite, defaultMonth }: Props
                 {payments.map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
                     <Link
-                      to={`/accounts/${p.account_id}`}
+                      to={billPaymentHref(p)}
                       className="min-w-0 truncate text-foreground hover:underline"
                     >
                       {formatDate(p.date, dateLocale)} · {p.description}

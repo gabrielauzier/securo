@@ -1963,9 +1963,9 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] ADJ AC 8 on both pages
-- [ ] Tests updated only in feature-created files (`account-detail-bills.test.tsx`, `credit-cards.test.tsx`)
-- [ ] Gate passes: Build (frontend)
+- [x] ADJ AC 8 on both pages
+- [x] Tests updated only in feature-created files (`account-detail-bills.test.tsx`, `credit-cards.test.tsx`)
+- [x] Gate passes: Build (frontend)
 
 **Tests**: unit
 **Gate**: Build

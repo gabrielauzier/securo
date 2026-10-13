@@ -180,7 +180,8 @@ describe('consolidated credit card page', () => {
     ])
     expect(within(billsTable()).getByRole('link', { name: '9/9/2026 · R$410.00' })).toHaveAttribute(
       'href',
-      '/accounts/acc-checking',
+      // ADJ AC 8: the payment transaction, highlighted in its month, not the paying account.
+      '/transactions?highlight=pay-itau&from=2026-09-01&to=2026-09-30',
     )
   })
 

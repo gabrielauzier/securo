@@ -134,7 +134,8 @@ describe('bill details on the card account page', () => {
     expect(figure(panel, 'Paid')).toBe('R$500.00')
     expect(figure(panel, 'Remaining')).toBe('R$783.20')
     const payment = within(panel).getByRole('link', { name: '9/8/2026 · Pagamento parcial' })
-    expect(payment).toHaveAttribute('href', '/accounts/acc-checking')
+    // ADJ AC 8: the payment transaction, highlighted in its month, not the paying account.
+    expect(payment).toHaveAttribute('href', '/transactions?highlight=pay-1&from=2026-09-01&to=2026-09-30')
   })
 
   it('stores an edited declared total and shows the recomputed figures (AC 9)', async () => {
