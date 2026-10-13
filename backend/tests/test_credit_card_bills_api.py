@@ -527,3 +527,221 @@ async def test_a_viewer_cannot_link_or_unlink_payments(
         f"/api/credit-card-bills/payments/{ref['payment'].id}", headers=viewer_auth_headers
     )
     assert (link.status_code, unlink.status_code) == (403, 403)
+
+
+# --- T28: matching endpoints and the list indicator -------------------------
+
+
+async def _matching(session, user, workspace):
+    """The 1,283.20 September bill, a 300.00 October bill, the reference payment
+    on 2026-09-14 and a 100.00 expense outside every window."""
+    card = await _card(session, user, workspace)
+    checking = await _checking(session, user, workspace)
+    bill = await _bill(session, card, SEP)
+    october = await _bill(session, card, OCT)
+    payment = _tx(checking, date(2026, 9, 14), "1283.20", description="Pagamento fatura")
+    expense = _tx(checking, date(2026, 9, 3), "100.00", description="Mercado")
+    session.add_all([
+        _tx(card, date(2026, 8, 20), "1283.20", bill_id=bill.id),
+        _tx(card, date(2026, 9, 20), "300.00", bill_id=october.id),
+        payment,
+        expense,
+    ])
+    await bill_service.refresh_bills(session, [bill.id, october.id])
+    await session.commit()
+    return {
+        "card": card, "checking": checking, "bill": bill, "october": october,
+        "payment": payment, "expense": expense,
+    }
+
+
+async def test_payment_candidates_list_candidates_first_then_other_unpaid_bills(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _matching(session, test_user, test_workspace)
+
+    resp = await client.get(
+        "/api/credit-card-bills/payment-candidates", headers=auth_headers,
+        params={"transaction_id": str(ref["payment"].id)},
+    )
+
+    # BMATCH AC 8: card, reference month, effective due date, target,
+    # remaining and match reason; candidates before the other unpaid bills.
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert [(r["bill_id"], r["kind"], r["rank"]) for r in rows] == [
+        (str(ref["bill"].id), "exact", 1),
+        (str(ref["october"].id), "other", 2),
+    ]
+    first = rows[0]
+    assert first["account_name"] == "Cartão de Crédito Nubank"
+    assert first["reference_month"] == "2026-09-01"
+    assert first["effective_due_date"] == "2026-09-14"
+    assert first["target_amount"] == 1283.20
+    assert first["remaining_amount"] == 1283.20
+    assert first["reason"] == "exact_amount"
+    assert rows[1]["reason"] == "outside_window"
+
+
+async def test_payment_candidates_of_an_unknown_transaction_are_404(
+    client: AsyncClient, auth_headers, session, test_user, other_workspace
+):
+    foreign = await _checking(session, test_user, other_workspace)
+    tx = _tx(foreign, date(2026, 9, 14), "10.00")
+    session.add(tx)
+    await session.commit()
+
+    resp = await client.get(
+        "/api/credit-card-bills/payment-candidates", headers=auth_headers,
+        params={"transaction_id": str(tx.id)},
+    )
+    assert resp.status_code == 404
+
+
+async def test_match_preview_lists_proposals_and_writes_nothing(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _matching(session, test_user, test_workspace)
+
+    resp = await client.get("/api/credit-card-bills/payment-matches/preview", headers=auth_headers)
+
+    # BMATCH AC 10
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert [(r["transaction_id"], r["bill_id"], r["kind"]) for r in rows] == [
+        (str(ref["payment"].id), str(ref["bill"].id), "exact")
+    ]
+    assert rows[0]["payment_amount"] == 1283.20
+    assert rows[0]["payment_account_name"] == "Nubank"
+    assert rows[0]["bill_account_name"] == "Cartão de Crédito Nubank"
+    assert rows[0]["remaining_amount"] == 1283.20
+    await session.refresh(ref["payment"])
+    assert ref["payment"].paid_bill_id is None
+
+
+async def test_match_apply_links_checked_pairs_and_reports_failures(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _matching(session, test_user, test_workspace)
+    missing = uuid.uuid4()
+
+    resp = await client.post(
+        "/api/credit-card-bills/payment-matches/apply", headers=auth_headers,
+        json={"pairs": [
+            {"transaction_id": str(ref["payment"].id), "bill_id": str(ref["bill"].id)},
+            {"transaction_id": str(ref["expense"].id), "bill_id": str(missing)},
+        ]},
+    )
+
+    # BMATCH AC 11
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {
+        "linked": 1,
+        "failed": [
+            {"transaction_id": str(ref["expense"].id), "bill_id": str(missing),
+             "reason": "Bill not found"},
+        ],
+    }
+    await session.refresh(ref["payment"])
+    await session.refresh(ref["expense"])
+    assert ref["payment"].paid_bill_id == ref["bill"].id
+    assert ref["expense"].paid_bill_id is None
+
+
+async def _list_flags(client, headers, account) -> dict[str, bool]:
+    resp = await client.get(
+        "/api/transactions", headers=headers, params={"account_id": str(account.id)}
+    )
+    assert resp.status_code == 200, resp.text
+    return {row["id"]: row["bill_payment_suggestion"] for row in resp.json()["items"]}
+
+
+async def test_transactions_list_flags_pending_suggestions_until_dismissed(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _matching(session, test_user, test_workspace)
+
+    # BMATCH AC 14 (API side): the indicator for the payment only.
+    assert await _list_flags(client, auth_headers, ref["checking"]) == {
+        str(ref["payment"].id): True,
+        str(ref["expense"].id): False,
+    }
+
+    dismissed = await client.post(
+        "/api/credit-card-bills/payment-suggestions/dismiss", headers=auth_headers,
+        json={"transaction_id": str(ref["payment"].id), "bill_id": str(ref["bill"].id)},
+    )
+
+    # BMATCH AC 9: the dismissed pair is suggested no more.
+    assert dismissed.status_code == 204
+    assert (await _list_flags(client, auth_headers, ref["checking"]))[str(ref["payment"].id)] is False
+    preview = await client.get("/api/credit-card-bills/payment-matches/preview", headers=auth_headers)
+    assert preview.json() == []
+
+
+async def test_dismissing_an_unknown_bill_is_404(
+    client: AsyncClient, auth_headers, session, test_user, test_workspace
+):
+    ref = await _matching(session, test_user, test_workspace)
+    resp = await client.post(
+        "/api/credit-card-bills/payment-suggestions/dismiss", headers=auth_headers,
+        json={"transaction_id": str(ref["payment"].id), "bill_id": str(uuid.uuid4())},
+    )
+    assert resp.status_code == 404
+
+
+async def test_suggestion_flags_cost_the_same_queries_for_any_page_size(
+    session, test_user, test_workspace
+):
+    from sqlalchemy import event
+
+    from app.services.bill_match_service import has_suggestion
+
+    ref = await _matching(session, test_user, test_workspace)
+    extra = [_tx(ref["checking"], date(2026, 9, 14), "10.00") for _ in range(5)]
+    session.add_all(extra)
+    await session.commit()
+
+    statements: list[str] = []
+
+    def count(conn, cursor, statement, *args):
+        statements.append(statement)
+
+    engine = session.bind.sync_engine
+    event.listen(engine, "before_cursor_execute", count)
+    try:
+        await has_suggestion(session, test_workspace.id, [ref["payment"].id])
+        one = len(statements)
+        statements.clear()
+        await has_suggestion(session, test_workspace.id, [ref["payment"].id] + [t.id for t in extra])
+        many = len(statements)
+    finally:
+        event.remove(engine, "before_cursor_execute", count)
+
+    # T28: one batched lookup per page, no N+1.
+    assert one == many
+
+
+async def test_a_viewer_can_read_matches_but_not_apply_or_dismiss(
+    client: AsyncClient, viewer_auth_headers, session, test_user, test_workspace
+):
+    ref = await _matching(session, test_user, test_workspace)
+    pair = {"transaction_id": str(ref["payment"].id), "bill_id": str(ref["bill"].id)}
+
+    candidates = await client.get(
+        "/api/credit-card-bills/payment-candidates", headers=viewer_auth_headers,
+        params={"transaction_id": str(ref["payment"].id)},
+    )
+    preview = await client.get(
+        "/api/credit-card-bills/payment-matches/preview", headers=viewer_auth_headers
+    )
+    apply = await client.post(
+        "/api/credit-card-bills/payment-matches/apply", headers=viewer_auth_headers,
+        json={"pairs": [pair]},
+    )
+    dismiss = await client.post(
+        "/api/credit-card-bills/payment-suggestions/dismiss", headers=viewer_auth_headers,
+        json=pair,
+    )
+    assert (candidates.status_code, preview.status_code) == (200, 200)
+    assert (apply.status_code, dismiss.status_code) == (403, 403)

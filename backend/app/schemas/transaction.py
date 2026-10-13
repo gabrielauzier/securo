@@ -217,6 +217,9 @@ class TransactionRead(TransactionBase):
     paid_bill_id: Optional[uuid.UUID] = None
     paid_bill: Optional[PaidBillRef] = None
     needs_counterpart: bool = False
+    # BMATCH AC 14: an eligible payment with an undismissed bill suggestion
+    # ("Possível pagamento de fatura"); filled by the list route.
+    bill_payment_suggestion: bool = False
 
     @model_validator(mode="after")
     def reflect_ignored_category(self):

@@ -68,6 +68,18 @@ async def _attach_paid_bills(session, items: list) -> None:
         item.paid_bill = PaidBillRef(**ref) if ref else None
 
 
+async def _attach_bill_suggestions(session, workspace_id, items: list) -> None:
+    """Flag the page's rows with a pending bill payment suggestion, in one batch."""
+    from app.services.bill_match_service import has_suggestion
+
+    suggested = await has_suggestion(
+        session, workspace_id,
+        [item.id for item in items if item.type == "debit" and item.paid_bill_id is None],
+    )
+    for item in items:
+        item.bill_payment_suggestion = item.id in suggested
+
+
 def _tag_fx_fallback(tx: TransactionRead, primary_currency: str) -> TransactionRead:
     """Set fx_fallback=True when a cross-currency tx isn't backed by a real rate.
 
@@ -177,6 +189,7 @@ async def list_transactions(
     items = [_tag_fx_fallback(TransactionRead.model_validate(tx, from_attributes=True), primary_currency) for tx in transactions]
     await _attach_invoice_links(session, ctx, items)
     await _attach_paid_bills(session, items)
+    await _attach_bill_suggestions(session, ctx.workspace.id, items)
     summary_out = (
         TransactionsSummary(**summary, currency=primary_currency)
         if summary is not None

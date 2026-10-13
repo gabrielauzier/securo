@@ -3,6 +3,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
@@ -11,14 +12,21 @@ from app.core.workspace_context import (
     current_workspace,
     current_writable_workspace,
 )
+from app.models.account import Account
+from app.models.transaction import Transaction
 from app.schemas.account import (
+    BillCandidateRead,
+    BillMatchApply,
+    BillMatchApplyRead,
+    BillMatchPair,
+    BillMatchProposalRead,
     BillPaymentLink,
     BillPaymentLinkRead,
     CreditCardBillCreate,
     CreditCardBillRead,
     CreditCardBillUpdate,
 )
-from app.services import bill_payment_service, bill_service
+from app.services import bill_match_service, bill_payment_service, bill_service
 
 router = APIRouter(prefix="/api/credit-card-bills", tags=["credit-card-bills"])
 
@@ -54,6 +62,117 @@ async def list_bills(
         reference_month=_parse_month(reference_month), account_id=account_id,
     )
     return await bill_service.describe_bills(session, bills)
+
+
+async def _account_names(session: AsyncSession, workspace_id: uuid.UUID) -> dict[uuid.UUID, str]:
+    rows = await session.execute(
+        select(Account.id, Account.name).where(Account.workspace_id == workspace_id)
+    )
+    return {account_id: name for account_id, name in rows}
+
+
+# Static paths are declared before `/{bill_id}` so they are not read as a bill id.
+
+
+@router.get("/payment-candidates", response_model=list[BillCandidateRead])
+async def payment_candidates(
+    transaction_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """The bills a payment may pay: candidates first, then the other unpaid bills."""
+    payment = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.id == transaction_id, Transaction.workspace_id == ctx.workspace.id
+            )
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    candidates = await bill_match_service.candidates_for(session, payment)
+    names = await _account_names(session, ctx.workspace.id)
+    return [
+        {
+            "bill_id": c.bill.id,
+            "account_id": c.bill.account_id,
+            "account_name": names.get(c.bill.account_id, ""),
+            "reference_month": c.bill.reference_month,
+            "effective_due_date": c.bill.effective_due_date,
+            "target_amount": float(bill_service.bill_amounts(c.bill).target),
+            "remaining_amount": float(bill_service.bill_amounts(c.bill).remaining),
+            "currency": c.bill.currency,
+            "kind": c.kind,
+            "reason": c.reason,
+            "rank": c.rank,
+        }
+        for c in candidates
+    ]
+
+
+@router.get("/payment-matches/preview", response_model=list[BillMatchProposalRead])
+async def preview_payment_matches(
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Every proposed payment-bill link; writes nothing (BMATCH AC 10)."""
+    proposals = await bill_match_service.propose_matches(session, ctx.workspace.id)
+    names = await _account_names(session, ctx.workspace.id)
+    return [
+        {
+            "transaction_id": p.payment.id,
+            "bill_id": p.bill.id,
+            "kind": p.kind,
+            "reason": p.reason,
+            "payment_account_id": p.payment.account_id,
+            "payment_account_name": names.get(p.payment.account_id, ""),
+            "payment_date": p.payment.date,
+            "payment_description": p.payment.description,
+            "payment_amount": float(abs(p.payment.amount)),
+            "bill_account_id": p.bill.account_id,
+            "bill_account_name": names.get(p.bill.account_id, ""),
+            "reference_month": p.bill.reference_month,
+            "effective_due_date": p.bill.effective_due_date,
+            "remaining_amount": float(bill_service.bill_amounts(p.bill).remaining),
+            "currency": p.bill.currency,
+        }
+        for p in proposals
+    ]
+
+
+@router.post("/payment-matches/apply", response_model=BillMatchApplyRead)
+async def apply_payment_matches(
+    data: BillMatchApply,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Link the checked pairs; report the ones that failed (BMATCH AC 11)."""
+    result = await bill_match_service.apply_matches(
+        session, ctx.workspace.id, [(p.transaction_id, p.bill_id) for p in data.pairs]
+    )
+    await session.commit()
+    return {
+        "linked": result.linked,
+        "failed": [
+            {"transaction_id": tx_id, "bill_id": bill_id, "reason": reason}
+            for tx_id, bill_id, reason in result.failed
+        ],
+    }
+
+
+@router.post("/payment-suggestions/dismiss", status_code=status.HTTP_204_NO_CONTENT)
+async def dismiss_payment_suggestion(
+    data: BillMatchPair,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Never suggest this payment-bill pair again (BMATCH AC 9)."""
+    try:
+        await bill_match_service.dismiss(session, ctx.workspace.id, data.transaction_id, data.bill_id)
+    except bill_payment_service.BillPaymentError as exc:
+        await session.rollback()
+        raise _http_error(exc)
+    await session.commit()
 
 
 @router.get("/{bill_id}", response_model=CreditCardBillRead)

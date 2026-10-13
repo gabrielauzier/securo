@@ -813,9 +813,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH AC 8, 10, 14 (API side) pass; preview writes nothing; write routes gated
-- [ ] Tests added to `backend/tests/test_credit_card_bills_api.py`
-- [ ] Gate passes: Build (backend)
+- [x] BMATCH AC 8, 10, 14 (API side) pass; preview writes nothing; write routes gated
+- [x] Tests added to `backend/tests/test_credit_card_bills_api.py`
+- [x] Gate passes: Build (backend)
 
 **Tests**: integration
 **Gate**: Build

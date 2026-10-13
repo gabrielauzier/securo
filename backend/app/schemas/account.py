@@ -151,6 +151,66 @@ class BillPaymentLinkRead(BaseModel):
     needs_counterpart: bool
 
 
+class BillCandidateRead(BaseModel):
+    """A bill offered for a payment in "Vincular a fatura" (BMATCH AC 8)."""
+
+    bill_id: uuid.UUID
+    account_id: uuid.UUID
+    account_name: str
+    reference_month: date
+    effective_due_date: date
+    target_amount: float
+    remaining_amount: float
+    currency: str
+    #: `exact` or `partial` inside the match window, `other` for the other unpaid bills.
+    kind: str
+    reason: str
+    rank: int
+
+
+class BillMatchProposalRead(BaseModel):
+    """A proposed payment-bill link of the bulk preview (BMATCH AC 10)."""
+
+    transaction_id: uuid.UUID
+    bill_id: uuid.UUID
+    #: `exact` (auto-linkable), `partial` or `suggestion`.
+    kind: str
+    reason: str
+    payment_account_id: uuid.UUID
+    payment_account_name: str
+    payment_date: date
+    payment_description: str
+    payment_amount: float
+    bill_account_id: uuid.UUID
+    bill_account_name: str
+    reference_month: date
+    effective_due_date: date
+    remaining_amount: float
+    currency: str
+
+
+class BillMatchPair(BaseModel):
+    transaction_id: uuid.UUID
+    bill_id: uuid.UUID
+
+
+class BillMatchApply(BaseModel):
+    pairs: list[BillMatchPair]
+
+
+class BillMatchFailureRead(BaseModel):
+    transaction_id: uuid.UUID
+    bill_id: uuid.UUID
+    reason: str
+
+
+class BillMatchApplyRead(BaseModel):
+    """BMATCH AC 11: how many pairs were linked and which failed, with a reason."""
+
+    linked: int
+    failed: list[BillMatchFailureRead]
+
+
 class AccountSummary(BaseModel):
     account_id: uuid.UUID
     current_balance: float
