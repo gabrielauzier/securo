@@ -1735,9 +1735,9 @@ T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] Guard passes on the current tree and fails when the refresh call is removed from T61's or T62's path (checked once, not committed)
-- [ ] Every allow-list entry has a one-line reason
-- [ ] Gate passes: Full
+- [x] Guard passes on the current tree and fails when the refresh call is removed from T61's or T62's path (checked once, not committed)
+- [x] Every allow-list entry has a one-line reason
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
