@@ -1139,9 +1139,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BREP AC 16: selecting `settlement` saves it; current value shown; keys in every locale
-- [ ] New test `frontend/src/pages/admin/settings-accounting-mode.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/admin/settings-accounting-mode.test.tsx`
+- [x] BREP AC 16: selecting `settlement` saves it; current value shown; keys in every locale
+- [x] New test `frontend/src/pages/admin/settings-accounting-mode.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/admin/settings-accounting-mode.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

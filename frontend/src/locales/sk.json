@@ -2513,6 +2513,8 @@
       "accountingCashDesc": "Nákupy kreditnou kartou sa započítajú v deň, keď sa uskutočnia (predvolené).",
       "accountingAccrual": "Akruálny princíp",
       "accountingAccrualDesc": "Nákupy kreditnou kartou sa započítajú v deň splatnosti výpisu — odráža skutočný cash flow.",
+      "accountingSettlement": "On bill settlement",
+      "accountingSettlementDesc": "Credit card purchases count on the date their bill is fully paid; until then they show as projected expenses.",
       "providerCategoriesTitle": "Kategórie",
       "providerCategories": "Používať kategórie z integrácie",
       "providerCategoriesDesc": "Keď je vypnuté, synchronizované transakcie prídu bez kategórie, takže sa uplatnia len tvoje pravidlá.",

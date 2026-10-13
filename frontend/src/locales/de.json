@@ -2378,6 +2378,8 @@
       "accountingCashDesc": "Kreditkartenkäufe zählen am Tag des Kaufs (Standard).",
       "accountingAccrual": "Soll-Versteuerung (Accrual-Basis)",
       "accountingAccrualDesc": "Kreditkartenkäufe zählen am Fälligkeitstag der Abrechnung — spiegelt den tatsächlichen Geldfluss wider.",
+      "accountingSettlement": "On bill settlement",
+      "accountingSettlementDesc": "Credit card purchases count on the date their bill is fully paid; until then they show as projected expenses.",
       "providerCategoriesTitle": "Kategorien",
       "providerCategories": "Kategorien der Integrationen verwenden",
       "providerCategoriesDesc": "Wenn ausgeschaltet, werden synchronisierte Transaktionen ohne Kategorie importiert, sodass nur deine Regeln angewendet werden.",

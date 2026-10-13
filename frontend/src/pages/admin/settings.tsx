@@ -35,6 +35,18 @@ import { useLocalAuthEnabled } from '@/hooks/use-local-auth'
 import { Search, Plus, Trash2, Shield, ShieldOff, UserCog, Users, Scale, Tag, Palette, Save, Hash, CalendarDays } from 'lucide-react'
 import type { AdminUser } from '@/types'
 
+type AccountingMode = 'cash' | 'accrual' | 'settlement'
+
+const ACCOUNTING_MODES: { value: AccountingMode; label: string; description: string }[] = [
+  { value: 'cash', label: 'admin.settings.accountingCash', description: 'admin.settings.accountingCashDesc' },
+  { value: 'accrual', label: 'admin.settings.accountingAccrual', description: 'admin.settings.accountingAccrualDesc' },
+  {
+    value: 'settlement',
+    label: 'admin.settings.accountingSettlement',
+    description: 'admin.settings.accountingSettlementDesc',
+  },
+]
+
 export default function AdminSettingsPage() {
   const { t, i18n } = useTranslation()
   const { user: currentUser } = useAuth()
@@ -155,7 +167,8 @@ export default function AdminSettingsPage() {
     },
   })
 
-  const accountingMode = (ccModeSetting?.value === 'accrual' ? 'accrual' : 'cash') as 'cash' | 'accrual'
+  const accountingMode: AccountingMode =
+    ACCOUNTING_MODES.find((mode) => mode.value === ccModeSetting?.value)?.value ?? 'cash'
 
   // Provider categories: returns 404 when unset → defaults to "true" so
   // existing installs keep the historical sync behavior.
@@ -435,39 +448,30 @@ export default function AdminSettingsPage() {
         <div className="px-5 py-4 border-b border-border/40">
           <div className="flex items-center gap-2 mb-0.5">
             <Scale size={15} className="text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">{t('admin.settings.accountingTitle')}</h3>
+            <h3 id="accounting-mode-title" className="text-sm font-semibold text-foreground">{t('admin.settings.accountingTitle')}</h3>
           </div>
           <p className="text-xs text-muted-foreground">{t('admin.settings.accountingSubtitle')}</p>
         </div>
-        <div className="divide-y divide-border/40">
-          <button
-            type="button"
-            onClick={() => updateAccountingModeMutation.mutate('cash')}
-            disabled={updateAccountingModeMutation.isPending}
-            className="flex items-start gap-3 w-full px-5 py-4 text-left hover:bg-muted/40 transition-colors"
-          >
-            <div className={`mt-0.5 h-4 w-4 rounded-full border-2 shrink-0 ${accountingMode === 'cash' ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}>
-              {accountingMode === 'cash' && <div className="h-full w-full rounded-full bg-primary ring-2 ring-background ring-inset" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{t('admin.settings.accountingCash')}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.settings.accountingCashDesc')}</p>
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => updateAccountingModeMutation.mutate('accrual')}
-            disabled={updateAccountingModeMutation.isPending}
-            className="flex items-start gap-3 w-full px-5 py-4 text-left hover:bg-muted/40 transition-colors"
-          >
-            <div className={`mt-0.5 h-4 w-4 rounded-full border-2 shrink-0 ${accountingMode === 'accrual' ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}>
-              {accountingMode === 'accrual' && <div className="h-full w-full rounded-full bg-primary ring-2 ring-background ring-inset" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{t('admin.settings.accountingAccrual')}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t('admin.settings.accountingAccrualDesc')}</p>
-            </div>
-          </button>
+        <div className="divide-y divide-border/40" role="radiogroup" aria-labelledby="accounting-mode-title">
+          {ACCOUNTING_MODES.map(({ value, label, description }) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={accountingMode === value}
+              onClick={() => updateAccountingModeMutation.mutate(value)}
+              disabled={updateAccountingModeMutation.isPending}
+              className="flex items-start gap-3 w-full px-5 py-4 text-left hover:bg-muted/40 transition-colors"
+            >
+              <div className={`mt-0.5 h-4 w-4 rounded-full border-2 shrink-0 ${accountingMode === value ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}>
+                {accountingMode === value && <div className="h-full w-full rounded-full bg-primary ring-2 ring-background ring-inset" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">{t(label)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t(description)}</p>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 

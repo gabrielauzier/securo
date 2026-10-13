@@ -2381,6 +2381,8 @@
       "accountingCashDesc": "Les achats par carte de crédit comptent le jour où ils ont lieu (par défaut).",
       "accountingAccrual": "Comptabilité d'engagement",
       "accountingAccrualDesc": "Les achats par carte de crédit comptent à la date d'échéance de la facture — reflète le flux de trésorerie réel.",
+      "accountingSettlement": "On bill settlement",
+      "accountingSettlementDesc": "Credit card purchases count on the date their bill is fully paid; until then they show as projected expenses.",
       "providerCategoriesTitle": "Catégories",
       "providerCategories": "Utiliser les catégories de l'intégration",
       "providerCategoriesDesc": "Lorsque désactivé, les transactions synchronisées arrivent non catégorisées afin que seules vos règles s'appliquent.",

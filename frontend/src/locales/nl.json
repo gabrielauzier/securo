@@ -2379,6 +2379,8 @@
       "accountingCashDesc": "Creditcardaankopen tellen mee op de dag dat ze plaatsvinden (standaard).",
       "accountingAccrual": "Op transactiebasis",
       "accountingAccrualDesc": "Creditcardaankopen tellen mee voor de vervaldatum van de factuur en weerspiegelen de werkelijke cashflow.",
+      "accountingSettlement": "On bill settlement",
+      "accountingSettlementDesc": "Credit card purchases count on the date their bill is fully paid; until then they show as projected expenses.",
       "providerCategoriesTitle": "Categorieën",
       "providerCategories": "Gebruik integratiecategorieën",
       "providerCategoriesDesc": "Als deze optie is uitgeschakeld, arriveren gesynchroniseerde transacties ongecategoriseerd, zodat alleen uw regels van toepassing zijn.",

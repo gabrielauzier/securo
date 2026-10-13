@@ -2377,6 +2377,8 @@
       "accountingCashDesc": "クレジットカードの購入は発生日にカウントされます(既定)。",
       "accountingAccrual": "発生主義",
       "accountingAccrualDesc": "クレジットカードの購入は請求の支払期日にカウント — 実際のキャッシュフローを反映します。",
+      "accountingSettlement": "On bill settlement",
+      "accountingSettlementDesc": "Credit card purchases count on the date their bill is fully paid; until then they show as projected expenses.",
       "providerCategoriesTitle": "カテゴリ",
       "providerCategories": "連携カテゴリを使用",
       "providerCategoriesDesc": "オフにすると、同期された取引は未分類で届き、ルールのみが適用されます。",

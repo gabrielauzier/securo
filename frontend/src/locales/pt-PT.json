@@ -2381,6 +2381,8 @@
       "accountingCashDesc": "Compras no cartão contam no dia em que acontecem (padrão).",
       "accountingAccrual": "Regime de competência",
       "accountingAccrualDesc": "Compras no cartão contam na data de vencimento da fatura — reflete o fluxo de caixa real.",
+      "accountingSettlement": "Na liquidação da fatura",
+      "accountingSettlementDesc": "Compras no cartão contam na data em que a fatura é paga por completo; até lá aparecem como despesas previstas.",
       "providerCategoriesTitle": "Categorias",
       "providerCategories": "Usar categorias da integração",
       "providerCategoriesDesc": "Quando desativado, as transações sincronizadas chegam sem categoria, apenas tuas Regras se aplicam.",
