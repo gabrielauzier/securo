@@ -264,7 +264,11 @@ def _counts_as_user_pnl_row(tx: Transaction) -> bool:
         or tx.is_ignored
         or tx.exclude_from_pnl
         or tx.source == "settlement"
-        or (category and (category.treat_as_transfer or category.is_ignored))
+        or tx.paid_bill_id
+        or (
+            category
+            and (category.treat_as_transfer or category.is_ignored or category.is_bill_payment)
+        )
     )
 
 

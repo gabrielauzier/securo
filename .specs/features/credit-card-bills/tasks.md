@@ -1090,9 +1090,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] A pending debit in an `is_bill_payment` category does not change projected expenses (BPAY AC 13), in every mode
-- [ ] New test `backend/tests/test_forecast_bill_payment.py`
-- [ ] Gate passes: Full
+- [x] A pending debit in an `is_bill_payment` category does not change projected expenses (BPAY AC 13), in every mode
+- [x] New test `backend/tests/test_forecast_bill_payment.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
