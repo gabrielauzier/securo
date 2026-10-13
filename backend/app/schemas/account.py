@@ -121,6 +121,23 @@ class CreditCardBillRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CreditCardBillCreate(BaseModel):
+    """A manual bill; `reference_month` is day 1 of the due date's month."""
+
+    account_id: uuid.UUID
+    reference_month: date
+    close_date: date
+    due_date: date
+    declared_total: Optional[Decimal] = None
+
+
+class CreditCardBillUpdate(BaseModel):
+    declared_total: Optional[Decimal] = None
+    reference_month: Optional[date] = None
+    close_date: Optional[date] = None
+    due_date: Optional[date] = None
+
+
 class AccountSummary(BaseModel):
     account_id: uuid.UUID
     current_balance: float

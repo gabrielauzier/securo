@@ -453,6 +453,8 @@ async def describe_bills(
             )
         ).scalars().all()
         for tx in rows:
+            if tx.paid_bill_id is None:
+                continue
             payments[tx.paid_bill_id].append(
                 {
                     "id": tx.id,

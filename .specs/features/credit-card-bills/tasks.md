@@ -487,9 +487,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] 201/409/422/404/204 paths and viewer 403 covered; `test_write_permission_coverage` passes
-- [ ] Tests added to `backend/tests/test_credit_card_bills_api.py`
-- [ ] Gate passes: Build (backend)
+- [x] 201/409/422/404/204 paths and viewer 403 covered; `test_write_permission_coverage` passes
+- [x] Tests added to `backend/tests/test_credit_card_bills_api.py`
+- [x] Gate passes: Build (backend)
 
 **Tests**: integration
 **Gate**: Build
