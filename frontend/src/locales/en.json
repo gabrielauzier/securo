@@ -838,6 +838,8 @@
     "sortHighest": "Highest first",
     "sortLowest": "Lowest first",
     "spendingByCategory": "Spending by Category",
+    "projectedCount_one": "({{count}} projected)",
+    "projectedCount_other": "({{count}} projected)",
     "monthlyTrend": "Monthly Trend",
     "budgetVsActual": "Budget vs Actual",
     "balanceFlow": "Balance Evolution",

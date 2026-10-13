@@ -838,6 +838,8 @@
     "sortHighest": "Υψηλότερα πρώτα",
     "sortLowest": "Χαμηλότερα πρώτα",
     "spendingByCategory": "Δαπάνες ανά κατηγορία",
+    "projectedCount_one": "({{count}} projected)",
+    "projectedCount_other": "({{count}} projected)",
     "monthlyTrend": "Μηνιαία τάση",
     "budgetVsActual": "Προϋπολογισμός έναντι Πραγματικού",
     "balanceFlow": "Εξέλιξη υπολοίπου",

@@ -840,6 +840,8 @@
     "sortHighest": "Mayor importe primero",
     "sortLowest": "Menor importe primero",
     "spendingByCategory": "Gastos por categoría",
+    "projectedCount_one": "({{count}} projected)",
+    "projectedCount_other": "({{count}} projected)",
     "monthlyTrend": "Tendencia mensual",
     "budgetVsActual": "Presupuesto vs Real",
     "balanceFlow": "Evolución del saldo",

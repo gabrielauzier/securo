@@ -838,6 +838,8 @@
     "sortHighest": "सबसे ज़्यादा पहले",
     "sortLowest": "सबसे कम पहले",
     "spendingByCategory": "श्रेणी के अनुसार खर्च",
+    "projectedCount_one": "({{count}} projected)",
+    "projectedCount_other": "({{count}} projected)",
     "monthlyTrend": "मासिक रुझान",
     "budgetVsActual": "बजट बनाम वास्तविक",
     "balanceFlow": "शेष राशि का रुझान",

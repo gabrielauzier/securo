@@ -838,6 +838,8 @@
     "sortHighest": "金額の高い順",
     "sortLowest": "金額の低い順",
     "spendingByCategory": "カテゴリ別支出",
+    "projectedCount_one": "({{count}} projected)",
+    "projectedCount_other": "({{count}} projected)",
     "monthlyTrend": "月間推移",
     "budgetVsActual": "予算と実績",
     "balanceFlow": "残高推移",

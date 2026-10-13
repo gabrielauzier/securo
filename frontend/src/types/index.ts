@@ -873,6 +873,8 @@ export interface SpendingByCategory {
   category_color: string
   total: number
   projected_total: number
+  // Card purchases still on an unpaid bill (`settlement` only; 0 otherwise).
+  projected_count?: number
   percentage: number
 }
 

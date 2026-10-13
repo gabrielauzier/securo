@@ -480,6 +480,7 @@ export default function DashboardPage() {
           category_name: s.category_name,
           category_icon: s.category_icon,
           category_color: s.category_color,
+          projected_count: s.projected_count ?? 0,
           actual,
           budget_amount: budget ? Number(budget.budget_amount) : null,
           percentage_used: budget?.percentage_used ?? null,
@@ -955,7 +956,14 @@ export default function DashboardPage() {
                         <CategoryIcon icon={item.category_icon} color={item.category_color} size="lg" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-sm font-semibold text-foreground truncate">{item.category_name}</span>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-sm font-semibold text-foreground truncate">{item.category_name}</span>
+                              {item.projected_count > 0 && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border shrink-0">
+                                  {t('dashboard.projectedCount', { count: item.projected_count })}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-sm font-bold tabular-nums text-foreground">{mask(formatCurrency(item.actual, userCurrency, locale))}</span>
                               {item.momPct !== null && (

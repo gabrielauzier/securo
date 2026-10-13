@@ -838,6 +838,8 @@
     "sortHighest": "Hoogste eerst",
     "sortLowest": "Laagste eerst",
     "spendingByCategory": "Uitgaven per categorie",
+    "projectedCount_one": "({{count}} projected)",
+    "projectedCount_other": "({{count}} projected)",
     "monthlyTrend": "Maandelijkse trend",
     "budgetVsActual": "Budget versus Werkelijk",
     "balanceFlow": "Saldoverloop",

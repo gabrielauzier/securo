@@ -167,3 +167,37 @@ describe('Dashboard open credit card bills', () => {
     expect(await openBillsRow(0)).toBeNull()
   })
 })
+
+// ADJ AC 6: in `settlement`, "Spending by Category" shows next to each category
+// the number of its purchases still on an unpaid bill; none means no badge.
+describe('Dashboard projected purchase counts', () => {
+  function spending(id: string, name: string, projectedCount: number) {
+    return {
+      category_id: id, category_name: name, category_icon: 'circle-help', category_color: '#6366f1',
+      total: 100, projected_total: 100, projected_count: projectedCount, percentage: 50,
+    }
+  }
+
+  it('shows the count next to categories with projected purchases and nothing for the others', async () => {
+    api.dashboard.spendingByCategory.mockResolvedValue([
+      spending('cat-1', 'Compras', 2),
+      spending('cat-2', 'Mercado', 0),
+    ])
+    renderWithProviders(<DashboardPage />)
+
+    const compras = (await screen.findByText('Compras')).parentElement!
+    expect(compras).toHaveTextContent('Compras(2 projected)')
+    const mercado = screen.getByText('Mercado').parentElement!
+    expect(mercado).toHaveTextContent(/^Mercado$/)
+  })
+
+  it('uses the pt-BR plural rules: 1 prevista, 2 previstas', async () => {
+    const i18next = (await import('i18next')).default
+    const ptBR = (await import('@/locales/pt-BR.json')).default
+    const instance = i18next.createInstance()
+    await instance.init({ lng: 'pt-BR', resources: { 'pt-BR': { translation: ptBR } } })
+
+    expect(instance.t('dashboard.projectedCount', { count: 1 })).toBe('(1 prevista)')
+    expect(instance.t('dashboard.projectedCount', { count: 2 })).toBe('(2 previstas)')
+  })
+})

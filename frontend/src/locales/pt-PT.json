@@ -840,6 +840,8 @@
     "sortHighest": "Maior gasto",
     "sortLowest": "Menor gasto",
     "spendingByCategory": "Gastos por Categoria",
+    "projectedCount_one": "({{count}} prevista)",
+    "projectedCount_other": "({{count}} previstas)",
     "monthlyTrend": "Tendência Mensal",
     "budgetVsActual": "Orçamento vs Realizado",
     "balanceFlow": "Evolução do Saldo",

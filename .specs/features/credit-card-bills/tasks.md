@@ -1887,9 +1887,9 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 
 **Done when**:
 
-- [ ] Badge text uses plural rules (1 prevista / 2 previstas); hidden when 0
-- [ ] Tests added to `frontend/src/pages/dashboard.test.tsx` (append only)
-- [ ] Gate passes: Quick-FE
+- [x] Badge text uses plural rules (1 prevista / 2 previstas); hidden when 0
+- [x] Tests added to `frontend/src/pages/dashboard.test.tsx` (append only)
+- [x] Gate passes: Quick-FE
 
 **Tests**: unit
 **Gate**: Quick-FE

@@ -840,6 +840,8 @@
     "sortHighest": "Plus élevées d'abord",
     "sortLowest": "Plus basses d'abord",
     "spendingByCategory": "Dépenses par catégorie",
+    "projectedCount_one": "({{count}} projected)",
+    "projectedCount_other": "({{count}} projected)",
     "monthlyTrend": "Tendance mensuelle",
     "budgetVsActual": "Budget vs réel",
     "balanceFlow": "Évolution du solde",
