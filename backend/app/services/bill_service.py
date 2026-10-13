@@ -20,7 +20,7 @@ from app.models.account import Account
 from app.models.category import Category
 from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
-from app.services.credit_card_service import BillPeriod
+from app.services.credit_card_service import BillPeriod, bill_period_for, bill_period_for_month
 
 ZERO = Decimal("0.00")
 
@@ -193,3 +193,204 @@ def _settled_on(bill: CreditCardBill, payments: Sequence[Any]) -> date | None:
             return paid_on
     return None
 
+
+
+# --- Linking card transactions -------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LinkSummary:
+    linked: int = 0
+    bills_created: int = 0
+
+
+def _cycle(account: Account) -> tuple[int, int] | None:
+    """The card's (close day, due day), or None when it has no bill cycle."""
+    if account.type != "credit_card":
+        return None
+    if not account.statement_close_day or not account.payment_due_day:
+        return None
+    return account.statement_close_day, account.payment_due_day
+
+
+async def _account_bills(session: AsyncSession, account_id: uuid.UUID) -> list[CreditCardBill]:
+    return list(
+        (
+            await session.execute(
+                select(CreditCardBill).where(CreditCardBill.account_id == account_id)
+            )
+        ).scalars().all()
+    )
+
+
+async def _bills_with_payments(session: AsyncSession, bill_ids: Iterable[uuid.UUID]) -> set[uuid.UUID]:
+    ids = list(bill_ids)
+    if not ids:
+        return set()
+    rows = await session.execute(
+        select(Transaction.paid_bill_id).where(Transaction.paid_bill_id.in_(ids)).distinct()
+    )
+    return {bill_id for (bill_id,) in rows if bill_id is not None}
+
+
+async def _target_bill(
+    session: AsyncSession,
+    account: Account,
+    cycle: tuple[int, int],
+    tx: Transaction,
+    bills: list[CreditCardBill],
+) -> tuple[CreditCardBill | None, bool]:
+    """The bill a card row belongs to, and whether it had to be created."""
+    override = tx.effective_bill_date
+    if override is not None:
+        # A manual override names the bill by its due date; it never creates one.
+        match = next(
+            (b for b in bills if override in (b.effective_due_date, b.due_date)), None
+        )
+        return match, False
+    containing = sorted(
+        (b for b in bills if b.period_start <= tx.date <= b.period_end),
+        key=lambda b: b.source != "provider",
+    )
+    if containing:
+        return containing[0], False
+    period = bill_period_for(tx.date, *cycle)
+    bill, created = await get_or_create_bill(session, account, period)
+    if created or bill not in bills:
+        bills.append(bill)
+    return bill, created
+
+
+async def _link_rows(
+    session: AsyncSession,
+    account: Account,
+    cycle: tuple[int, int],
+    rows: Sequence[Transaction],
+    bills: list[CreditCardBill],
+    frozen: set[uuid.UUID],
+) -> tuple[int, int, set[uuid.UUID]]:
+    """Point each row at its bill. Rows on a provider bill or on a `frozen`
+    bill stay put, and no row moves into a frozen bill."""
+    by_id = {b.id: b for b in bills}
+    linked = created_count = 0
+    touched: set[uuid.UUID] = set()
+    for tx in rows:
+        current = by_id.get(tx.bill_id) if tx.bill_id else None
+        if current is not None and (current.source == "provider" or current.id in frozen):
+            continue
+        target, created = await _target_bill(session, account, cycle, tx, bills)
+        by_id.update({b.id: b for b in bills})
+        created_count += int(created)
+        if target is not None and target.id in frozen:
+            continue
+        new_id = target.id if target is not None else None
+        if new_id == tx.bill_id:
+            continue
+        if tx.bill_id is not None:
+            touched.add(tx.bill_id)
+        tx.bill_id = new_id
+        if new_id is not None:
+            touched.add(new_id)
+            linked += 1
+    return linked, created_count, touched
+
+
+async def _card_rows(
+    session: AsyncSession, account: Account, tx_ids: list[uuid.UUID] | None = None
+) -> Sequence[Transaction]:
+    query = select(Transaction).where(
+        Transaction.account_id == account.id,
+        Transaction.source != "opening_balance",
+    )
+    if tx_ids is not None:
+        query = query.where(Transaction.id.in_(tx_ids))
+    return (await session.execute(query.order_by(Transaction.date))).scalars().all()
+
+
+async def link_account_transactions(
+    session: AsyncSession, account: Account, tx_ids: list[uuid.UUID] | None = None
+) -> LinkSummary:
+    """Link a card's rows (all, or `tx_ids`) to the bill of their period.
+
+    Creates the `auto` bill of a period that has none, honors the manual
+    `effective_bill_date` override, and leaves rows on provider bills alone.
+    A card without close or due day gets no bills."""
+    cycle = _cycle(account)
+    if cycle is None or (tx_ids is not None and not tx_ids):
+        return LinkSummary()
+    await session.flush()
+    bills = await _account_bills(session, account.id)
+    rows = await _card_rows(session, account, tx_ids)
+    linked, created, touched = await _link_rows(session, account, cycle, rows, bills, frozen=set())
+    await refresh_bills(session, touched)
+    return LinkSummary(linked=linked, bills_created=created)
+
+
+async def relink_account(session: AsyncSession, account: Account) -> LinkSummary:
+    """Apply a changed close or due day to the card's own bills.
+
+    Auto and manual bills without payments get the new cycle's dates and
+    their rows are relinked; bills with payments keep their dates and rows.
+    Non-provider bills left with no rows, no payments and no declared total
+    are deleted."""
+    cycle = _cycle(account)
+    if cycle is None:
+        return LinkSummary()
+    await session.flush()
+    bills = await _account_bills(session, account.id)
+    own = [b for b in bills if b.source != "provider"]
+    frozen = await _bills_with_payments(session, (b.id for b in own))
+    for bill in own:
+        if bill.id in frozen:
+            continue
+        period = bill_period_for_month(bill.reference_month, *cycle)
+        bill.period_start = period.period_start
+        bill.period_end = period.period_end
+        bill.close_date = period.close_date
+        bill.due_date = period.nominal_due_date
+        bill.effective_due_date = period.effective_due_date
+
+    rows = await _card_rows(session, account)
+    linked, created, touched = await _link_rows(session, account, cycle, rows, bills, frozen)
+    await session.flush()
+
+    used = {
+        bill_id
+        for (bill_id,) in await session.execute(
+            select(Transaction.bill_id).where(Transaction.account_id == account.id).distinct()
+        )
+    }
+    for bill in bills:
+        if (
+            bill.source != "provider"
+            and bill.id not in frozen
+            and bill.id not in used
+            and bill.declared_total is None
+        ):
+            touched.discard(bill.id)
+            await session.delete(bill)
+    await session.flush()
+    await refresh_bills(session, touched)
+    return LinkSummary(linked=linked, bills_created=created)
+
+
+async def collect_bill_ids(session: AsyncSession, tx_ids: Iterable[uuid.UUID]) -> set[uuid.UUID]:
+    """The bills the rows belong to (`bill_id`) or pay (`paid_bill_id`)."""
+    ids = list(tx_ids)
+    if not ids:
+        return set()
+    await session.flush()
+    rows = await session.execute(
+        select(Transaction.bill_id, Transaction.paid_bill_id).where(Transaction.id.in_(ids))
+    )
+    return {bill_id for pair in rows for bill_id in pair if bill_id is not None}
+
+
+async def touch(session: AsyncSession, tx_ids: Iterable[uuid.UUID]) -> set[uuid.UUID]:
+    """Refresh every bill the rows belong to or pay; returns those bill ids.
+
+    Call after an update. Before a delete, collect the ids with
+    `collect_bill_ids`, delete, then `refresh_bills` them."""
+    bill_ids = await collect_bill_ids(session, tx_ids)
+    await refresh_bills(session, bill_ids)
+    return bill_ids

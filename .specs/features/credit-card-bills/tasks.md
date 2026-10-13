@@ -225,12 +225,12 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BIMP AC 1, 2, 3, 4, 8 pass at service level; card without close/due day returns `LinkSummary(0, 0)` (P1 AC 13)
-- [ ] Rows linked to a provider bill are not moved; no auto bill is created for a month covered by a provider bill
-- [ ] `relink_account` moves rows of bills without payments and leaves bills with payments unchanged (P1 AC 12)
-- [ ] `touch` refreshes both `bill_id` and `paid_bill_id` bills
-- [ ] New test `backend/tests/test_bill_linking.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_linking.py -q`
+- [x] BIMP AC 1, 2, 3, 4, 8 pass at service level; card without close/due day returns `LinkSummary(0, 0)` (P1 AC 13)
+- [x] Rows linked to a provider bill are not moved; no auto bill is created for a month covered by a provider bill
+- [x] `relink_account` moves rows of bills without payments and leaves bills with payments unchanged (P1 AC 12)
+- [x] `touch` refreshes both `bill_id` and `paid_bill_id` bills
+- [x] New test `backend/tests/test_bill_linking.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_linking.py -q`
 
 **Tests**: unit
 **Gate**: Quick
