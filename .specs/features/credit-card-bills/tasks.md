@@ -197,12 +197,12 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] P1 AC 1, 5, 6 pass; every status of the precedence table has a test, including zero-target bill (`open` before close, `paid` after)
-- [ ] Computed total excludes opening balance, ignored rows, `is_bill_payment`/`is_ignored` categories and the card leg of a payment pair
-- [ ] `settled_on` is the date of the payment that reaches target; NULL below target; `close_date` when target ≤ 0
-- [ ] Concurrent `get_or_create_bill` keeps one bill (PostgreSQL test with `postgres_sessions`)
-- [ ] New test `backend/tests/test_bill_service.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_service.py -q`
+- [x] P1 AC 1, 5, 6 pass; every status of the precedence table has a test, including zero-target bill (`open` before close, `paid` after)
+- [x] Computed total excludes opening balance, ignored rows, `is_bill_payment`/`is_ignored` categories and the card leg of a payment pair
+- [x] `settled_on` is the date of the payment that reaches target; NULL below target; `close_date` when target ≤ 0
+- [x] Concurrent `get_or_create_bill` keeps one bill (PostgreSQL test with `postgres_sessions`)
+- [x] New test `backend/tests/test_bill_service.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_service.py -q`
 
 **Tests**: unit
 **Gate**: Quick
