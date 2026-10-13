@@ -15,6 +15,7 @@ from typing import Any, Iterable, Sequence
 from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.app_clock import app_today
 from app.core.business_days import next_business_day
@@ -142,12 +143,12 @@ def _payment_pair_ids():
     )
 
 
-async def _computed_total(session: AsyncSession, bill_id: uuid.UUID) -> Decimal:
+def _computed_total(session: Session, bill_id: uuid.UUID) -> Decimal:
     signed = case(
         (Transaction.type == "debit", func.abs(Transaction.amount)),
         else_=-func.abs(Transaction.amount),
     )
-    total = await session.scalar(
+    total = session.scalar(
         select(func.coalesce(func.sum(signed), 0)).where(
             Transaction.bill_id == bill_id,
             Transaction.source != "opening_balance",
@@ -166,28 +167,35 @@ async def _computed_total(session: AsyncSession, bill_id: uuid.UUID) -> Decimal:
     return Decimal(total or 0).quantize(Decimal("0.01"))
 
 
+def refresh_bills_sync(session: Session, bill_ids: Iterable[uuid.UUID]) -> None:
+    """Recompute `computed_total`, `paid_amount` and `settled_on` from the linked rows.
+
+    The single implementation behind `refresh_bills`; it uses the sync ORM API
+    so it also runs inside a sync `Session` event."""
+    ids = {bill_id for bill_id in bill_ids if bill_id is not None}
+    if not ids:
+        return
+    session.flush()
+    bills = session.execute(select(CreditCardBill).where(CreditCardBill.id.in_(ids))).scalars().all()
+    for bill in bills:
+        bill.computed_total = _computed_total(session, bill.id)
+        payments = session.execute(
+            select(Transaction.date, func.abs(Transaction.amount))
+            .where(Transaction.paid_bill_id == bill.id)
+            .order_by(Transaction.date, Transaction.created_at)
+        ).all()
+        paid = sum((Decimal(amount) for _, amount in payments), ZERO)
+        bill.paid_amount = paid
+        bill.settled_on = _settled_on(bill, payments)
+    session.flush()
+
+
 async def refresh_bills(session: AsyncSession, bill_ids: Iterable[uuid.UUID]) -> None:
     """Recompute `computed_total`, `paid_amount` and `settled_on` from the linked rows."""
     ids = {bill_id for bill_id in bill_ids if bill_id is not None}
     if not ids:
         return
-    await session.flush()
-    bills = (
-        await session.execute(select(CreditCardBill).where(CreditCardBill.id.in_(ids)))
-    ).scalars().all()
-    for bill in bills:
-        bill.computed_total = await _computed_total(session, bill.id)
-        payments = (
-            await session.execute(
-                select(Transaction.date, func.abs(Transaction.amount))
-                .where(Transaction.paid_bill_id == bill.id)
-                .order_by(Transaction.date, Transaction.created_at)
-            )
-        ).all()
-        paid = sum((Decimal(amount) for _, amount in payments), ZERO)
-        bill.paid_amount = paid
-        bill.settled_on = _settled_on(bill, payments)
-    await session.flush()
+    await session.run_sync(refresh_bills_sync, ids)
 
 
 async def refresh_workspace_bills(session: AsyncSession, workspace_id: uuid.UUID) -> None:

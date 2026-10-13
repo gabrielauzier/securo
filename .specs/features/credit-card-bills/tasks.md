@@ -2018,9 +2018,9 @@ T75 → T76 → T77 → T78
 
 **Done when**:
 
-- [ ] Every existing bill test passes unchanged
-- [ ] Full backend suite green on SQLite and PostgreSQL
-- [ ] Gate passes: Full
+- [x] Every existing bill test passes unchanged
+- [x] Full backend suite green on SQLite and PostgreSQL
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
