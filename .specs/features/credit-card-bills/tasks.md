@@ -512,9 +512,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BPAY AC 2 and AC 13 pass for dashboard totals, category spending, reports and budgets in `cash` and `accrual`
-- [ ] New test `backend/tests/test_bill_payment_pnl.py`
-- [ ] Gate passes: Full
+- [x] BPAY AC 2 and AC 13 pass for dashboard totals, category spending, reports and budgets in `cash` and `accrual`
+- [x] New test `backend/tests/test_bill_payment_pnl.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

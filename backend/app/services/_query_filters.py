@@ -172,7 +172,11 @@ def counts_as_pnl():
       - transactions flagged `is_ignored=True` (user-marked as not to be reported),
       - transactions flagged `exclude_from_pnl=True` (kept in balance,
         omitted from income and expense calculations),
-      - transactions in categories flagged `is_ignored=True` (user-marked as not to be reported).
+      - transactions in categories flagged `is_ignored=True` (user-marked as not to be reported),
+      - bill payments: rows linked to the bill they pay (`paid_bill_id`), and
+        rows in categories flagged `is_bill_payment` even before they are
+        linked. The card purchases are the expense; the payment only
+        settles them.
 
     Does NOT exclude `source='opening_balance'` — callers that already
     filter those keep doing so; this helper only handles the transfer-like
@@ -189,6 +193,7 @@ def counts_as_pnl():
         # over-recorded expense from when the receiver paid the full
         # parent transaction. So we keep credits, drop debits.
         ~and_(Transaction.source == "settlement", Transaction.type == "debit"),
+        Transaction.paid_bill_id.is_(None),
         or_(
             Transaction.category_id.is_(None),
             Transaction.category_id.not_in(
@@ -196,6 +201,7 @@ def counts_as_pnl():
                     or_(
                         Category.treat_as_transfer.is_(True),
                         Category.is_ignored.is_(True),
+                        Category.is_bill_payment.is_(True),
                     )
                 )
             ),
