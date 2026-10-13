@@ -863,9 +863,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BREP AC 1 passes; invalid value → 422
-- [ ] Tests added to `backend/tests/test_credit_card_accounting_mode.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_credit_card_accounting_mode.py -q`
+- [x] BREP AC 1 passes; invalid value → 422
+- [x] Tests added to `backend/tests/test_credit_card_accounting_mode.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_credit_card_accounting_mode.py -q`
 
 **Tests**: integration
 **Gate**: Quick

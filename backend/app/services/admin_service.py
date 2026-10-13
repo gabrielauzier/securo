@@ -254,13 +254,19 @@ async def is_registration_enabled(session: AsyncSession) -> bool:
     return get_settings().registration_enabled
 
 
+CREDIT_CARD_ACCOUNTING_MODES = ("cash", "accrual", "settlement")
+
+
 async def get_credit_card_accounting_mode(session: AsyncSession) -> str:
-    """Return the global CC accounting mode: 'cash' or 'accrual'.
+    """Return the global CC accounting mode: 'cash', 'accrual' or 'settlement'.
+
+    'settlement' counts a card purchase when its bill is fully paid and
+    projects it until then.
 
     Global app setting — affects how dashboard/reports/budgets bucket credit
     card transactions. Defaults to 'cash' (current behavior) when unset."""
     setting = await get_app_setting(session, "credit_card_accounting_mode")
-    if setting and setting.value in ("cash", "accrual"):
+    if setting and setting.value in CREDIT_CARD_ACCOUNTING_MODES:
         return setting.value
     return "cash"
 
