@@ -1622,6 +1622,8 @@ async def _cleanup_phantom_duplicates(
     unmatched = list(unmatched_result.scalars().all())
 
     touched: set[uuid.UUID] = set()
+    # Bills the deleted rows belong to or pay are refreshed after the deletes (AD-004).
+    bill_ids: set[uuid.UUID] = set()
     for tx in unmatched:
         date_lo = tx.date - timedelta(days=1)
         date_hi = tx.date + timedelta(days=1)
@@ -1642,10 +1644,12 @@ async def _cleanup_phantom_duplicates(
                 sibling.original_description or sibling.description,
                 tx.original_description or tx.description,
             ) >= 0.9:
+                bill_ids |= {tx.bill_id, tx.paid_bill_id} - {None}
                 await session.delete(tx)
                 touched.add(tx.account_id)
                 break
 
+    await bill_service.refresh_bills(session, bill_ids)
     return touched
 
 

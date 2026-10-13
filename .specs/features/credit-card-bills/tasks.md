@@ -1547,9 +1547,9 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] A linked non-card payment removed by the cleanup no longer counts in its bill's `paid_amount`
-- [ ] Tests added to `backend/tests/test_sync_bills.py`
-- [ ] Gate passes: Full
+- [x] A linked non-card payment removed by the cleanup no longer counts in its bill's `paid_amount`
+- [x] Tests added to `backend/tests/test_sync_bills.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

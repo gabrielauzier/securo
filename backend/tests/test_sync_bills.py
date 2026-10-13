@@ -224,3 +224,49 @@ async def test_a_failed_match_keeps_the_synced_rows(session, test_user, test_wor
     await session.refresh(conn)
     assert rows["pagamento-fatura"].paid_bill_id is None
     assert conn.status == "active"
+
+
+# --- T57: phantom cleanup refreshes the bills of the rows it deletes (AD-004) --
+
+
+async def test_phantom_cleanup_drops_the_deleted_payment_from_its_bill(
+    session, test_user, test_workspace
+):
+    # Edge case: WHEN a linked payment transaction is deleted THEN the system SHALL
+    # drop the link and recompute the bill status. Here the sync cleanup deletes it.
+    from app.models.account import Account
+    from app.services import bill_service
+    from app.services.connection_service import _cleanup_phantom_duplicates
+
+    bill = await _manual_card_bill(session, test_user, test_workspace)
+    conn = await _connection(session, test_user.id)
+    checking = Account(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+        connection_id=conn.id, name="Nubank", type="checking", currency="BRL",
+    )
+    session.add(checking)
+
+    def _payment(on: date, **extra) -> Transaction:
+        return Transaction(
+            id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+            account_id=checking.id, description="PAGAMENTO FATURA", amount=Decimal("1283.20"),
+            currency="BRL", date=on, effective_date=on, type="debit", source="sync", **extra,
+        )
+
+    # The phantom twin pays the bill; its real sibling is the paired one.
+    phantom = _payment(date(2026, 9, 14), paid_bill_id=bill.id)
+    session.add_all([phantom, _payment(date(2026, 9, 15), transfer_pair_id=uuid.uuid4())])
+    await session.flush()
+    await bill_service.refresh_bills(session, [bill.id])
+    await session.commit()
+    await session.refresh(bill)
+    assert bill.paid_amount == Decimal("1283.20")
+    phantom_id = phantom.id
+
+    assert await _cleanup_phantom_duplicates(session, conn.id) == {checking.id}
+    await session.commit()
+
+    assert await session.get(Transaction, phantom_id) is None
+    await session.refresh(bill)
+    assert bill.paid_amount == Decimal("0.00")
+    assert bill.settled_on is None
