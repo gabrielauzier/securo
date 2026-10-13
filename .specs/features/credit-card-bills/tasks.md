@@ -537,9 +537,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Flag readable/writable through `/categories`; toggling it refreshes bill totals
-- [ ] New test `backend/tests/test_category_bill_payment.py`
-- [ ] Gate passes: Full
+- [x] Flag readable/writable through `/categories`; toggling it refreshes bill totals
+- [x] New test `backend/tests/test_category_bill_payment.py`
+- [x] Gate passes: Full
 
 **Tests**: integration
 **Gate**: Full

@@ -190,6 +190,16 @@ async def refresh_bills(session: AsyncSession, bill_ids: Iterable[uuid.UUID]) ->
     await session.flush()
 
 
+async def refresh_workspace_bills(session: AsyncSession, workspace_id: uuid.UUID) -> None:
+    """Refresh every bill of the workspace, e.g. after a category flag changes."""
+    bill_ids = (
+        await session.execute(
+            select(CreditCardBill.id).where(CreditCardBill.workspace_id == workspace_id)
+        )
+    ).scalars().all()
+    await refresh_bills(session, bill_ids)
+
+
 def _settled_on(bill: CreditCardBill, payments: Sequence[Any]) -> date | None:
     target = bill_target(bill)
     if target <= 0:

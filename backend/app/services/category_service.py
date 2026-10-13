@@ -13,6 +13,7 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.schemas.category import CategoryCreate, CategoryUpdate
+from app.services.bill_service import refresh_workspace_bills
 from app.services.category_group_service import CATEGORY_TO_GROUP, create_default_groups
 
 
@@ -243,8 +244,16 @@ async def update_category(
     if changes.get("is_hidden") is True and not category.is_system:
         raise CategoryVisibilityError("Only system categories can be hidden")
 
+    # Both flags decide which rows count in a bill's computed total.
+    bill_flags_changed = any(
+        key in changes and changes[key] != getattr(category, key)
+        for key in ("is_bill_payment", "is_ignored")
+    )
     for key, value in changes.items():
         setattr(category, key, value)
+
+    if bill_flags_changed:
+        await refresh_workspace_bills(session, workspace_id)
 
     if deactivate_rules and changes.get("is_hidden") is True:
         await deactivate_rules_assigning_category(session, workspace_id, category_id)
