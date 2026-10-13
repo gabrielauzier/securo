@@ -287,3 +287,18 @@ describe('transactions page bill payments (BMATCH-02, BPAY-01)', () => {
     })
   })
 })
+
+describe('description next to the paid bill pill (T60)', () => {
+  it('keeps the description in the row as a shrinkable, truncated line', async () => {
+    api.list.mockResolvedValue(listOf(tx({
+      paid_bill_id: 'bill-oct',
+      paid_bill: { id: 'bill-oct', account_id: 'acc-card', account_name: 'Cartão de Crédito Nubank', reference_month: '2026-10-01' },
+    })))
+    renderWithProviders(<TransactionsPage />)
+
+    const description = await screen.findByText('Pagamento fatura')
+    expect(description).toHaveClass('min-w-0', 'truncate')
+    const row = description.closest('tr')!
+    expect(within(row).getByTitle('Bill payment Cartão de Crédito Nubank October 2026')).toBeInTheDocument()
+  })
+})

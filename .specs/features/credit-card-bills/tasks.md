@@ -1620,10 +1620,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] Pill uses a short label (card display name + `MMM/yy`) with the full text in a tooltip/title; badge and pill have `min-w-0`/`truncate`/max width so the description is never fully hidden
-- [ ] Test asserts the full label is available as accessible text/title and the description text is still rendered
-- [ ] Tests added to `frontend/src/components/bill-payment-row-badge.test.tsx`
-- [ ] Gate passes: Build (frontend); orchestrator re-checks in the browser
+- [x] Pill uses a short label (card display name + `MMM/yy`) with the full text in a tooltip/title; badge and pill have `min-w-0`/`truncate`/max width so the description is never fully hidden
+- [x] Test asserts the full label is available as accessible text/title and the description text is still rendered
+- [x] Tests added to `frontend/src/components/bill-payment-row-badge.test.tsx`
+- [x] Gate passes: Build (frontend); orchestrator re-checks in the browser
 
 **Tests**: unit
 **Gate**: Build

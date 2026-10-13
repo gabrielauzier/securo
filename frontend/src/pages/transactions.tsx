@@ -1144,7 +1144,7 @@ export default function TransactionsPage() {
         <CategoryIcon icon={tx.category?.icon} color={tx.category?.color} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-foreground truncate">{tx.description}</p>
+            <p className="min-w-0 text-sm font-semibold text-foreground truncate">{tx.description}</p>
             {tx.group_id && (
               <span
                 className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-violet-700 bg-violet-50 border border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900 px-1.5 py-0.5 rounded-full"

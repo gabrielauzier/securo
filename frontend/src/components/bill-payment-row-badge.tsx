@@ -11,8 +11,16 @@ import { invalidateBillQueries } from '@/lib/invalidate-queries'
 import { monthLabel } from '@/lib/month-utils'
 import type { Transaction } from '@/types'
 
-const PILL = 'inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full border shrink-0'
-const ICON_BUTTON = 'inline-flex items-center justify-center rounded-full p-0.5 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50'
+// The pill shrinks and truncates so the row's description keeps its room.
+const PILL = 'inline-flex min-w-0 max-w-48 items-center gap-1 overflow-hidden text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full border'
+const ICON_BUTTON = 'inline-flex shrink-0 items-center justify-center rounded-full p-0.5 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50'
+
+/** "Sep/26": the reference month as short month and two-digit year. */
+function shortMonth(yearMonth: string, locale: string): string {
+  const [y, m] = yearMonth.split('-').map(Number)
+  const month = new Date(y, m - 1, 2).toLocaleDateString(locale, { month: 'short' }).replace(/\.$/, '')
+  return `${month}/${String(y).slice(-2)}`
+}
 
 type Props = {
   tx: Transaction
@@ -56,16 +64,23 @@ export function BillPaymentRowBadge({ tx, canWrite, onConfirmSuggestion }: Props
   const stop = (e: MouseEvent) => e.stopPropagation()
 
   if (tx.paid_bill) {
+    const month = tx.paid_bill.reference_month.slice(0, 7)
+    const label = t('bills.row.paidBill', {
+      card: tx.paid_bill.account_name,
+      month: monthLabel(month, dateLocale),
+    })
     return (
       <span
         onClick={stop}
+        title={label}
         className={`${PILL} normal-case text-sky-700 bg-sky-50 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900`}
       >
-        <CreditCard className="h-3 w-3" />
-        {t('bills.row.paidBill', {
-          card: tx.paid_bill.account_name,
-          month: monthLabel(tx.paid_bill.reference_month.slice(0, 7), dateLocale),
-        })}
+        <CreditCard className="h-3 w-3 shrink-0" />
+        {/* Short on screen; the full label is what assistive tech reads. */}
+        <span aria-hidden="true" className="truncate">
+          {`${tx.paid_bill.account_name} · ${shortMonth(month, dateLocale)}`}
+        </span>
+        <span className="sr-only">{label}</span>
         {canWrite && (
           <button
             type="button"
@@ -87,10 +102,11 @@ export function BillPaymentRowBadge({ tx, canWrite, onConfirmSuggestion }: Props
   return (
     <span
       onClick={stop}
+      title={t('bills.row.suggestion')}
       className={`${PILL} text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900`}
     >
-      <HelpCircle className="h-3 w-3" />
-      {t('bills.row.suggestion')}
+      <HelpCircle className="h-3 w-3 shrink-0" />
+      <span className="truncate">{t('bills.row.suggestion')}</span>
       {canWrite && (
         <>
           <button
