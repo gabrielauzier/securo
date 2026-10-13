@@ -32,15 +32,23 @@
 - **Trade-off**: New write paths must remember the call; each existing path has a test asserting the bill after the write.
 - **Scope**: `transaction_service`, `import_service`, `connection_service`, `recurring_transaction_service`, `account_service`, `category_service`
 - **Date**: 2026-10-12
-- **Status**: active
+- **Status**: active (bulk statements and relinking; ORM refreshes are also covered by AD-005)
+
+### AD-005
+- **Decision**: A session-level safety net keeps bill aggregates current for every ORM write. A `before_flush` listener on the sync `Session` collects the bills touched by new, changed or deleted `Transaction` rows (old and new `bill_id` / `paid_bill_id`, and the bills of rows whose amount, type, date, account, category, ignore flags, status, source or `transfer_pair_id` changed). A `before_commit` listener refreshes those bills through the single sync implementation behind `refresh_bills`, which runs inside the async greenlet.
+- **Reason**: Three verification rounds each found another ORM write path that skipped the explicit refresh (AD-004), most recently the reconciliation transfer accept. A listener covers every ORM path, current and future, in one place.
+- **Trade-off**: The listener only refreshes stored aggregates; it does not relink rows to bills (date/account moves still go through `link_account_transactions`). Core bulk `update()`/`delete()` statements bypass ORM events, so the T64 guard test stays and still requires an explicit refresh for them. There is a small extra cost on commits that touch transactions.
+- **Scope**: `backend/app/services/bill_service.py` (refresh core + listener registration), every AsyncSession built from `async_session_maker` and the test session
+- **Date**: 2026-10-13
+- **Status**: active (complements AD-004, which still applies to bulk statements and relinking)
 
 ## Handoff
 
 - **Feature**: .specs/features/credit-card-bills
-- **Phase / Task**: Execute, batch B1 (Phase 1, T1-T5) dispatched to a sub-agent
-- **Completed**: PRD `.specs/prd/v0.16.3-selfhost.4-cartao-de-credito.md`, spec.md, design.md, tasks.md
+- **Phase / Task**: Execute, Phase 13 (AD-005 safety net + link highlight fix) after Verifier round 3 FAIL; owner approved a 4th verification round on 2026-10-13
+- **Completed**: T1-T74 (see tasks.md), Verifier rounds 1-3 (FAIL, gaps fixed except the reconciliation accept)
 - **In-progress** (file:line): none
-- **Next step**: B1 summary, then B2 (Phase 2)
+- **Next step**: Phase 13 batch (T75-T78), then Verifier round 4, then browser re-check and PR
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: claude/credit-card-improvements-e85788

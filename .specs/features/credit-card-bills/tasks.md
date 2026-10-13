@@ -116,6 +116,12 @@ T61 → T62 → T63 → T64 → T65 → T66
 T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 ```
 
+### Phase 13: AD-005 safety net and link highlight
+
+```
+T75 → T76 → T77 → T78
+```
+
 ---
 
 ## Task Breakdown
@@ -1994,6 +2000,108 @@ T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 **Tests**: none
 **Gate**: Build
 **Commit**: `docs(deploy): document the credit card adjustments`
+
+---
+
+### T75: Single sync refresh core
+
+**What**: Move the body of `refresh_bills` into `refresh_bills_sync(sync_session, ids)` using the sync ORM API; `refresh_bills` becomes `await session.run_sync(refresh_bills_sync, ids)`. No behavior change.
+**Where**: `backend/app/services/bill_service.py`
+**Depends on**: None (phase order)
+**Reuses**: existing `_computed_total`, `_settled_on`
+**Requirement**: BILL-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Every existing bill test passes unchanged
+- [ ] Full backend suite green on SQLite and PostgreSQL
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `refactor(bills): run the bill refresh through one sync implementation`
+
+---
+
+### T76: Session listener refreshes touched bills
+
+**What**: Register `before_flush` / `before_commit` listeners on the sync `Session` class per the design addendum (AD-005), loaded whenever `app.services.bill_service` is imported (make sure the app and the test session import it).
+**Where**: `backend/app/services/bill_service.py`
+**Depends on**: T75
+**Reuses**: SQLAlchemy `event.listen`, attribute history
+**Requirement**: BILL-01, BPAY-02
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] With NO explicit refresh call, committing each of these ORM changes leaves the bill aggregates equal to a full recompute: change `amount`, `category_id` (into an `is_ignored` category), `is_ignored`, `transfer_pair_id` (pair a payment with the card credit), `paid_bill_id` (link and unlink), delete a payment, insert a card row with `bill_id`
+- [ ] No refresh runs (no extra queries on `credit_card_bills`) for commits that touch no watched attribute
+- [ ] The refresh does not recurse (re-entrancy test)
+- [ ] New test `backend/tests/test_bill_refresh_listener.py`, each case failing before the listener
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `feat(bills): refresh touched bills on every commit`
+
+---
+
+### T77: Reconciliation accept keeps bills current
+
+**What**: Regression test for Verifier round 3 gap 1: accepting a transfer suggestion in the reconciliation queue that pairs a linked payment with the card credit leaves the bill's `computed_total` at the recomputed value (covered by T76; add an explicit `touch` only if the test shows it is needed). Extend the T64 guard to also flag ORM assignments to `transfer_pair_id` outside `bill_service`-aware modules only if T76 does not cover them (document the decision in the test file).
+**Where**: `backend/tests/test_reconciliation_bills.py`
+**Depends on**: T76
+**Reuses**: reconciliation API fixtures
+**Requirement**: BPAY-02
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] API-level test through `accept_suggestion` asserts `computed_total` 1000.00 and status not `paid` before payment reaches target
+- [ ] Test fails with the listener disabled (checked once in scratch, not committed)
+- [ ] Gate passes: Build (backend)
+
+**Tests**: integration
+**Gate**: Build
+**Commit**: `test(bills): keep bills current when reconciliation pairs a payment`
+
+---
+
+### T78: Bill payment link keeps the highlight
+
+**What**: Opening `/transactions?highlight=<id>&from=...&to=...` from a bill payment scrolls to and flashes the payment row: the URL-sync effect in `transactions.tsx` must not drop `highlight` before the row has rendered and flashed (browser check found the param stripped and no flash).
+**Where**: `frontend/src/pages/transactions.tsx`
+**Depends on**: T77
+**Reuses**: existing `highlight` effect
+**Requirement**: ADJ-06
+
+**Tools**:
+
+- MCP: NONE
+- Skill: react-best-practices
+
+**Done when**:
+
+- [ ] Test renders the page with `highlight` + `from`/`to`, asserts the row gets `securo-highlight-flash` and `highlight` survives until then
+- [ ] Existing transactions tests stay green without edits
+- [ ] Gate passes: Build (frontend)
+
+**Tests**: unit
+**Gate**: Build
+**Commit**: `fix(transactions): keep the highlight when opening a bill payment`
 ---
 
 ## Phase Execution Map
@@ -2013,6 +2121,7 @@ Phase 9:  T46 → T47 → T48 → T49 → T50 → T51
 Phase 10: T55 → T56 → T57 → T58 → T59 → T60
 Phase 11: T61 → T62 → T63 → T64 → T65 → T66
 Phase 12: T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
+Phase 13: T75 → T76 → T77 → T78
 ```
 
 Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phase 7 (6), B7 = Phase 8 (4), B8 = Phase 9 (6).
@@ -2093,5 +2202,5 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | ADJ-03 | T70 |
 | ADJ-04 | T65, T68 |
 | ADJ-05 | T66, T74 |
-| ADJ-06 | T71 |
+| ADJ-06 | T71, T78 |
 | ADJ-07 | T72 |

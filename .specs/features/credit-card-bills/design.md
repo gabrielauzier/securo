@@ -327,3 +327,15 @@ unique (transaction_id, bill_id)
 
 - **AD-003**: Bill aggregates (`computed_total`, `paid_amount`, `settled_on`) are stored on `credit_card_bills` and written only by `bill_service.refresh_bills`; status, remaining and overpaid are derived at read time.
 - **AD-004**: Every write path that creates, changes or deletes a card transaction or a bill payment calls `bill_service.link_account_transactions` or `bill_service.touch` in the same transaction.
+
+
+---
+
+## Addendum (2026-10-13): AD-005 bill refresh safety net
+
+After three verification rounds each found an ORM write that skipped the explicit refresh, `bill_service` registers two listeners on the sync `Session` class:
+
+- `before_flush(session, ctx, instances)`: for `session.new`, `session.dirty` (only rows with a changed watched attribute, via `inspect(obj).attrs[...].history`) and `session.deleted` `Transaction` rows, add to `session.info["bill_refresh_ids"]` the old and new `bill_id` and `paid_bill_id`. For a row with `transfer_pair_id` changes, also add the bill ids of its pair leg. Watched attributes: `amount`, `type`, `date`, `account_id`, `category_id`, `is_ignored`, `exclude_from_pnl`, `status`, `source`, `transfer_pair_id`, `bill_id`, `paid_bill_id`, `effective_bill_date`.
+- `before_commit(session)`: pop the ids, run `refresh_bills_sync(session, ids)`, then flush. Re-entrancy guard through `session.info`; the refresh writes only `credit_card_bills`, so it collects nothing new.
+
+`refresh_bills(async_session, ids)` becomes `await session.run_sync(refresh_bills_sync, ids)`, so there is a single implementation. Explicit `touch` / `refresh_bills` calls stay; they are idempotent. Core bulk statements still need explicit calls (T64 guard).
