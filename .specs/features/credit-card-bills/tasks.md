@@ -1596,8 +1596,8 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] Both renders show the same five figures for one bill
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/credit-cards-consistency.test.tsx`
+- [x] Both renders show the same five figures for one bill
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/credit-cards-consistency.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE
