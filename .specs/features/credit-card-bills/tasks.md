@@ -663,9 +663,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH AC 3, 5, 12, 13, 15 pass
-- [ ] New test `backend/tests/test_bill_match_candidates.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_match_candidates.py -q`
+- [x] BMATCH AC 3, 5, 12, 13, 15 pass
+- [x] New test `backend/tests/test_bill_match_candidates.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_match_candidates.py -q`
 
 **Tests**: unit
 **Gate**: Quick
