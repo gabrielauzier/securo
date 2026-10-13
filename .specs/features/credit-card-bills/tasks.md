@@ -281,9 +281,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Corrupted aggregates (test sets wrong `paid_amount`) are corrected; prints counts
-- [ ] New test `backend/tests/test_cli_rebuild_bills.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_cli_rebuild_bills.py -q`
+- [x] Corrupted aggregates (test sets wrong `paid_amount`) are corrected; prints counts
+- [x] New test `backend/tests/test_cli_rebuild_bills.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_cli_rebuild_bills.py -q`
 
 **Tests**: unit
 **Gate**: Quick
