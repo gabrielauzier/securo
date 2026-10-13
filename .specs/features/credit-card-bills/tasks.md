@@ -110,10 +110,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 T61 → T62 → T63 → T64 → T65 → T66
 ```
 
-### Phase 12: Frontend adjustments
+### Phase 12: Remaining refresh paths and frontend adjustments
 
 ```
-T67 → T68 → T69 → T70 → T71 → T72
+T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 ```
 
 ---
@@ -1796,11 +1796,62 @@ T67 → T68 → T69 → T70 → T71 → T72
 
 ---
 
+### T73: Refresh other users' bills when a user is deleted
+
+**What**: `admin_service.delete_user` collects the bills paid by the user's rows that belong to accounts of other users (shared workspace) and refreshes them after the delete; remove its entry from the T64 guard allow-list (G1 note).
+**Where**: `backend/app/services/admin_service.py`
+**Depends on**: None (phase order)
+**Reuses**: `collect_bill_ids`, `refresh_bills`
+**Requirement**: BPAY-01
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Deleting user A whose payment paid user B's card bill drops that bill's `paid_amount` and status
+- [ ] `delete_user` no longer allow-listed in `backend/tests/test_ad004_guard.py` (feature-created file)
+- [ ] New test `backend/tests/test_delete_user_bills.py` that fails before the fix
+- [ ] Gate passes: Full
+
+**Tests**: unit
+**Gate**: Full
+**Commit**: `fix(bills): refresh shared bills when a user is deleted`
+
+---
+
+### T74: Account create returns the floored balance
+
+**What**: `POST /api/accounts` returns the account through `get_serialized_account`, so a new card with an opening balance reports its real `current_balance` and `available_credit` (G1 note, same cause as T66).
+**Where**: `backend/app/api/accounts.py`
+**Depends on**: T73
+**Reuses**: `account_service.get_serialized_account`
+**Requirement**: ADJ-05
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+
+- [ ] Creating a card with balance owed 300 and limit 1000 returns `current_balance` -300 (card sign convention as in the list) and `available_credit` 700
+- [ ] Tests added to `backend/tests/test_card_available_credit.py`
+- [ ] Gate passes: Build (backend)
+
+**Tests**: integration
+**Gate**: Build
+**Commit**: `fix(accounts): return the computed balance when creating an account`
+
+---
+
 ### T67: Bill-payment badge on categories
 
 **What**: Categories list shows a "Pagamento de fatura" badge for `is_bill_payment`, like the Transferências/Ignorado badges.
 **Where**: `frontend/src/pages/categories.tsx`
-**Depends on**: None (phase order)
+**Depends on**: T74
 **Reuses**: existing transfer/ignored badges
 **Requirement**: ADJ-01
 
@@ -1961,7 +2012,7 @@ Phase 8:  T42 → T43 → T44 → T45
 Phase 9:  T46 → T47 → T48 → T49 → T50 → T51
 Phase 10: T55 → T56 → T57 → T58 → T59 → T60
 Phase 11: T61 → T62 → T63 → T64 → T65 → T66
-Phase 12: T67 → T68 → T69 → T70 → T71 → T72
+Phase 12: T73 → T74 → T67 → T68 → T69 → T70 → T71 → T72
 ```
 
 Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phase 7 (6), B7 = Phase 8 (4), B8 = Phase 9 (6).
@@ -2041,6 +2092,6 @@ Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phase
 | ADJ-02 | T69 |
 | ADJ-03 | T70 |
 | ADJ-04 | T65, T68 |
-| ADJ-05 | T66 |
+| ADJ-05 | T66, T74 |
 | ADJ-06 | T71 |
 | ADJ-07 | T72 |
