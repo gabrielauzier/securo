@@ -1,5 +1,5 @@
 import type { Category, CategoryGroup } from '@/types'
-import { ArrowLeftRight, Check, Eye, EyeClosed, MoreHorizontal, SlidersHorizontal, Trash2, Users, X } from 'lucide-react'
+import { ArrowLeftRight, Check, CreditCard, Eye, EyeClosed, MoreHorizontal, SlidersHorizontal, Trash2, Users, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CategorySelect } from '@/components/category-select'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,9 @@ export type MobileBulkSelectionActionsProps = {
   onMarkTransfer?: () => void
   markTransferDisabled?: boolean
   markTransferHint?: string
+  onLinkBill?: () => void
+  linkBillDisabled?: boolean
+  linkBillHint?: string
   onCreateRule?: () => void
   ignoreDisabled?: boolean
   ignoreHint?: string
@@ -111,6 +114,11 @@ function BulkActionItems(props: MobileBulkSelectionActionsProps) {
       {props.onMarkTransfer && (
         <DropdownMenuItem disabled={props.markTransferDisabled} title={props.markTransferHint} onSelect={props.onMarkTransfer}>
           <ArrowLeftRight size={15} />{t('transactions.bulkTransfer')}
+        </DropdownMenuItem>
+      )}
+      {props.onLinkBill && (
+        <DropdownMenuItem disabled={props.linkBillDisabled} title={props.linkBillHint} onSelect={props.onLinkBill}>
+          <CreditCard size={15} />{t('bills.link.title')}
         </DropdownMenuItem>
       )}
       {props.onCreateRule && <DropdownMenuItem onSelect={props.onCreateRule}><SlidersHorizontal size={15} />{t('transactions.createRule')}</DropdownMenuItem>}

@@ -22,16 +22,19 @@ from app.schemas.transaction import (
     TransferCreate,
 )
 from app.schemas.transaction_split import TransactionSplitInput, TransactionSplitsInput
-from app.services import reconciliation_service, split_service
+from app.core.app_clock import app_today
+from app.services import bill_service, reconciliation_service, split_service
 from app.services.credit_card_service import apply_effective_date
 from app.services.rule_service import apply_rules_to_transaction
 from app.services.fx_rate_service import stamp_primary_amount, convert as fx_convert
 from app.services._query_filters import (
+    bill_projected_row,
     counts_as_pnl,
     counts_as_user_pnl,
     is_not_ignored,
     is_transfer,
     reporting_date_col,
+    reporting_date_of,
 )
 from app.services.recurring_transaction_service import _advance_date
 
@@ -501,9 +504,17 @@ async def get_transactions(
         query = base_query.order_by(direction, default_order_col.desc(), Transaction.created_at.desc())
     if not skip_pagination:
         query = query.offset((page - 1) * limit).limit(limit)
+    mode = accounting_mode or "cash"
+    if mode == "settlement":
+        # The bucketing date of a card row reads its bill.
+        query = query.options(selectinload(Transaction.bill))
 
     result = await session.execute(query)
     transactions = list(result.scalars().all())
+    today = app_today()
+    for tx in transactions:
+        tx.reporting_date = reporting_date_of(tx, mode, today)
+        tx.is_bill_projected = bill_projected_row(tx, mode)
 
     # Batch-load attachment counts in a single query
     if transactions:
@@ -763,8 +774,10 @@ async def create_transaction(
     # to remove, and leaving this path out would remove it only for people
     # whose bank happens to be connected.
     await reconciliation_service.match_incoming(session, workspace_id, [transaction])
+    bills_created = await _sync_card_bills(session, [transaction.id])
 
     await session.commit()
+    await _auto_match_bill_payments(session, workspace_id, [transaction.id], bills_created)
     await session.refresh(transaction, ["category", "splits"])
     return transaction
 
@@ -864,6 +877,7 @@ async def create_installment_series(
             await stamp_primary_amount(session, user_id, tx)
         if base.splits is not None:
             await split_service.replace_splits(session, tx, base.splits, user_id)
+    await _sync_card_bills(session, [tx.id for tx in created])
 
     await session.commit()
     for tx in created:
@@ -991,6 +1005,7 @@ async def create_transfer(
         credit_tx.amount_primary = debit_tx.amount_primary
         if credit_tx.amount and Decimal(str(credit_tx.amount)):
             credit_tx.fx_rate_used = debit_tx.amount_primary / Decimal(str(credit_tx.amount))
+    await _sync_card_bills(session, [debit_tx.id, credit_tx.id])
 
     await session.commit()
     await session.refresh(debit_tx, ["category"])
@@ -1161,6 +1176,8 @@ async def link_existing_as_transfer(
     transfer_pair_id = uuid.uuid4()
     for tx in txns:
         tx.transfer_pair_id = transfer_pair_id
+    # The card leg of a bill payment leaves its bill's computed total (AD-004).
+    await bill_service.touch(session, [tx.id for tx in txns])
 
     await session.commit()
     for tx in txns:
@@ -1252,6 +1269,7 @@ async def create_transfer_counterpart(
             counterpart_tx.fx_rate_used = Decimal(str(anchor.amount_primary)) / Decimal(
                 str(counterpart_tx.amount)
             )
+    await _sync_card_bills(session, [anchor.id, counterpart_tx.id])
 
     await session.commit()
     await session.refresh(anchor, ["category"])
@@ -1265,13 +1283,16 @@ async def create_transfer_counterpart(
 async def _resync_bill_link_from_override(
     session: AsyncSession, transaction: Transaction, account: Optional[Account]
 ) -> None:
-    """Re-link transaction.bill_id when the manual effective_bill_date changes.
+    """Re-link transaction.bill_id to a provider bill when the manual
+    effective_bill_date changes.
 
-    - Override SET to a date matching an existing bill's due_date → link to it.
-    - Override SET to a date with no matching bill → keep bill_id null (the
-      override still sets effective_date directly).
+    - Override SET to a date matching a provider bill's due_date → link to it.
+    - Override SET to any other date → bill_id null; `_sync_card_bills` then
+      links the row to the auto or manual bill with that due date, if any
+      (the override still sets effective_date directly).
     - Override CLEARED → fall back to whatever Pluggy originally tagged via
-      `creditCardMetadata.billId` in raw_data, if recoverable; else null.
+      `creditCardMetadata.billId` in raw_data, if recoverable; else null, and
+      `_sync_card_bills` links the row to the bill of its period.
     """
     from app.models.credit_card_bill import CreditCardBill  # local: avoid circular
     if account is None or account.type != "credit_card":
@@ -1283,9 +1304,10 @@ async def _resync_bill_link_from_override(
                 select(CreditCardBill).where(
                     CreditCardBill.account_id == account.id,
                     CreditCardBill.due_date == override,
+                    CreditCardBill.source == "provider",
                 )
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         transaction.bill_id = bill.id if bill is not None else None
         return
     # Override cleared: try to recover the original Pluggy linkage.
@@ -1305,6 +1327,123 @@ async def _resync_bill_link_from_override(
         transaction.bill_id = bill.id if bill is not None else None
     else:
         transaction.bill_id = None
+
+
+async def paid_bill_refs(
+    session: AsyncSession, tx_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, dict]:
+    """The bill each of the rows pays: id, card, card name and reference month."""
+    from app.models.credit_card_bill import CreditCardBill  # local: avoid circular
+
+    if not tx_ids:
+        return {}
+    rows = await session.execute(
+        select(
+            Transaction.id,
+            CreditCardBill.id,
+            CreditCardBill.account_id,
+            Account.name,
+            CreditCardBill.reference_month,
+        )
+        .join(CreditCardBill, CreditCardBill.id == Transaction.paid_bill_id)
+        .join(Account, Account.id == CreditCardBill.account_id)
+        .where(Transaction.id.in_(tx_ids))
+    )
+    return {
+        tx_id: {
+            "id": bill_id,
+            "account_id": account_id,
+            "account_name": name,
+            "reference_month": reference_month,
+        }
+        for tx_id, bill_id, account_id, name, reference_month in rows
+    }
+
+
+async def _sync_card_bills(
+    session: AsyncSession,
+    tx_ids: list[uuid.UUID],
+    stale_bill_ids: set[uuid.UUID] | None = None,
+) -> int:
+    """Keep bills current after rows were created or changed (AD-004).
+
+    Drops a link to another account's bill, links card rows to the bill of
+    their period, and refreshes every bill the rows belong to or pay, plus
+    `stale_bill_ids` (the bills they belonged to before the change).
+    Returns how many bills were created."""
+    from app.models.credit_card_bill import CreditCardBill  # local: avoid circular
+
+    if not tx_ids:
+        return 0
+    await session.flush()
+    rows = (
+        await session.execute(
+            select(Transaction, CreditCardBill.account_id)
+            .outerjoin(CreditCardBill, CreditCardBill.id == Transaction.bill_id)
+            .where(Transaction.id.in_(tx_ids))
+        )
+    ).all()
+    stale = set(stale_bill_ids or ())
+    by_account: dict[uuid.UUID, list[uuid.UUID]] = {}
+    for tx, bill_account_id in rows:
+        if tx.bill_id is not None and bill_account_id != tx.account_id:
+            stale.add(tx.bill_id)
+            tx.bill_id = None
+        by_account.setdefault(tx.account_id, []).append(tx.id)
+    created = 0
+    for account_id, ids in by_account.items():
+        account = await session.get(Account, account_id)
+        if account is not None:
+            summary = await bill_service.link_account_transactions(session, account, ids)
+            created += summary.bills_created
+    await bill_service.refresh_bills(
+        session, stale | await bill_service.collect_bill_ids(session, tx_ids)
+    )
+    return created
+
+
+async def _auto_match_bill_payments(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    tx_ids: list[uuid.UUID],
+    bills_created: int,
+) -> None:
+    """Run the bill payment matcher when the rows hold a non-card debit or
+    created a bill (BMATCH AC 7). Call after the write is committed: linking
+    commits when it pairs the card credit."""
+    from app.services import bill_match_service  # local: avoid circular
+
+    if not bills_created:
+        non_card_debit = await session.scalar(
+            select(func.count())
+            .select_from(Transaction)
+            .join(Account, Account.id == Transaction.account_id)
+            .where(
+                Transaction.id.in_(tx_ids),
+                Transaction.type == "debit",
+                Account.type != "credit_card",
+            )
+        )
+        if not non_card_debit:
+            return
+    if await bill_match_service.run_auto_match(session, workspace_id):
+        await session.commit()
+
+
+async def _ids_in_workspace(
+    session: AsyncSession, workspace_id: uuid.UUID, tx_ids: list[uuid.UUID]
+) -> list[uuid.UUID]:
+    if not tx_ids:
+        return []
+    return list(
+        (
+            await session.execute(
+                select(Transaction.id).where(
+                    Transaction.id.in_(tx_ids), Transaction.workspace_id == workspace_id
+                )
+            )
+        ).scalars()
+    )
 
 
 def _is_installment(tx: Transaction) -> bool:
@@ -1593,6 +1732,22 @@ async def update_transaction(
             k: v for k, v in update_data.items() if k in installment_scoped_fields
         }
 
+    # Rows whose bill can change: the edited rows and their transfer legs
+    # (date edits cascade to the paired leg).
+    affected = [row.id for row in rows]
+    pair_ids = {row.transfer_pair_id for row in rows if row.transfer_pair_id}
+    if pair_ids:
+        affected += [
+            tx_id
+            for tx_id in (
+                await session.execute(
+                    select(Transaction.id).where(Transaction.transfer_pair_id.in_(pair_ids))
+                )
+            ).scalars()
+            if tx_id not in affected
+        ]
+    bills_before = await bill_service.collect_bill_ids(session, affected)
+
     for row in rows:
         # The edited transaction itself reflects the full form payload; the
         # sibling installments only receive the whitelisted fields (and keep
@@ -1623,7 +1778,10 @@ async def update_transaction(
         await session.flush()
         await _resync_installment_series_total(session, workspace_id, transaction)
 
+    bills_created = await _sync_card_bills(session, affected, bills_before)
+
     await session.commit()
+    await _auto_match_bill_payments(session, workspace_id, affected, bills_created)
     await session.refresh(transaction, ["category", "payee_entity", "splits"])
     return transaction
 
@@ -1643,6 +1801,7 @@ async def bulk_update_category(
         )
         .values(category_id=category_id)
     )
+    await bill_service.touch(session, await _ids_in_workspace(session, workspace_id, transaction_ids))
     await session.commit()
     return cast(CursorResult, result).rowcount
 
@@ -1668,6 +1827,7 @@ async def bulk_set_ignored(
         )
         .values(is_ignored=ignored)
     )
+    await bill_service.touch(session, await _ids_in_workspace(session, workspace_id, transaction_ids))
     await session.commit()
     return cast(CursorResult, result).rowcount
 
@@ -1871,6 +2031,7 @@ async def toggle_ignore_transaction(
     if not transaction:
         return None
     transaction.is_ignored = not transaction.is_ignored
+    await bill_service.touch(session, [transaction.id])
     await session.commit()
     await session.refresh(transaction)
     return transaction
@@ -1936,11 +2097,13 @@ async def delete_transaction(
                 paired_txs.append(paired_tx)
 
     await cleanup_attachment_files(session, tx_ids_to_cleanup)
+    bill_ids = await bill_service.collect_bill_ids(session, tx_ids_to_cleanup)
 
     for paired_tx in paired_txs:
         await session.delete(paired_tx)
     for row in rows:
         await session.delete(row)
+    await bill_service.refresh_bills(session, bill_ids)
     await session.commit()
     return True
 
@@ -1981,9 +2144,11 @@ async def bulk_delete_transactions(
     # Storage files must go before the rows: the DB cascade removes the
     # attachment records, and after that their storage keys are unreachable.
     await cleanup_attachment_files(session, valid_ids + paired_ids)
+    bill_ids = await bill_service.collect_bill_ids(session, valid_ids + paired_ids)
 
     await session.execute(
         delete(Transaction).where(Transaction.id.in_(valid_ids + paired_ids))
     )
+    await bill_service.refresh_bills(session, bill_ids)
     await session.commit()
     return len(valid_ids)

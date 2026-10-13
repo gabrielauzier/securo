@@ -7,6 +7,9 @@ import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useTranslation } from 'react-i18next'
 import { formatCurrency } from '@/lib/format'
 import { shouldShowPendingBadge } from '@/lib/transaction-status'
+import type { SettlementRowDates } from '@/lib/settlement-dates'
+import { SettlementDate } from '@/components/settlement-date'
+import { ProjectedTransactionBadge } from '@/components/projected-transaction-badge'
 
 /** Keep long merchant references on one line when there are no word breaks. */
 function hasWordBreaks(text: string): boolean {
@@ -28,6 +31,12 @@ interface MobileTransactionRowProps {
   onClick: (tx: Transaction) => void
   /** Show the payee instead of the account name in an account-scoped view. */
   showPayee?: boolean
+  /** Extra marker under the description (the bill payment badge). */
+  badge?: React.ReactNode
+  /** In `settlement`, the bill dates of a card row with a bill (ADJ AC 2). */
+  settlementDates?: SettlementRowDates | null
+  /** Locale for `settlementDates`; required with it. */
+  dateLocale?: string
 }
 
 export function MobileTransactionRow({
@@ -44,6 +53,9 @@ export function MobileTransactionRow({
   onSelect,
   onClick,
   showPayee = false,
+  badge,
+  settlementDates,
+  dateLocale,
 }: MobileTransactionRowProps) {
   const { mask } = usePrivacyMode()
   const { t } = useTranslation()
@@ -143,10 +155,19 @@ export function MobileTransactionRow({
               <Clock size={12} className="text-amber-500" role="img" aria-label={t('transactions.pending')} />
             </span>
           )}
+          {settlementDates && tx.is_bill_projected && <ProjectedTransactionBadge />}
           {(tx.attachment_count ?? 0) > 0 && (
             <Paperclip size={11} className="text-muted-foreground shrink-0" />
           )}
         </div>
+
+        {badge && <div className="mt-0.5 flex min-w-0">{badge}</div>}
+
+        {settlementDates && (
+          <div className="text-xs text-muted-foreground mt-0.5">
+            <SettlementDate dates={settlementDates} dateLocale={dateLocale ?? locale} />
+          </div>
+        )}
 
         {/* Account row or payee row */}
         {showPayee ? (

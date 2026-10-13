@@ -8,13 +8,14 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import Date, and_, case, false, func, literal, or_, select, true
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.app_clock import app_today
 from app.models.account import Account
 from app.models.category import Category
+from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
 
 
@@ -113,12 +114,103 @@ def reporting_date_col(accounting_mode: str):
     spend under the purchase month instead of the invoice month (issue
     #232).
     """
+    if accounting_mode == "settlement":
+        return _settlement_date_col(app_today())
     base = (
         Transaction.effective_date
         if accounting_mode == "accrual"
         else Transaction.date
     )
     return func.coalesce(Transaction.effective_bill_date, base)
+
+
+def _bill_value(column: str):
+    """Scalar subquery reading one column of the row's bill by primary key.
+
+    Aliased so the subquery never auto-correlates with an outer
+    ``credit_card_bills`` in queries that already select from that table.
+    """
+    bill = aliased(CreditCardBill)
+    return (
+        select(getattr(bill, column))
+        .where(bill.id == Transaction.bill_id)
+        .scalar_subquery()
+    )
+
+
+def _settlement_date_col(today: date):
+    """`settlement` bucketing date (BREP AC 2, 3, 4, 9).
+
+    - no bill: the cash date (the manual override, else the purchase date);
+    - paid bill: the date of the payment that made it paid (`settled_on`);
+    - unpaid bill due in a past month: today, since the debt is still due;
+    - unpaid bill otherwise: its effective due date.
+
+    ``today`` and the current month start are bound as parameters when the
+    query is built (AD-003: nothing that depends on today is stored). Plain
+    CASE and scalar subqueries keep it portable across SQLite and
+    PostgreSQL.
+    """
+    settled_on = _bill_value("settled_on")
+    due = _bill_value("effective_due_date")
+    return case(
+        (
+            Transaction.bill_id.is_(None),
+            func.coalesce(Transaction.effective_bill_date, Transaction.date),
+        ),
+        (settled_on.is_not(None), settled_on),
+        (due < literal(today.replace(day=1), Date), literal(today, Date)),
+        else_=due,
+    )
+
+
+def is_recognized(accounting_mode: str):
+    """SQL filter: the row may count as a *realized* income or expense.
+
+    Only `settlement` holds rows back: a card purchase is recognized once its
+    bill is fully paid, so rows on an unpaid bill stay projected. Rows with
+    no bill are recognized as in `cash`. Other modes recognize everything,
+    and ``true()`` drops out of the WHERE clause, so their SQL is unchanged.
+    """
+    if accounting_mode != "settlement":
+        return true()
+    return or_(Transaction.bill_id.is_(None), _bill_value("settled_on").is_not(None))
+
+
+def is_bill_projected(accounting_mode: str):
+    """SQL filter: in `settlement`, the row is a purchase on an unpaid bill.
+
+    Such rows are projected expenses at the bill's effective due date (or
+    today, when overdue) until the bill is paid. Always false in other
+    modes.
+    """
+    if accounting_mode != "settlement":
+        return false()
+    return and_(Transaction.bill_id.is_not(None), _bill_value("settled_on").is_(None))
+
+
+def reporting_date_of(tx: Transaction, accounting_mode: str, today: Optional[date] = None) -> date:
+    """Python twin of ``reporting_date_col`` for an already loaded row.
+
+    In `settlement` the row's ``bill`` relationship must be loaded.
+    """
+    bill = tx.bill if accounting_mode == "settlement" and tx.bill_id is not None else None
+    if bill is not None:
+        if bill.settled_on is not None:
+            return bill.settled_on
+        current = today or app_today()
+        if bill.effective_due_date < current.replace(day=1):
+            return current
+        return bill.effective_due_date
+    base = tx.effective_date if accounting_mode == "accrual" else tx.date
+    return tx.effective_bill_date or base
+
+
+def bill_projected_row(tx: Transaction, accounting_mode: str) -> bool:
+    """Python twin of ``is_bill_projected`` for an already loaded row."""
+    if accounting_mode != "settlement" or tx.bill_id is None or tx.bill is None:
+        return False
+    return tx.bill.settled_on is None
 
 
 def is_not_ignored():
@@ -172,7 +264,11 @@ def counts_as_pnl():
       - transactions flagged `is_ignored=True` (user-marked as not to be reported),
       - transactions flagged `exclude_from_pnl=True` (kept in balance,
         omitted from income and expense calculations),
-      - transactions in categories flagged `is_ignored=True` (user-marked as not to be reported).
+      - transactions in categories flagged `is_ignored=True` (user-marked as not to be reported),
+      - bill payments: rows linked to the bill they pay (`paid_bill_id`), and
+        rows in categories flagged `is_bill_payment` even before they are
+        linked. The card purchases are the expense; the payment only
+        settles them.
 
     Does NOT exclude `source='opening_balance'` — callers that already
     filter those keep doing so; this helper only handles the transfer-like
@@ -189,6 +285,7 @@ def counts_as_pnl():
         # over-recorded expense from when the receiver paid the full
         # parent transaction. So we keep credits, drop debits.
         ~and_(Transaction.source == "settlement", Transaction.type == "debit"),
+        Transaction.paid_bill_id.is_(None),
         or_(
             Transaction.category_id.is_(None),
             Transaction.category_id.not_in(
@@ -196,6 +293,7 @@ def counts_as_pnl():
                     or_(
                         Category.treat_as_transfer.is_(True),
                         Category.is_ignored.is_(True),
+                        Category.is_bill_payment.is_(True),
                     )
                 )
             ),
@@ -281,7 +379,7 @@ async def owner_split_offset_pnl(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
     workspace_id: Optional[uuid.UUID] = None,
 ) -> tuple[float, float]:
@@ -306,10 +404,9 @@ async def owner_split_offset_pnl(
             )
         )
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -341,6 +438,7 @@ async def owner_split_offset_pnl(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_user_pnl(),
         )
         .group_by(Transaction.currency)
@@ -376,7 +474,7 @@ async def owner_split_offset_by_category(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
     workspace_id: Optional[uuid.UUID] = None,
 ) -> dict:
@@ -395,10 +493,9 @@ async def owner_split_offset_by_category(
             )
         )
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -421,6 +518,7 @@ async def owner_split_offset_by_category(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_user_pnl(),
         )
         .group_by(Transaction.category_id, Transaction.currency)
@@ -449,7 +547,7 @@ async def viewer_shared_pnl(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
 ) -> tuple[float, float]:
     """Return (income, expense) totals contributed by transactions the
@@ -474,10 +572,9 @@ async def viewer_shared_pnl(
         GroupMember.linked_user_id == user_id,
         GroupMember.is_self.is_(False),
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -505,6 +602,7 @@ async def viewer_shared_pnl(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_pnl(),
         )
         .group_by(Transaction.currency)
@@ -544,7 +642,7 @@ async def viewer_shared_spending_by_category(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
 ) -> dict:
     """Return {category_id (uuid|None): total_share_expense_float} for
@@ -563,10 +661,9 @@ async def viewer_shared_spending_by_category(
         GroupMember.linked_user_id == user_id,
         GroupMember.is_self.is_(False),
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -584,6 +681,7 @@ async def viewer_shared_spending_by_category(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_pnl(),
         )
         .group_by(Transaction.category_id, Transaction.currency)

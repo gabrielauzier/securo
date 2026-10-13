@@ -1,0 +1,189 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 11,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "ac_gap::when a decision requires every write path to refresh derived aggregates audit bulk deletes and orm or fk cascades import undo account delete not only service crud functions",
+      "text": "When a decision requires every write path to refresh derived aggregates, audit bulk deletes and ORM or FK cascades (import undo, account delete), not only service CRUD functions",
+      "signal": "ac_gap",
+      "scope": "write-paths",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/api/import_logs.py:93-97; backend/app/services/account_service.py:622 (write-paths)"
+      ],
+      "created": "2026-10-13T06:24:57Z",
+      "last_seen": "2026-10-13T06:24:57Z"
+    },
+    {
+      "id": "L-002",
+      "key": "ac_gap::cover behavior that relies on database foreign key cascades with a postgresql test since the sqlite test schema does not enforce foreign keys",
+      "text": "Cover behavior that relies on database foreign key cascades with a PostgreSQL test, since the SQLite test schema does not enforce foreign keys",
+      "signal": "ac_gap",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec Edge Cases: card account deleted (tests)"
+      ],
+      "created": "2026-10-13T06:24:57Z",
+      "last_seen": "2026-10-13T06:24:57Z"
+    },
+    {
+      "id": "L-003",
+      "key": "spec_precision_gap::for a concurrency edge case assert every stated outcome of the race single row and all writers attached to it not only the uniqueness",
+      "text": "For a concurrency edge case, assert every stated outcome of the race (single row and all writers attached to it), not only the uniqueness",
+      "signal": "spec_precision_gap",
+      "scope": "tests",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/tests/test_bill_service.py:330-335 (tests)"
+      ],
+      "created": "2026-10-13T06:24:57Z",
+      "last_seen": "2026-10-13T06:24:57Z"
+    },
+    {
+      "id": "L-004",
+      "key": "spec_precision_gap::when the spec says two screens must show equal figures assert both screens against the same fixture in one test",
+      "text": "When the spec says two screens must show equal figures, assert both screens against the same fixture in one test",
+      "signal": "spec_precision_gap",
+      "scope": "frontend",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "BVIEW AC 8 (frontend)"
+      ],
+      "created": "2026-10-13T06:24:58Z",
+      "last_seen": "2026-10-13T06:24:58Z"
+    },
+    {
+      "id": "L-005",
+      "key": "spec_deviation::name the outcome for every amount relation below equal above in a matching spec so implementers do not invent a category",
+      "text": "Name the outcome for every amount relation (below, equal, above) in a matching spec so implementers do not invent a category",
+      "signal": "spec_deviation",
+      "scope": "matching",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/services/bill_match_service.py:104 (matching)"
+      ],
+      "created": "2026-10-13T06:24:58Z",
+      "last_seen": "2026-10-13T06:24:58Z"
+    },
+    {
+      "id": "L-006",
+      "key": "spec_deviation::do not prescribe a savepoint per item in design when the called service commits internally check the callee s transaction behavior first",
+      "text": "Do not prescribe a savepoint per item in design when the called service commits internally; check the callee's transaction behavior first",
+      "signal": "spec_deviation",
+      "scope": "design",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/services/bill_match_service.py:316 (design)"
+      ],
+      "created": "2026-10-13T06:24:58Z",
+      "last_seen": "2026-10-13T06:24:58Z"
+    },
+    {
+      "id": "L-007",
+      "key": "ac_gap::when a stored aggregate depends on a row field audit every bulk writer of that field in other services rule re application category merge or transfer not only the owning service",
+      "text": "When a stored aggregate depends on a row field, audit every bulk writer of that field in other services (rule re-application, category merge or transfer), not only the owning service",
+      "signal": "ac_gap",
+      "scope": "write-paths",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md round 2: category_service.py:448, rule_service.py:1382-1523 (write-paths)"
+      ],
+      "created": "2026-10-13T10:53:11Z",
+      "last_seen": "2026-10-13T10:53:11Z"
+    },
+    {
+      "id": "L-008",
+      "key": "ac_gap::when a stored aggregate depends on a row field also audit orm attribute writes of that field in api route helpers since a guard that scans bulk statements cannot see them",
+      "text": "When a stored aggregate depends on a row field, also audit ORM attribute writes of that field in API route helpers, since a guard that scans bulk statements cannot see them",
+      "signal": "ac_gap",
+      "scope": "write-paths",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/api/reconciliation.py:559-562 (validation.md round 3, AD-004 audit) (write-paths)"
+      ],
+      "created": "2026-10-13T13:45:07Z",
+      "last_seen": "2026-10-13T13:45:07Z"
+    },
+    {
+      "id": "L-009",
+      "key": "spec_deviation::specify a ui label s condition with the same field that selects the date it labels so the label and the date cannot disagree",
+      "text": "Specify a UI label's condition with the same field that selects the date it labels, so the label and the date cannot disagree",
+      "signal": "spec_deviation",
+      "scope": "spec",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "frontend/src/lib/settlement-dates.ts:19-26 SPEC_DEVIATION (validation.md round 3) (spec)"
+      ],
+      "created": "2026-10-13T13:45:07Z",
+      "last_seen": "2026-10-13T13:45:07Z"
+    },
+    {
+      "id": "L-010",
+      "key": "spec_deviation::when a stored aggregate depends on a field of a linked row refresh on changes to the linked row too not only on changes to the counted row",
+      "text": "When a stored aggregate depends on a field of a linked row, refresh on changes to the linked row too, not only on changes to the counted row",
+      "signal": "spec_deviation",
+      "scope": "write-paths",
+      "status": "candidate",
+      "features": [
+        "credit-card-bills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "backend/app/services/bill_service.py:258-268 (SPEC_DEVIATION 2) (write-paths)"
+      ],
+      "created": "2026-10-13T15:03:00Z",
+      "last_seen": "2026-10-13T15:03:00Z"
+    }
+  ]
+}

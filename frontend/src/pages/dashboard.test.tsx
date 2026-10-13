@@ -137,3 +137,67 @@ describe('Dashboard net worth breakdown', () => {
     expect(cardRow).toHaveTextContent(formatCurrency(-500, 'USD', 'en-US'))
   })
 })
+
+// BREP AC 11: in `settlement`, "Open credit card bills" is the remaining amount
+// of the bills that are not paid, which the summary carries; `cash` and
+// `accrual` send null and keep the card-balance sum.
+describe('Dashboard open credit card bills', () => {
+  async function openBillsRow(openBills: number | null) {
+    api.dashboard.summary.mockResolvedValue({ ...summary, open_bills_remaining_primary: openBills })
+    const { user } = renderWithProviders(
+      <TooltipProvider delayDuration={0}>
+        <DashboardPage />
+      </TooltipProvider>,
+    )
+    await screen.findByText(formatCurrency(500, 'USD', 'en-US'))
+    await user.hover(screen.getByRole('button', { name: 'i' }))
+    const tooltip = await screen.findByRole('tooltip')
+    return within(tooltip).queryByText(t('dashboard.creditCardBalance'))?.parentElement ?? null
+  }
+
+  it('shows the remaining amount of the unpaid bills in settlement mode', async () => {
+    expect(await openBillsRow(1283.2)).toHaveTextContent(formatCurrency(-1283.2, 'USD', 'en-US'))
+  })
+
+  it('keeps the card balance sum when the summary carries no open bills value', async () => {
+    expect(await openBillsRow(null)).toHaveTextContent(formatCurrency(-500, 'USD', 'en-US'))
+  })
+
+  it('hides the row when nothing is left to pay in settlement mode', async () => {
+    expect(await openBillsRow(0)).toBeNull()
+  })
+})
+
+// ADJ AC 6: in `settlement`, "Spending by Category" shows next to each category
+// the number of its purchases still on an unpaid bill; none means no badge.
+describe('Dashboard projected purchase counts', () => {
+  function spending(id: string, name: string, projectedCount: number) {
+    return {
+      category_id: id, category_name: name, category_icon: 'circle-help', category_color: '#6366f1',
+      total: 100, projected_total: 100, projected_count: projectedCount, percentage: 50,
+    }
+  }
+
+  it('shows the count next to categories with projected purchases and nothing for the others', async () => {
+    api.dashboard.spendingByCategory.mockResolvedValue([
+      spending('cat-1', 'Compras', 2),
+      spending('cat-2', 'Mercado', 0),
+    ])
+    renderWithProviders(<DashboardPage />)
+
+    const compras = (await screen.findByText('Compras')).parentElement!
+    expect(compras).toHaveTextContent('Compras(2 projected)')
+    const mercado = screen.getByText('Mercado').parentElement!
+    expect(mercado).toHaveTextContent(/^Mercado$/)
+  })
+
+  it('uses the pt-BR plural rules: 1 prevista, 2 previstas', async () => {
+    const i18next = (await import('i18next')).default
+    const ptBR = (await import('@/locales/pt-BR.json')).default
+    const instance = i18next.createInstance()
+    await instance.init({ lng: 'pt-BR', resources: { 'pt-BR': { translation: ptBR } } })
+
+    expect(instance.t('dashboard.projectedCount', { count: 1 })).toBe('(1 prevista)')
+    expect(instance.t('dashboard.projectedCount', { count: 2 })).toBe('(2 previstas)')
+  })
+})

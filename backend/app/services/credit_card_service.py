@@ -1,9 +1,11 @@
 import calendar
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
 
 from app.core.app_clock import app_today
+from app.core.business_days import next_business_day
 
 
 def _clamp_day(year: int, month: int, day: int) -> date:
@@ -143,3 +145,119 @@ def compute_effective_date(
     if cycle_end.month == 12:
         return _clamp_day(cycle_end.year + 1, 1, payment_due_day)
     return _clamp_day(cycle_end.year, cycle_end.month + 1, payment_due_day)
+
+
+@dataclass(frozen=True)
+class BillPeriod:
+    """The dates of one credit-card bill.
+
+    `reference_month` is day 1 of the nominal due date's month (the Brazilian
+    "fatura de setembro" convention). Purchases dated in
+    `[period_start, period_end]` belong to the bill; `period_end` is the day
+    before `close_date`, so a purchase on the close day goes to the next bill.
+    """
+
+    reference_month: date
+    period_start: date
+    period_end: date
+    close_date: date
+    nominal_due_date: date
+    effective_due_date: date
+
+
+def _shift_month(d: date, months: int) -> tuple[int, int]:
+    index = d.year * 12 + (d.month - 1) + months
+    return index // 12, index % 12 + 1
+
+
+def _period(close_date: date, close_day: int, due_day: int) -> BillPeriod:
+    prev_year, prev_month = _shift_month(close_date, -1)
+    nominal_due = _clamp_day(close_date.year, close_date.month, due_day)
+    if nominal_due <= close_date:
+        nominal_due = _clamp_day(*_shift_month(close_date, 1), due_day)
+    return BillPeriod(
+        reference_month=nominal_due.replace(day=1),
+        period_start=_clamp_day(prev_year, prev_month, close_day),
+        period_end=close_date - timedelta(days=1),
+        close_date=close_date,
+        nominal_due_date=nominal_due,
+        effective_due_date=next_business_day(nominal_due),
+    )
+
+
+def bill_period_for(tx_date: date, close_day: int, due_day: int) -> BillPeriod:
+    """The bill a purchase dated `tx_date` belongs to.
+
+    Same rules as `compute_effective_date`: the close is the first close day
+    strictly after the purchase, the nominal due the first due day strictly
+    after the close."""
+    close_date = _clamp_day(tx_date.year, tx_date.month, close_day)
+    if close_date <= tx_date:
+        close_date = _clamp_day(*_shift_month(tx_date, 1), close_day)
+    return _period(close_date, close_day, due_day)
+
+
+def bill_period_for_month(reference_month: date, close_day: int, due_day: int) -> BillPeriod:
+    """The bill whose nominal due date falls in `reference_month`.
+
+    The close is the last close day strictly before that month's due day."""
+    nominal_due = _clamp_day(reference_month.year, reference_month.month, due_day)
+    close_date = _clamp_day(reference_month.year, reference_month.month, close_day)
+    if close_date >= nominal_due:
+        close_date = _clamp_day(*_shift_month(reference_month, -1), close_day)
+    return _period(close_date, close_day, due_day)
+
+
+# Consecutive close dates checked by `cycle_days_compatible`: four years,
+# from 2027 through 2030, so a leap February (2028) is included.
+_CYCLE_CHECK_START = date(2027, 1, 1)
+_CYCLE_CHECK_MONTHS = 48
+
+
+def cycle_days_compatible(close_day: int, due_day: int) -> bool:
+    """Whether every close date of the cycle gets its own reference month.
+
+    Near month end, clamping can map two consecutive closes to the same
+    nominal due month (close 30, due 31: the bills closing on 28 Feb and
+    30 Mar are both due in March). Such a cycle cannot keep one bill per
+    reference month, so it is refused."""
+    previous = None
+    for offset in range(_CYCLE_CHECK_MONTHS):
+        close = _clamp_day(*_shift_month(_CYCLE_CHECK_START, offset), close_day)
+        period = bill_period_for(close - timedelta(days=1), close_day, due_day)
+        if period.close_date != close:
+            return False
+        if previous is not None and period.reference_month <= previous:
+            return False
+        if bill_period_for_month(period.reference_month, close_day, due_day).close_date != close:
+            return False
+        previous = period.reference_month
+    return True
+
+
+# Days between close and due assumed for a provider bill whose card has no
+# statement close day configured.
+PROVIDER_BILL_DEFAULT_CLOSE_GAP = 7
+
+
+def bill_period_for_due_date(due_date: date, close_day: Optional[int]) -> BillPeriod:
+    """The period of a provider bill, whose nominal due date the bank gave.
+
+    The close is the last close day strictly before the due date. Without a
+    configured close day the close is assumed `PROVIDER_BILL_DEFAULT_CLOSE_GAP`
+    days before the due date."""
+    if close_day:
+        close_date = _clamp_day(due_date.year, due_date.month, close_day)
+        if close_date >= due_date:
+            close_date = _clamp_day(*_shift_month(due_date, -1), close_day)
+    else:
+        close_date = due_date - timedelta(days=PROVIDER_BILL_DEFAULT_CLOSE_GAP)
+    day = close_day or close_date.day
+    return BillPeriod(
+        reference_month=due_date.replace(day=1),
+        period_start=_clamp_day(*_shift_month(close_date, -1), day),
+        period_end=close_date - timedelta(days=1),
+        close_date=close_date,
+        nominal_due_date=due_date,
+        effective_due_date=next_business_day(due_date),
+    )

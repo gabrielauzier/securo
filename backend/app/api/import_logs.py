@@ -12,7 +12,8 @@ from app.core.workspace_context import (
 from app.models.import_log import ImportLog
 from app.models.transaction import Transaction
 from app.schemas.import_log import ImportLogRead
-from app.services import asset_import_service
+from app.services import asset_import_service, bill_service
+from app.services.transfer_detection_service import unlink_transfer_pair
 
 router = APIRouter(prefix="/api/import-logs", tags=["import-logs"])
 
@@ -90,9 +91,26 @@ async def delete_import_log(
             )
         )
 
+    # Bills the rows belong to or pay are refreshed after the delete (AD-004).
+    bill_ids = await bill_service.collect_bill_ids(session, tx_ids)
+    # A deleted payment takes the transfer pair its bill link created with it (BPAY AC 9).
+    pair_ids = (
+        await session.execute(
+            select(Transaction.transfer_pair_id).where(
+                Transaction.import_id == log_id,
+                Transaction.bill_payment_pair.is_(True),
+                Transaction.transfer_pair_id.is_not(None),
+            )
+        )
+    ).scalars().all()
+    for pair_id in pair_ids:
+        if pair_id is not None:
+            await unlink_transfer_pair(session, ctx.workspace.id, pair_id)
+
     # Delete all transactions from this import
     await session.execute(
         delete(Transaction).where(Transaction.import_id == log_id)
     )
+    await bill_service.refresh_bills(session, bill_ids)
     await session.delete(log)
     await session.commit()

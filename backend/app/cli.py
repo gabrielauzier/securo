@@ -27,6 +27,40 @@ async def generate_recurring() -> None:
         print(f"Total generated: {total}")
 
 
+async def rebuild_bills(workspace_id: uuid.UUID | None = None) -> None:
+    """Relink every credit card's transactions to their bills and recompute
+    the stored bill aggregates; repairs drift left by a missed write path."""
+    from app.models.account import Account
+    from app.models.credit_card_bill import CreditCardBill
+    from app.services import bill_service
+
+    async with async_session_maker() as session:
+        query = select(Account).where(Account.type == "credit_card")
+        if workspace_id is not None:
+            query = query.where(Account.workspace_id == workspace_id)
+        cards = (await session.execute(query)).scalars().all()
+        linked = created = 0
+        for card in cards:
+            summary = await bill_service.link_account_transactions(session, card)
+            linked += summary.linked
+            created += summary.bills_created
+        bill_ids = list(
+            (
+                await session.execute(
+                    select(CreditCardBill.id).where(
+                        CreditCardBill.account_id.in_([card.id for card in cards])
+                    )
+                )
+            ).scalars()
+        )
+        await bill_service.refresh_bills(session, bill_ids)
+        await session.commit()
+        print(
+            f"Rebuilt bills for {len(cards)} cards: {linked} transactions linked, "
+            f"{created} bills created, {len(bill_ids)} bills refreshed"
+        )
+
+
 async def create_user(email: str, password: str) -> None:
     """Create a new user with the given email and password."""
     from pwdlib import PasswordHash
@@ -64,6 +98,8 @@ def main() -> None:
     if len(sys.argv) < 2:
         print("Usage:")
         print("  python -m app.cli create-user <email> <password>")
+        print("  python -m app.cli generate-recurring")
+        print("  python -m app.cli rebuild-bills [--workspace <id>]")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -76,9 +112,15 @@ def main() -> None:
         asyncio.run(create_user(email, password))
     elif command == "generate-recurring":
         asyncio.run(generate_recurring())
+    elif command == "rebuild-bills":
+        args = sys.argv[2:]
+        if args and not (len(args) == 2 and args[0] == "--workspace"):
+            print("Usage: python -m app.cli rebuild-bills [--workspace <id>]")
+            sys.exit(1)
+        asyncio.run(rebuild_bills(uuid.UUID(args[1]) if args else None))
     else:
         print(f"Unknown command: {command}")
-        print("Available commands: create-user, generate-recurring")
+        print("Available commands: create-user, generate-recurring, rebuild-bills")
         sys.exit(1)
 
 

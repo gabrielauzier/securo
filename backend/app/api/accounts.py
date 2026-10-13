@@ -19,7 +19,7 @@ from app.schemas.account import (
     AccountUpdate,
     CreditCardBillRead,
 )
-from app.services import account_service
+from app.services import account_service, bill_service
 from app.services.fx_rate_service import convert
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
@@ -127,7 +127,7 @@ async def get_account_bills(
     )
     if bills is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
-    return bills
+    return await bill_service.describe_bills(session, bills)
 
 
 @router.get("/{account_id}", response_model=AccountRead)
@@ -136,10 +136,10 @@ async def get_account(
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    account = await account_service.get_account(session, account_id, ctx.workspace.id)
+    account = await account_service.get_serialized_account(session, account_id, ctx.workspace.id)
     if not account:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
-    return account_service.serialize_account(account, None, None, account.connection)
+    return account
 
 
 @router.post("", response_model=AccountRead, status_code=status.HTTP_201_CREATED)
@@ -148,8 +148,12 @@ async def create_account(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    account = await account_service.create_account(session, ctx.workspace.id, ctx.user_id, data)
-    return account_service.serialize_account(account, None, None)
+    try:
+        account = await account_service.create_account(session, ctx.workspace.id, ctx.user_id, data)
+    except account_service.IncompatibleCycleDaysError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
+    # Same floored balances as GET, so an opening balance shows up at once (ADJ-05).
+    return await account_service.get_serialized_account(session, account.id, ctx.workspace.id)
 
 
 @router.patch("/{account_id}", response_model=AccountRead)
@@ -161,16 +165,19 @@ async def update_account(
 ):
     try:
         account = await account_service.update_account(session, account_id, ctx.workspace.id, data)
+    except account_service.IncompatibleCycleDaysError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not account:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
     # Re-read post-commit so the response resolves the institution/display
-    # name pair exactly like GET (update_account leaves the row expired).
-    account = await account_service.get_account(session, account_id, ctx.workspace.id)
-    if not account:
+    # name pair and the balances exactly like GET (update_account leaves the
+    # row expired).
+    serialized = await account_service.get_serialized_account(session, account_id, ctx.workspace.id)
+    if not serialized:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
-    return account_service.serialize_account(account, None, None, account.connection)
+    return serialized
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)

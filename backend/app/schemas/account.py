@@ -76,6 +76,17 @@ class AccountRead(AccountBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class BillPaymentRead(BaseModel):
+    """A transaction linked as a payment of a bill."""
+
+    id: uuid.UUID
+    account_id: uuid.UUID
+    date: date
+    description: str
+    amount: float
+    currency: str
+
+
 class CreditCardBillRead(BaseModel):
     """Provider-agnostic credit-card bill (fatura) — issue #92.
 
@@ -85,13 +96,119 @@ class CreditCardBillRead(BaseModel):
 
     id: uuid.UUID
     account_id: uuid.UUID
-    external_id: str
+    external_id: Optional[str] = None
+    # Nominal due date (the provider's due date for provider bills).
     due_date: date
     total_amount: float
     currency: str
     minimum_payment: Optional[float] = None
+    source: Optional[str] = None
+    reference_month: Optional[date] = None
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    close_date: Optional[date] = None
+    effective_due_date: Optional[date] = None
+    declared_total: Optional[float] = None
+    computed_total: float = 0.0
+    target_amount: float = 0.0
+    paid_amount: float = 0.0
+    remaining_amount: float = 0.0
+    overpaid_amount: float = 0.0
+    settled_on: Optional[date] = None
+    status: Optional[str] = None
+    payments: list[BillPaymentRead] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CreditCardBillCreate(BaseModel):
+    """A manual bill; `reference_month` is day 1 of the due date's month."""
+
+    account_id: uuid.UUID
+    reference_month: date
+    close_date: date
+    due_date: date
+    declared_total: Optional[Decimal] = None
+
+
+class CreditCardBillUpdate(BaseModel):
+    declared_total: Optional[Decimal] = None
+    reference_month: Optional[date] = None
+    close_date: Optional[date] = None
+    due_date: Optional[date] = None
+
+
+class BillPaymentLink(BaseModel):
+    transaction_id: uuid.UUID
+
+
+class BillPaymentLinkRead(BaseModel):
+    """The outcome of linking a payment: the refreshed bill and the transfer pairing."""
+
+    transaction_id: uuid.UUID
+    bill: CreditCardBillRead
+    paired_credit_id: Optional[uuid.UUID] = None
+    needs_counterpart: bool
+
+
+class BillCandidateRead(BaseModel):
+    """A bill offered for a payment in "Vincular a fatura" (BMATCH AC 8)."""
+
+    bill_id: uuid.UUID
+    account_id: uuid.UUID
+    account_name: str
+    reference_month: date
+    effective_due_date: date
+    target_amount: float
+    remaining_amount: float
+    currency: str
+    #: `exact` or `partial` inside the match window, `other` for the other unpaid bills.
+    kind: str
+    reason: str
+    rank: int
+
+
+class BillMatchProposalRead(BaseModel):
+    """A proposed payment-bill link of the bulk preview (BMATCH AC 10)."""
+
+    transaction_id: uuid.UUID
+    bill_id: uuid.UUID
+    #: `exact` (auto-linkable), `partial` or `suggestion`.
+    kind: str
+    reason: str
+    payment_account_id: uuid.UUID
+    payment_account_name: str
+    payment_date: date
+    payment_description: str
+    payment_amount: float
+    bill_account_id: uuid.UUID
+    bill_account_name: str
+    reference_month: date
+    effective_due_date: date
+    remaining_amount: float
+    currency: str
+
+
+class BillMatchPair(BaseModel):
+    transaction_id: uuid.UUID
+    bill_id: uuid.UUID
+
+
+class BillMatchApply(BaseModel):
+    pairs: list[BillMatchPair]
+
+
+class BillMatchFailureRead(BaseModel):
+    transaction_id: uuid.UUID
+    bill_id: uuid.UUID
+    reason: str
+
+
+class BillMatchApplyRead(BaseModel):
+    """BMATCH AC 11: how many pairs were linked and which failed, with a reason."""
+
+    linked: int
+    failed: list[BillMatchFailureRead]
 
 
 class AccountSummary(BaseModel):

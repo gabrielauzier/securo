@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowLeftRight, CalendarDays, Copy, Download, List, MoreHorizontal } from 'lucide-react'
+import { ArrowLeftRight, CalendarDays, Copy, CreditCard, Download, List, MoreHorizontal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { MonthStepper } from '@/components/month-stepper'
 import { TransactionsViewSwitcher, type TransactionsViewSwitcherProps } from '@/components/transactions-view-switcher'
@@ -34,6 +34,8 @@ export type TransactionsPageActionsProps = {
   onAdd?: () => void
   onDuplicate?: () => void
   onTransfer?: () => void
+  /** Opens the bill payment match preview. */
+  onApplyBillMatches?: () => void
   testId?: string
 }
 
@@ -56,6 +58,7 @@ function DesktopSecondaryActions(props: TransactionsPageActionsProps) {
       </Button>
       {props.onDuplicate && <Button variant="outline" onClick={props.onDuplicate}><Copy size={16} className="mr-1.5" />{t('transactions.duplicate')}</Button>}
       {props.onTransfer && <Button variant="outline" onClick={props.onTransfer}><ArrowLeftRight size={16} className="mr-1.5" />{t('transactions.transfer')}</Button>}
+      {props.onApplyBillMatches && <Button variant="outline" onClick={props.onApplyBillMatches}><CreditCard size={16} className="mr-1.5" />{t('bills.apply.action')}</Button>}
     </div>
   )
 }
@@ -92,6 +95,7 @@ function MobileSecondaryMenu(props: TransactionsPageActionsProps) {
         <DropdownMenuItem disabled={props.exporting} onClick={props.onExport}><Download size={16} className="mr-2" />{props.exportLabel}</DropdownMenuItem>
         {props.onDuplicate && <DropdownMenuItem onClick={props.onDuplicate}><Copy size={16} className="mr-2" />{t('transactions.duplicate')}</DropdownMenuItem>}
         {props.onTransfer && <DropdownMenuItem onClick={props.onTransfer}><ArrowLeftRight size={16} className="mr-2" />{t('transactions.transfer')}</DropdownMenuItem>}
+        {props.onApplyBillMatches && <DropdownMenuItem onClick={props.onApplyBillMatches}><CreditCard size={16} className="mr-2" />{t('bills.apply.action')}</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   )

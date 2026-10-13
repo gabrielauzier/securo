@@ -2011,3 +2011,48 @@ class TestBillTotalIgnoresReportingExclusions:
 
         assert summary is not None
         assert summary["monthly_expenses"] == 300.0
+
+
+# ---------------------------------------------------------------------------
+# BREP-01 AC 1: the setting accepts `cash`, `accrual` and `settlement`.
+# ---------------------------------------------------------------------------
+
+
+class TestSettlementModeSetting:
+    @pytest.mark.asyncio
+    async def test_returns_stored_settlement(self, session, clean_db):
+        await admin_service.set_app_setting(session, "credit_card_accounting_mode", "settlement")
+        assert await admin_service.get_credit_card_accounting_mode(session) == "settlement"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mode", ["cash", "accrual", "settlement"])
+    async def test_admin_saves_each_mode(self, client, admin_auth_headers, mode):
+        response = await client.patch(
+            "/api/admin/settings/credit_card_accounting_mode",
+            json={"value": mode},
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["value"] == mode
+
+        read = await client.get("/api/admin/accounting-mode", headers=admin_auth_headers)
+        assert read.json() == {"mode": mode}
+
+    @pytest.mark.asyncio
+    async def test_admin_rejects_unknown_mode(self, client, admin_auth_headers):
+        await client.patch(
+            "/api/admin/settings/credit_card_accounting_mode",
+            json={"value": "settlement"},
+            headers=admin_auth_headers,
+        )
+        response = await client.patch(
+            "/api/admin/settings/credit_card_accounting_mode",
+            json={"value": "bogus"},
+            headers=admin_auth_headers,
+        )
+        # SPEC_DEVIATION: T29 says 422; the settings whitelist answers 400
+        # for every key, and this one keeps that shared contract.
+        assert response.status_code == 400
+
+        read = await client.get("/api/admin/accounting-mode", headers=admin_auth_headers)
+        assert read.json() == {"mode": "settlement"}

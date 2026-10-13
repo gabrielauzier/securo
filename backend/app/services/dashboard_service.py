@@ -13,18 +13,23 @@ from app.models.account import Account
 from app.models.bank_connection import BankConnection
 from app.models.transaction import Transaction
 from app.models.category import Category
+from app.models.credit_card_bill import CreditCardBill
 from app.models.recurring_transaction import RecurringTransaction
 from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, DailyBalance, BalanceHistory
 from app.services._query_filters import (
     counts_as_user_pnl,
+    bill_projected_row,
+    is_bill_projected,
+    is_recognized,
     owner_split_offset_by_category,
     owner_split_offset_pnl,
     reporting_date_col,
+    reporting_date_of,
     viewer_shared_pnl,
     viewer_shared_spending_by_category,
     within_opening_floor,
 )
-from app.services import invoice_forecast_service
+from app.services import bill_service, invoice_forecast_service
 from app.services.admin_service import get_credit_card_accounting_mode
 from app.services.recurring_transaction_service import get_occurrences_in_range
 from app.services.asset_service import get_asset_values_at
@@ -158,6 +163,7 @@ async def _get_forecast_transactions(
     range_end: date,
     account_ids: Optional[list[uuid.UUID]] = None,
     range_date_col=None,
+    accounting_mode: Optional[str] = None,
 ) -> list[Transaction]:
     """Return real rows that belong to the forecast, not the current balance.
 
@@ -165,9 +171,14 @@ async def _get_forecast_transactions(
     today is also forecast: this is how future installments and generate-ahead
     recurring rows follow the same rule as bank pending rows without needing a
     source-specific branch at every consumer.
+
+    In the `settlement` mode, purchases on unpaid bills are forecast too
+    (BREP AC 3, 4); they come from ``_get_settlement_projections`` so each
+    row is returned once, with its ``bill`` loaded for the bucketing date.
     """
     if account_ids is not None and len(account_ids) == 0:
         return []
+    settlement = accounting_mode == "settlement"
 
     today = app_today()
     bucket_date = range_date_col if range_date_col is not None else Transaction.date
@@ -194,6 +205,54 @@ async def _get_forecast_transactions(
     )
     if account_ids:
         stmt = stmt.where(Transaction.account_id.in_(account_ids))
+    if settlement:
+        stmt = stmt.where(~is_bill_projected(accounting_mode)).options(
+            selectinload(Transaction.bill)
+        )
+    result = await session.execute(stmt)
+    rows = list(result.scalars().all())
+    if settlement:
+        rows += await _get_settlement_projections(
+            session, workspace_id, range_start, range_end, account_ids
+        )
+    return rows
+
+
+async def _get_settlement_projections(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    range_start: date,
+    range_end: date,
+    account_ids: Optional[list[uuid.UUID]] = None,
+) -> list[Transaction]:
+    """Purchases on unpaid bills whose `settlement` date falls in the range.
+
+    They are projected expenses at the bill's effective due date, or today
+    when that date is in a past month, whatever their own date or status.
+    """
+    if account_ids is not None and len(account_ids) == 0:
+        return []
+    bucket_date = reporting_date_col("settlement")
+    stmt = (
+        select(Transaction)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(
+            Transaction.workspace_id == workspace_id,
+            Account.is_closed == False,
+            bucket_date >= range_start,
+            bucket_date < range_end,
+            Transaction.source != "opening_balance",
+            is_bill_projected("settlement"),
+        )
+        .options(
+            selectinload(Transaction.account),
+            selectinload(Transaction.category),
+            selectinload(Transaction.bill),
+        )
+        .order_by(Transaction.date.asc(), Transaction.created_at.asc())
+    )
+    if account_ids:
+        stmt = stmt.where(Transaction.account_id.in_(account_ids))
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
@@ -206,7 +265,11 @@ def _counts_as_user_pnl_row(tx: Transaction) -> bool:
         or tx.is_ignored
         or tx.exclude_from_pnl
         or tx.source == "settlement"
-        or (category and (category.treat_as_transfer or category.is_ignored))
+        or tx.paid_bill_id
+        or (
+            category
+            and (category.treat_as_transfer or category.is_ignored or category.is_bill_payment)
+        )
     )
 
 
@@ -356,6 +419,7 @@ async def get_summary(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
     )
@@ -363,6 +427,12 @@ async def get_summary(
     monthly_income = float(monthly_row[0] or 0)
     monthly_expenses = float(monthly_row[1] or 0)
 
+    # SPEC_DEVIATION: BREP AC 10 asks every mode to bucket the split
+    # adjustments by its own date. The summary has always bucketed them by
+    # purchase date in `accrual` too, and this feature must not change any
+    # `cash` or `accrual` number (spec Out of Scope, decision Q1), so only
+    # `settlement` gets its own date here.
+    split_mode = "settlement" if accounting_mode == "settlement" else "cash"
     if not filtered:
         # Subtract non-owner shares of the user's own split txs — they paid
         # for the others, so those amounts aren't their actual cost.
@@ -371,7 +441,7 @@ async def get_summary(
             user_id,
             month_start,
             month_end,
-            use_effective_date=False,
+            accounting_mode=split_mode,
             workspace_id=workspace_id,
         )
         monthly_income -= own_offset_inc
@@ -381,7 +451,7 @@ async def get_summary(
         # member but not the owner. Their concert ticket paid by a friend
         # is a real expense in their P/L picture.
         shared_income, shared_expenses = await viewer_shared_pnl(
-            session, user_id, month_start, month_end, use_effective_date=False
+            session, user_id, month_start, month_end, accounting_mode=split_mode
         )
         monthly_income += shared_income
         monthly_expenses += shared_expenses
@@ -400,6 +470,7 @@ async def get_summary(
     forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, month_start, month_end, account_ids,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for proj in projections:
         if proj["type"] == "credit":
@@ -501,6 +572,7 @@ async def get_summary(
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             Transaction.amount_primary.isnot(None),
             *acct_filter,
         )
@@ -517,7 +589,7 @@ async def get_summary(
             user_id,
             month_start,
             month_end,
-            use_effective_date=False,
+            accounting_mode=split_mode,
             primary_currency=primary_currency,
             workspace_id=workspace_id,
         )
@@ -565,6 +637,7 @@ async def get_summary(
                 report_date <= today,
                 Transaction.status == "posted",
                 counts_as_user_pnl(),
+                is_recognized(accounting_mode),
             )
             .group_by(Transaction.currency)
         )
@@ -621,7 +694,14 @@ async def get_summary(
         )
     )
 
+    open_bills_remaining_primary = (
+        await _open_bills_remaining(session, workspace_id, today, primary_currency, account_ids)
+        if accounting_mode == "settlement"
+        else None
+    )
+
     return DashboardSummary(
+        open_bills_remaining_primary=open_bills_remaining_primary,
         total_balance=total_balance,
         total_balance_primary=round(total_balance_primary, 2),
         projected_balance=projected_balance,
@@ -643,6 +723,29 @@ async def get_summary(
         primary_currency=primary_currency,
         pending_shares_net=round(pending_shares_net, 2),
     )
+
+
+async def _open_bills_remaining(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    today: date,
+    primary_currency: str,
+    account_ids: Optional[list[uuid.UUID]] = None,
+) -> float:
+    """Sum of the remaining amounts of the bills that are not paid (BREP AC 11)."""
+    stmt = select(CreditCardBill).where(CreditCardBill.workspace_id == workspace_id)
+    if account_ids is not None:
+        stmt = stmt.where(CreditCardBill.account_id.in_(account_ids))
+    total = 0.0
+    for bill in (await session.execute(stmt)).scalars().all():
+        if bill_service.bill_status(bill, today) == bill_service.STATUS_PAID:
+            continue
+        remaining = bill_service.bill_amounts(bill).remaining
+        if remaining <= 0:
+            continue
+        converted, _ = await convert(session, remaining, bill.currency, primary_currency)
+        total += float(converted)
+    return round(total, 2)
 
 
 async def _compute_pending_shares_net(
@@ -754,6 +857,7 @@ async def get_spending_by_category(
             report_date <= today,
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(Category.id, Category.name, Category.icon, Category.color)
@@ -779,7 +883,7 @@ async def get_spending_by_category(
         user_id,
         month_start,
         month_end,
-        use_effective_date=accounting_mode == "accrual",
+        accounting_mode=accounting_mode,
         primary_currency=primary_currency,
         workspace_id=workspace_id,
     )
@@ -795,7 +899,7 @@ async def get_spending_by_category(
     # parent transaction.
     shared_by_cat = {} if filtered else await viewer_shared_spending_by_category(
         session, user_id, month_start, month_end,
-        use_effective_date=accounting_mode == "accrual",
+        accounting_mode=accounting_mode,
         primary_currency=primary_currency,
     )
     if shared_by_cat:
@@ -876,6 +980,7 @@ async def get_spending_by_category(
     forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, month_start, month_end, account_ids,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for tx in forecast_transactions:
         if tx.type != "debit" or tx.is_ignored:
@@ -908,6 +1013,9 @@ async def get_spending_by_category(
                 {"name": "Sem categoria", "icon": "circle-help", "color": "#6B7280"},
             )
             spending_map[cat_id] = {**info, "total": 0.0, "projected": projected_amount}
+        if bill_projected_row(tx, accounting_mode):
+            entry = spending_map[cat_id]
+            entry["projected_count"] = entry.get("projected_count", 0) + 1
 
     # `total` stays posted-only so the breakdown adds up to the expenses card,
     # which is also posted-only. The forecast rides along in `projected_total`
@@ -922,6 +1030,7 @@ async def get_spending_by_category(
             category_color=entry["color"],
             total=entry["total"],
             projected_total=entry["total"] + entry.get("projected", 0.0),
+            projected_count=entry.get("projected_count", 0),
             percentage=(entry["total"] / grand_total * 100) if grand_total else 0,
         ))
 
@@ -956,6 +1065,7 @@ async def get_monthly_trend(
             report_date <= today,
             Transaction.status == "posted",
             counts_as_user_pnl(),
+            is_recognized(accounting_mode),
             *acct_filter,
         )
         .group_by(month_label)
@@ -984,14 +1094,12 @@ async def get_monthly_trend(
     forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, forecast_start, forecast_end, account_ids,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for tx in forecast_transactions:
         if not _counts_as_user_pnl_row(tx):
             continue
-        tx_report_date = (
-            tx.effective_bill_date
-            or (tx.effective_date if accounting_mode == "accrual" else tx.date)
-        )
+        tx_report_date = reporting_date_of(tx, accounting_mode, today)
         month_key = f"{tx_report_date.year:04d}-{tx_report_date.month:02d}"
         bucket = trend_map.setdefault(month_key, [0.0, 0.0])
         if tx.amount_primary is not None:
@@ -1028,13 +1136,13 @@ async def get_monthly_trend(
         else:
             own_inc, own_exp = await owner_split_offset_pnl(
                 session, user_id, m_start, m_end,
-                use_effective_date=accounting_mode == "accrual",
+                accounting_mode=accounting_mode,
                 primary_currency=primary_currency,
                 workspace_id=workspace_id,
             )
             shared_inc, shared_exp = await viewer_shared_pnl(
                 session, user_id, m_start, m_end,
-                use_effective_date=accounting_mode == "accrual",
+                accounting_mode=accounting_mode,
                 primary_currency=primary_currency,
             )
         adjusted.append(

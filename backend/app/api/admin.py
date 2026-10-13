@@ -147,7 +147,9 @@ async def update_setting(
         raise HTTPException(status_code=400, detail="Invalid IANA timezone")
     SETTING_VALIDATORS = {
         "registration_enabled": {"true", "false"},
-        "credit_card_accounting_mode": {"cash", "accrual"},
+        # SPEC_DEVIATION: T29 asks for 422 on an invalid mode; the whitelist
+        # answers 400 for every setting, so this key keeps the shared code.
+        "credit_card_accounting_mode": set(admin_service.CREDIT_CARD_ACCOUNTING_MODES),
         "use_provider_categories": {"true", "false"},
         "number_format": {"auto", "comma_dot", "dot_comma", "space_comma"},
         "date_format": {"auto", "dmy", "mdy", "ymd"},

@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, Eye, ChartNoAxesColumn, SlidersHorizontal, Receipt } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, ArrowUp, ArrowDown, Check, Clock, HelpCircle, Info, Paperclip, Trash2, Users, X, EyeClosed, Eye, ChartNoAxesColumn, SlidersHorizontal, Receipt, CreditCard } from 'lucide-react'
 import type { Transaction, Rule, InstallmentSeriesInput, TransactionApplyScope, TransactionEditPayload, ReconciliationSuggestion } from '@/types'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
 import { PageHeader } from '@/components/page-header'
@@ -54,6 +54,10 @@ import { TransferDialog } from '@/components/transfer-dialog'
 import { useSidebarState } from '@/contexts/sidebar-state-context'
 import { cn } from '@/lib/utils'
 import { LinkTransferDialog } from '@/components/link-transfer-dialog'
+import { LinkBillDialog } from '@/components/link-bill-dialog'
+import { BillMatchApplyDialog } from '@/components/bill-match-apply-dialog'
+import { BillPaymentRowBadge } from '@/components/bill-payment-row-badge'
+import { canLinkBill } from '@/lib/bill-payment'
 import { BulkTransferDialog } from '@/components/bulk-transfer-dialog'
 import { BulkAddToGroupDialog, type BulkAddToGroupSubmission } from '@/components/bulk-add-to-group-dialog'
 import { TransactionsFilterBar } from '@/components/transactions-filter-bar'
@@ -67,6 +71,9 @@ import { useWorkspace } from '@/contexts/workspace-context'
 import { useCollectionFilter } from '@/contexts/collection-filter-context'
 import { formatCurrency } from '@/lib/format'
 import { shouldShowPendingBadge } from '@/lib/transaction-status'
+import { settlementRowDates } from '@/lib/settlement-dates'
+import { SettlementDate } from '@/components/settlement-date'
+import { ProjectedTransactionBadge } from '@/components/projected-transaction-badge'
 
 type TransactionUpdatePayload = TransactionEditPayload & {
   apply_to_transfer_pair?: boolean
@@ -251,6 +258,8 @@ export default function TransactionsPage() {
   const [exporting, setExporting] = useState(false)
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [linkTransferDialogOpen, setLinkTransferDialogOpen] = useState(false)
+  const [linkBillTx, setLinkBillTx] = useState<Transaction | null>(null)
+  const [billMatchOpen, setBillMatchOpen] = useState(false)
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
@@ -335,6 +344,9 @@ export default function TransactionsPage() {
         ['min_amount', filterMinAmount],
         ['max_amount', filterMaxAmount],
         ['hide_ignored', hideIgnored ? 'true' : ''],
+        // Keep the row to flash: dropping it here stripped the link target
+        // before the rows had loaded (ADJ-06).
+        ['highlight', highlightId ?? ''],
       ].filter(([, v]) => v.length),
     );
 
@@ -360,6 +372,7 @@ export default function TransactionsPage() {
     filterMinAmount,
     filterMaxAmount,
     hideIgnored,
+    highlightId,
   ]);
 
   useEffect(() => {
@@ -391,27 +404,6 @@ export default function TransactionsPage() {
   useEffect(() => {
     setBulkCategory('')
   }, [selectedIds])
-
-  // Scroll to and flash a highlighted row after navigation (e.g. opened via
-  // the command palette). Re-runs whenever highlightId or the current data
-  // set changes so that when results finish loading we animate the row.
-  useEffect(() => {
-    if (!highlightId) return
-    const el = highlightedRowRef.current
-    if (!el) return
-    const raf = requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el.classList.add('securo-highlight-flash')
-    })
-    const timer = setTimeout(() => {
-      el.classList.remove('securo-highlight-flash')
-    }, 2500)
-    return () => {
-      cancelAnimationFrame(raf)
-      clearTimeout(timer)
-      el.classList.remove('securo-highlight-flash')
-    }
-  }, [highlightId, searchQuery, filterPayee, filterCategoryIds, page])
 
   // Merge the global active-collection filter with the page's own account
   // filter (issue #105): an explicit on-page account selection wins; otherwise
@@ -451,6 +443,27 @@ export default function TransactionsPage() {
         ...(isMobile ? { sort_by: 'date', sort_dir: 'desc' as const } : grid.apiSort),
       }),
   })
+
+  // Scroll to and flash a highlighted row after navigation (e.g. opened via
+  // the command palette or a bill payment). Re-runs whenever highlightId or the
+  // current data set changes so that when results finish loading we animate the row.
+  useEffect(() => {
+    if (!highlightId) return
+    const el = highlightedRowRef.current
+    if (!el) return
+    const raf = requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('securo-highlight-flash')
+    })
+    const timer = setTimeout(() => {
+      el.classList.remove('securo-highlight-flash')
+    }, 2500)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(timer)
+      el.classList.remove('securo-highlight-flash')
+    }
+  }, [highlightId, searchQuery, filterPayee, filterCategoryIds, page, data])
 
   const calendarMonth = steppedMonth
   const calendarAccountIds = filterAccountIds.length === 1 ? filterAccountIds : []
@@ -566,6 +579,7 @@ export default function TransactionsPage() {
     staleTime: 5 * 60 * 1000,
   })
   const isAccrual = accountingModeData?.mode === 'accrual'
+  const accountingMode = accountingModeData?.mode
 
   const invalidateAfterTxMutation = () => invalidateFinancialQueries(queryClient)
 
@@ -821,10 +835,12 @@ export default function TransactionsPage() {
     const groups: { date: string; label: string; items: Transaction[] }[] = []
     let current: { date: string; label: string; items: Transaction[] } | null = null
     for (const tx of filteredItems) {
-      if (!current || current.date !== tx.date) {
+      // In `settlement` a card row with a bill sits under its bill date (ADJ AC 2).
+      const day = settlementRowDates(tx, accountingMode)?.date ?? tx.date
+      if (!current || current.date !== day) {
         current = {
-          date: tx.date,
-          label: new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale, {
+          date: day,
+          label: new Date(day + 'T00:00:00').toLocaleDateString(dateLocale, {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
@@ -837,7 +853,7 @@ export default function TransactionsPage() {
       current.items.push(tx)
     }
     return groups
-  }, [filteredItems, dateLocale])
+  }, [filteredItems, dateLocale, accountingMode])
 
   // Pre-resolve accounts into a Map for O(1) lookup in the mobile card view
   const accountById = useMemo(() => {
@@ -1138,7 +1154,7 @@ export default function TransactionsPage() {
         <CategoryIcon icon={tx.category?.icon} color={tx.category?.color} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-foreground truncate">{tx.description}</p>
+            <p className="min-w-0 text-sm font-semibold text-foreground truncate">{tx.description}</p>
             {tx.group_id && (
               <span
                 className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-violet-700 bg-violet-50 border border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900 px-1.5 py-0.5 rounded-full"
@@ -1177,6 +1193,8 @@ export default function TransactionsPage() {
                 {t('transactions.suggestionBadge')}
               </Link>
             )}
+            <BillPaymentRowBadge tx={tx} canWrite={canWrite} onConfirmSuggestion={setLinkBillTx} />
+            {accountingMode === 'settlement' && tx.is_bill_projected && <ProjectedTransactionBadge />}
             {(tx.invoice_links ?? []).map((link) => (
               <Link
                 key={link.invoice_id}
@@ -1249,9 +1267,16 @@ export default function TransactionsPage() {
               <Paperclip size={12} className="text-muted-foreground shrink-0" />
             )}
           </div>
-          {showInlineDate && (
-            <p className="text-xs text-muted-foreground mt-0.5">{new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}</p>
-          )}
+          {showInlineDate && (() => {
+            const settlement = settlementRowDates(tx, accountingMode)
+            return settlement ? (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                <SettlementDate dates={settlement} dateLocale={dateLocale} />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-0.5">{new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}</p>
+            )
+          })()}
           {(showInlineNotes || showInlineTags) && tx.notes && (
             <div className="mt-1 space-y-0.5">
               {showInlineNotes && noteText && (
@@ -1282,12 +1307,16 @@ export default function TransactionsPage() {
     const alignClass = col.align === 'right' ? 'text-right' : ''
     const baseClass = `py-2.5 ${alignClass}`
     switch (col.id) {
-      case 'date':
+      case 'date': {
+        const settlement = settlementRowDates(tx, accountingMode)
         return (
           <TableCell key={col.id} style={widthStyle} className={`${baseClass} text-sm text-muted-foreground tabular-nums`}>
-            {new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}
+            {settlement
+              ? <SettlementDate dates={settlement} dateLocale={dateLocale} />
+              : new Date(tx.date + 'T00:00:00').toLocaleDateString(dateLocale)}
           </TableCell>
         )
+      }
       case 'description':
         return (
           <TableCell key={col.id} style={widthStyle} className={`${baseClass} pl-2 max-w-0`}>
@@ -1399,6 +1428,12 @@ export default function TransactionsPage() {
   const duplicableTx = selectedSingleTx && !selectedSingleTx.is_shared && !selectedSingleTx.transfer_pair_id
     ? selectedSingleTx
     : null
+  const billLinkTx = selectedSingleTx && canLinkBill(
+    selectedSingleTx,
+    selectedSingleTx.account_id ? accountById.get(selectedSingleTx.account_id) : undefined,
+  )
+    ? selectedSingleTx
+    : null
   const exportLabel = exporting
     ? t('transactions.exporting')
     : selectedIds.size > 0
@@ -1435,6 +1470,7 @@ export default function TransactionsPage() {
             onAdd={canWrite ? () => { setEditingTx(null); setDialogOpen(true) } : undefined}
             onDuplicate={duplicableTx ? () => handleDuplicateTransaction(duplicableTx) : undefined}
             onTransfer={canWrite ? () => setTransferDialogOpen(true) : undefined}
+            onApplyBillMatches={canWrite ? () => setBillMatchOpen(true) : undefined}
           />
         }
       />
@@ -1592,6 +1628,11 @@ export default function TransactionsPage() {
                     locale={locale}
                     userCurrency={userCurrency}
                     onSelect={toggleSelect}
+                    settlementDates={settlementRowDates(tx, accountingMode)}
+                    dateLocale={dateLocale}
+                    badge={tx.paid_bill || tx.bill_payment_suggestion
+                      ? <BillPaymentRowBadge tx={tx} canWrite={canWrite} onConfirmSuggestion={setLinkBillTx} />
+                      : undefined}
                     onClick={(t) => {
                       if (t.is_shared) {
                         if (t.group_id) navigate(`/groups/${t.group_id}`)
@@ -1861,6 +1902,9 @@ export default function TransactionsPage() {
               onMarkTransfer={() => setBulkTransferOpen(true)}
               markTransferDisabled={bulkIgnoreOverLimit}
               markTransferHint={bulkIgnoreOverLimit ? t('transactions.bulkLimitHint') : undefined}
+              onLinkBill={() => billLinkTx && setLinkBillTx(billLinkTx)}
+              linkBillDisabled={!billLinkTx}
+              linkBillHint={billLinkTx ? t('bills.link.title') : t('bills.link.disabledHint')}
               onCreateRule={selectedSingleTx && !selectedSingleTx.is_shared
                 ? () => handleCreateRuleFromTransaction(selectedSingleTx)
                 : undefined}
@@ -2005,6 +2049,16 @@ export default function TransactionsPage() {
               <ArrowLeftRight size={15} />
             </BulkIconButton>
 
+            {/* Link to bill: one debit outside a card account that pays no bill yet */}
+            <BulkIconButton
+              label={t('bills.link.title')}
+              hint={billLinkTx ? undefined : t('bills.link.disabledHint')}
+              disabled={!billLinkTx}
+              onClick={() => billLinkTx && setLinkBillTx(billLinkTx)}
+            >
+              <CreditCard size={15} />
+            </BulkIconButton>
+
             <div className="w-px bg-border/60 self-stretch" />
 
             {/* Create Rule — only when exactly one non-shared transaction is selected */}
@@ -2110,6 +2164,15 @@ export default function TransactionsPage() {
         }}
         loading={linkTransferMutation.isPending || createCounterpartMutation.isPending}
       />
+
+      <LinkBillDialog
+        open={!!linkBillTx}
+        onClose={() => setLinkBillTx(null)}
+        transaction={linkBillTx}
+        accounts={accountsList ?? []}
+      />
+
+      <BillMatchApplyDialog open={billMatchOpen} onClose={() => setBillMatchOpen(false)} />
 
       {/* Transfer Dialog */}
       <TransferDialog

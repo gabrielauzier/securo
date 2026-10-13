@@ -22,7 +22,13 @@ from app.services._query_filters import (
     is_not_future,
     within_opening_floor,
 )
-from app.services.credit_card_service import apply_effective_date, compute_available_credit, get_cycle_dates
+from app.services import bill_service
+from app.services.credit_card_service import (
+    apply_effective_date,
+    compute_available_credit,
+    cycle_days_compatible,
+    get_cycle_dates,
+)
 from app.models.category import Category
 
 
@@ -52,6 +58,26 @@ def _opening_balance_values(account_type: str, balance: Decimal) -> tuple[Decima
 
 
 async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_closed: bool = False) -> list[dict]:
+    return await _serialized_accounts(session, workspace_id, include_closed=include_closed)
+
+
+async def get_serialized_account(
+    session: AsyncSession, account_id: uuid.UUID, workspace_id: uuid.UUID
+) -> Optional[dict]:
+    """One account with the same floored balances the accounts list shows (ADJ-05)."""
+    rows = await _serialized_accounts(
+        session, workspace_id, include_closed=True, account_id=account_id
+    )
+    return rows[0] if rows else None
+
+
+async def _serialized_accounts(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    include_closed: bool,
+    account_id: Optional[uuid.UUID] = None,
+) -> list[dict]:
     today = app_today()
     # Subquery: compute current_balance per account from transactions in one pass
     # Use amount_primary only when tx currency differs from account currency
@@ -130,6 +156,8 @@ async def get_accounts(session: AsyncSession, workspace_id: uuid.UUID, include_c
     )
     if not include_closed:
         query = query.where(Account.is_closed == False)
+    if account_id is not None:
+        query = query.where(Account.id == account_id)
     query = query.order_by(Account.name)
     result = await session.execute(query)
     return [
@@ -258,6 +286,20 @@ async def get_account(session: AsyncSession, account_id: uuid.UUID, workspace_id
     return result.scalar_one_or_none()
 
 
+class IncompatibleCycleDaysError(ValueError):
+    """Close and due days that would map two bills to one reference month."""
+
+    def __init__(self) -> None:
+        super().__init__("incompatible_cycle_days")
+
+
+def _check_cycle_days(account_type: str, close_day: Optional[int], due_day: Optional[int]) -> None:
+    if account_type != "credit_card" or not close_day or not due_day:
+        return
+    if not cycle_days_compatible(close_day, due_day):
+        raise IncompatibleCycleDaysError()
+
+
 async def create_account(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -265,6 +307,7 @@ async def create_account(
     data: AccountCreate,
 ) -> Account:
     is_cc = data.type == "credit_card"
+    _check_cycle_days(data.type, data.statement_close_day, data.payment_due_day)
     # A floor is created only when the user chose a date or opened the account
     # with a balance. A zero-balance account without a chosen date keeps
     # balance_date NULL so imported history still counts (an explicit null in
@@ -331,6 +374,13 @@ async def update_account(
     cycle_fields_changed = any(
         k in update_data for k in ("statement_close_day", "payment_due_day")
     )
+    # Refuse a cycle that cannot keep one bill per reference month before
+    # anything is written.
+    _check_cycle_days(
+        update_data.get("type", account.type),
+        update_data.get("statement_close_day", account.statement_close_day),
+        update_data.get("payment_due_day", account.payment_due_day),
+    )
 
     # Bank-connected accounts are managed by the sync pipeline. Beyond display
     # name and credit card metadata (limit + cycle days, which providers often
@@ -388,6 +438,7 @@ async def update_account(
             account.card_level = None
         if cycle_fields_changed:
             await _recompute_effective_dates(session, account)
+            await bill_service.relink_account(session, account)
         await session.commit()
         await session.refresh(account)
         return account
@@ -452,6 +503,7 @@ async def update_account(
 
     if cycle_fields_changed:
         await _recompute_effective_dates(session, account)
+        await bill_service.relink_account(session, account)
 
     await session.commit()
     await session.refresh(account)
@@ -609,6 +661,46 @@ async def delete_account(session: AsyncSession, account_id: uuid.UUID, workspace
     tx_ids = [row[0] for row in tx_result.all()]
     await cleanup_attachment_files(session, tx_ids)
 
+    # Bills: the account's own bills go with it and their payments are unlinked;
+    # bills its rows paid are refreshed after the delete (AD-004).
+    own_bill_ids = set(
+        (
+            await session.execute(
+                select(CreditCardBill.id).where(CreditCardBill.account_id == account_id)
+            )
+        ).scalars().all()
+    )
+    refresh_ids = await bill_service.collect_bill_ids(session, tx_ids) - own_bill_ids
+    from app.services.transfer_detection_service import unlink_transfer_pair  # local: circular
+
+    # Transfer pairs created by a bill link are undone with the link (BPAY AC 9).
+    payment_pairs = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.bill_payment_pair.is_(True),
+                Transaction.transfer_pair_id.is_not(None),
+                or_(
+                    Transaction.account_id == account_id,
+                    Transaction.paid_bill_id.in_(own_bill_ids),
+                ),
+            )
+        )
+    ).scalars().all()
+    for payment in payment_pairs:
+        if payment.transfer_pair_id is not None:
+            await unlink_transfer_pair(session, workspace_id, payment.transfer_pair_id)
+        payment.bill_payment_pair = False
+    if own_bill_ids:
+        await session.execute(
+            update(Transaction)
+            .where(Transaction.paid_bill_id.in_(own_bill_ids))
+            .values(paid_bill_id=None)
+        )
+        await session.execute(
+            update(Transaction).where(Transaction.bill_id.in_(own_bill_ids)).values(bill_id=None)
+        )
+        await session.execute(delete(CreditCardBill).where(CreditCardBill.id.in_(own_bill_ids)))
+
     # Break FK references before deleting the account. In production these are
     # also enforced at the DB level (see migration 039) — this code path makes
     # the behavior explicit and keeps the FK bug from #110 from regressing for
@@ -639,6 +731,7 @@ async def delete_account(session: AsyncSession, account_id: uuid.UUID, workspace
     )
 
     await session.delete(account)
+    await bill_service.refresh_bills(session, refresh_ids)
     await session.commit()
     return True
 

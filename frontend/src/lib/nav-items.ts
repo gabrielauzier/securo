@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   Building2,
+  CreditCard,
   Landmark,
   PiggyBank,
   Receipt,
@@ -26,8 +27,19 @@ import type { ModuleId } from './modules'
  * checkable rather than aspirational.
  */
 export type NavItem =
-  | { type: 'link'; key: string; path: string; icon: React.ElementType; module: ModuleId }
+  | {
+      type: 'link'
+      key: string
+      path: string
+      icon: React.ElementType
+      module: ModuleId
+      /** Pages nested under this link; they share its module. */
+      children?: NavSubItem[]
+    }
   | { type: 'separator'; labelKey: string }
+
+/** A page shown under its parent link, labelled `nav.<key>`. */
+export type NavSubItem = { key: string; path: string; icon: React.ElementType }
 
 export const navItems: NavItem[] = [
   // The dashboard ("Painel") is now reachable by clicking the Securo
@@ -37,7 +49,14 @@ export const navItems: NavItem[] = [
   { type: 'separator', labelKey: 'nav.groupAccounts' },
   { type: 'link', key: 'transactions', path: '/transactions', icon: ArrowLeftRight, module: 'transactions' },
   { type: 'link', key: 'invoices', path: '/invoices', icon: Receipt, module: 'invoices' },
-  { type: 'link', key: 'accounts', path: '/accounts', icon: Building2, module: 'accounts' },
+  {
+    type: 'link',
+    key: 'accounts',
+    path: '/accounts',
+    icon: Building2,
+    module: 'accounts',
+    children: [{ key: 'creditCards', path: '/accounts/credit-cards', icon: CreditCard }],
+  },
   { type: 'link', key: 'import', path: '/import', icon: Upload, module: 'import' },
   { type: 'separator', labelKey: 'nav.groupAnalysis' },
   { type: 'link', key: 'reports', path: '/reports', icon: BarChart3, module: 'reports' },

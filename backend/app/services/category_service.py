@@ -13,6 +13,7 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.schemas.category import CategoryCreate, CategoryUpdate
+from app.services.bill_service import refresh_workspace_bills, touch
 from app.services.category_group_service import CATEGORY_TO_GROUP, create_default_groups
 
 
@@ -243,8 +244,16 @@ async def update_category(
     if changes.get("is_hidden") is True and not category.is_system:
         raise CategoryVisibilityError("Only system categories can be hidden")
 
+    # Both flags decide which rows count in a bill's computed total.
+    bill_flags_changed = any(
+        key in changes and changes[key] != getattr(category, key)
+        for key in ("is_bill_payment", "is_ignored")
+    )
     for key, value in changes.items():
         setattr(category, key, value)
+
+    if bill_flags_changed:
+        await refresh_workspace_bills(session, workspace_id)
 
     if deactivate_rules and changes.get("is_hidden") is True:
         await deactivate_rules_assigning_category(session, workspace_id, category_id)
@@ -399,6 +408,16 @@ async def _transfer_category_references(
     destination_id: uuid.UUID,
 ) -> None:
     """Point everything that used one category at another, without committing."""
+    # The move can cross into or out of an `is_bill_payment`/`is_ignored`
+    # category, which changes what the moved card rows add to their bills.
+    moved_ids = (
+        await session.execute(
+            select(Transaction.id).where(
+                Transaction.workspace_id == workspace_id,
+                Transaction.category_id == category_id,
+            )
+        )
+    ).scalars().all()
     for model in (Transaction, RecurringTransaction):
         await session.execute(
             sa_update(model)
@@ -408,6 +427,7 @@ async def _transfer_category_references(
             )
             .values(category_id=destination_id)
         )
+    await touch(session, moved_ids)
     await _merge_budgets(session, workspace_id, category_id, destination_id)
     await _repoint_rules(session, workspace_id, category_id, destination_id)
 

@@ -17,6 +17,14 @@ import type {
   AccountSummary,
   Collection,
   CreditCardBill,
+  CreditCardBillCreate,
+  CreditCardBillUpdate,
+  BillPaymentLinkResult,
+  BillCandidate,
+  BillMatchProposal,
+  BillMatchPair,
+  BillMatchApplyResult,
+  TransactionImportResult,
   Transaction,
   Payee,
   PayeeSummary,
@@ -343,6 +351,59 @@ export const categories = {
     await api.delete(`/categories/${id}`, {
       params: transferToId ? { transfer_to_category_id: transferToId } : undefined,
     })
+  },
+}
+
+// Credit card bills (all cards of the workspace)
+export const creditCardBills = {
+  /** `referenceMonth` is YYYY-MM. */
+  list: async (params?: { referenceMonth?: string; accountId?: string }): Promise<CreditCardBill[]> => {
+    const { data } = await api.get('/credit-card-bills', {
+      params: { reference_month: params?.referenceMonth, account_id: params?.accountId },
+    })
+    return data
+  },
+  get: async (id: string): Promise<CreditCardBill> => {
+    const { data } = await api.get(`/credit-card-bills/${id}`)
+    return data
+  },
+  create: async (bill: CreditCardBillCreate): Promise<CreditCardBill> => {
+    const { data } = await api.post('/credit-card-bills', bill)
+    return data
+  },
+  update: async (id: string, bill: CreditCardBillUpdate): Promise<CreditCardBill> => {
+    const { data } = await api.patch(`/credit-card-bills/${id}`, bill)
+    return data
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/credit-card-bills/${id}`)
+  },
+  linkPayment: async (billId: string, transactionId: string): Promise<BillPaymentLinkResult> => {
+    const { data } = await api.post(`/credit-card-bills/${billId}/payments`, {
+      transaction_id: transactionId,
+    })
+    return data
+  },
+  unlinkPayment: async (transactionId: string): Promise<CreditCardBill> => {
+    const { data } = await api.delete(`/credit-card-bills/payments/${transactionId}`)
+    return data
+  },
+  paymentCandidates: async (transactionId: string): Promise<BillCandidate[]> => {
+    const { data } = await api.get('/credit-card-bills/payment-candidates', {
+      params: { transaction_id: transactionId },
+    })
+    return data
+  },
+  previewMatches: async (): Promise<BillMatchProposal[]> => {
+    const { data } = await api.get('/credit-card-bills/payment-matches/preview')
+    return data
+  },
+  applyMatches: async (pairs: BillMatchPair[]): Promise<BillMatchApplyResult> => {
+    const { data } = await api.post('/credit-card-bills/payment-matches/apply', { pairs })
+    return data
+  },
+  dismissSuggestion: async (pair: BillMatchPair): Promise<void> => {
+    await api.post('/credit-card-bills/payment-suggestions/dismiss', pair)
   },
 }
 
@@ -745,7 +806,7 @@ export const transactions = {
     filename: string,
     detected_format: string,
     options?: { detect_duplicates?: boolean },
-  ): Promise<{ imported: number; skipped: number; excluded: number; import_log_id: string }> => {
+  ): Promise<TransactionImportResult> => {
     const payload: {
       account_id: string
       transactions: ImportPreviewTransaction[]
@@ -1764,7 +1825,7 @@ export const admin = {
     const { data } = await api.get('/admin/registration-status')
     return data
   },
-  accountingMode: async (): Promise<{ mode: 'cash' | 'accrual' }> => {
+  accountingMode: async (): Promise<{ mode: 'cash' | 'accrual' | 'settlement' }> => {
     const { data } = await api.get('/admin/accounting-mode')
     return data
   },

@@ -20,7 +20,12 @@ from app.models.category import Category
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.schemas.transaction import TransactionImport, FailedRow
-from app.services import reconciliation_service, recurring_match_service
+from app.services import (
+    bill_match_service,
+    bill_service,
+    reconciliation_service,
+    recurring_match_service,
+)
 from app.services.credit_card_service import apply_effective_date
 from app.services.category_service import get_assignable_category_ids
 from app.services.rule_engine import apply_rule_actions, evaluate_conditions, merge_notes
@@ -795,6 +800,30 @@ async def enrich_with_category_suggestions(
     return transactions
 
 
+class ImportResult(tuple):
+    """`(imported, skipped, excluded, import_log_id)`, plus how many rows
+    joined a credit-card bill, how many bills the import created and how many
+    bill payments were matched to their bill afterwards."""
+
+    bills_linked: int
+    bills_created: int
+    payments_matched: int
+
+    def __new__(
+        cls,
+        imported: int,
+        skipped: int,
+        excluded: int,
+        import_log_id: uuid.UUID,
+        bill_summary: bill_service.LinkSummary,
+    ) -> "ImportResult":
+        result = super().__new__(cls, (imported, skipped, excluded, import_log_id))
+        result.bills_linked = bill_summary.linked
+        result.bills_created = bill_summary.bills_created
+        result.payments_matched = 0
+        return result
+
+
 async def import_transactions(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -805,12 +834,13 @@ async def import_transactions(
     filename: str = "",
     detected_format: str = "",
     detect_duplicates: bool = True,
-) -> tuple[int, int, int, uuid.UUID]:
+) -> ImportResult:
     """Import transactions into an account in the given workspace.
 
     `workspace_id` scopes tenant filters + stamps new rows. `user_id`
     is the creator/author recorded on Transaction + ImportLog.
-    Returns (imported, skipped, excluded, import_log_id)."""
+    Returns (imported, skipped, excluded, import_log_id); the result also
+    carries the bill link counts of a credit-card import."""
     from app.models.import_log import ImportLog
 
     included = [t for t in transactions if not t.excluded]
@@ -867,6 +897,7 @@ async def import_transactions(
 
     imported = 0
     landed: list[Transaction] = []
+    upgraded_placeholders: list[uuid.UUID] = []
     skipped = 0
     matched_existing_ids: set[uuid.UUID] = set()
     effective_format = (detected_format or source or "").lower()
@@ -1013,6 +1044,7 @@ async def import_transactions(
             placeholder.notes = merge_notes(placeholder.notes, preview.notes)
             if preview.is_ignored:
                 placeholder.is_ignored = True
+            upgraded_placeholders.append(placeholder.id)
             imported += 1
             continue
 
@@ -1064,8 +1096,24 @@ async def import_transactions(
     # at a transaction, which has to exist first.
     await reconciliation_service.match_incoming(session, workspace_id, landed)
 
+    bill_summary = bill_service.LinkSummary()
+    if account is not None:
+        bill_summary = await bill_service.link_account_transactions(
+            session, account, [t.id for t in landed] + upgraded_placeholders
+        )
+        # A placeholder already on its bill does not move, so linking leaves
+        # that bill alone; the rules may still have ignored or recategorized it.
+        await bill_service.touch(session, upgraded_placeholders)
+
     await session.commit()
-    return imported, skipped, excluded_count, import_log.id
+    result = ImportResult(imported, skipped, excluded_count, import_log.id, bill_summary)
+    if imported:
+        # BMATCH AC 7: new debits or new bills may complete a payment-bill pair.
+        # Runs after the import's own commit, so a matching failure never
+        # undoes the import.
+        result.payments_matched = await bill_match_service.run_auto_match(session, workspace_id)
+        await session.commit()
+    return result
 
 # Currency symbols and ISO codes around a number ("R$", "$", "NGN ", " EUR").
 _AMOUNT_EDGE_LEADING = re.compile(r'^[^\d\-+(),.]+')

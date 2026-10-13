@@ -24,3 +24,12 @@ export function invalidateFinancialQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['reports'] })
   queryClient.invalidateQueries({ queryKey: ['drill-down'] })
 }
+
+// After linking, unlinking, dismissing or applying a bill payment: the money
+// views above plus every bill list, candidate list and match preview.
+export function invalidateBillQueries(queryClient: QueryClient) {
+  invalidateFinancialQueries(queryClient)
+  queryClient.invalidateQueries({ queryKey: ['credit-card-bills'] })
+  queryClient.invalidateQueries({ queryKey: ['bill-payment-candidates'] })
+  queryClient.invalidateQueries({ queryKey: ['bill-match-preview'] })
+}
