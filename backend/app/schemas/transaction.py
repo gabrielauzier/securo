@@ -220,6 +220,11 @@ class TransactionRead(TransactionBase):
     # BMATCH AC 14: an eligible payment with an undismissed bill suggestion
     # ("Possível pagamento de fatura"); filled by the list route.
     bill_payment_suggestion: bool = False
+    # BREP-02: the date the row is bucketed by in the active accounting mode
+    # (list route only), and whether it is a purchase on an unpaid bill that
+    # `settlement` projects instead of counting.
+    reporting_date: Optional[_Date] = None
+    is_bill_projected: bool = False
 
     @model_validator(mode="after")
     def reflect_ignored_category(self):

@@ -22,16 +22,19 @@ from app.schemas.transaction import (
     TransferCreate,
 )
 from app.schemas.transaction_split import TransactionSplitInput, TransactionSplitsInput
+from app.core.app_clock import app_today
 from app.services import bill_service, reconciliation_service, split_service
 from app.services.credit_card_service import apply_effective_date
 from app.services.rule_service import apply_rules_to_transaction
 from app.services.fx_rate_service import stamp_primary_amount, convert as fx_convert
 from app.services._query_filters import (
+    bill_projected_row,
     counts_as_pnl,
     counts_as_user_pnl,
     is_not_ignored,
     is_transfer,
     reporting_date_col,
+    reporting_date_of,
 )
 from app.services.recurring_transaction_service import _advance_date
 
@@ -501,9 +504,17 @@ async def get_transactions(
         query = base_query.order_by(direction, default_order_col.desc(), Transaction.created_at.desc())
     if not skip_pagination:
         query = query.offset((page - 1) * limit).limit(limit)
+    mode = accounting_mode or "cash"
+    if mode == "settlement":
+        # The bucketing date of a card row reads its bill.
+        query = query.options(selectinload(Transaction.bill))
 
     result = await session.execute(query)
     transactions = list(result.scalars().all())
+    today = app_today()
+    for tx in transactions:
+        tx.reporting_date = reporting_date_of(tx, mode, today)
+        tx.is_bill_projected = bill_projected_row(tx, mode)
 
     # Batch-load attachment counts in a single query
     if transactions:

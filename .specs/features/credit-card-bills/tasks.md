@@ -1064,10 +1064,10 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] `user_pnl_only` list for September in `settlement` contains paid purchases with `reporting_date = 2026-09-14` and unpaid ones with `is_bill_projected = true`
-- [ ] `cash` list unchanged; bill view (`bill_id` filter) unchanged
-- [ ] New test `backend/tests/test_transactions_reporting_fields_api.py`
-- [ ] Gate passes: Build (backend)
+- [x] `user_pnl_only` list for September in `settlement` contains paid purchases with `reporting_date = 2026-09-14` and unpaid ones with `is_bill_projected = true`
+- [x] `cash` list unchanged; bill view (`bill_id` filter) unchanged
+- [x] New test `backend/tests/test_transactions_reporting_fields_api.py`
+- [x] Gate passes: Build (backend)
 
 **Tests**: integration
 **Gate**: Build

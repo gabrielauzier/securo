@@ -150,6 +150,9 @@ class Transaction(Base):
     parent_owner_name = cast(Optional[str], None)
     attachment_count: int = 0
     payee_name = cast(Optional[str], None)
+    # The list route's bucketing date and `settlement` projection flag.
+    reporting_date = cast(Optional[_date], None)
+    is_bill_projected: bool = False
 
 
 # Safety net: `effective_date` is NOT NULL. For non-CC transactions it always

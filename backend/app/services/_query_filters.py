@@ -194,8 +194,8 @@ def reporting_date_of(tx: Transaction, accounting_mode: str, today: Optional[dat
 
     In `settlement` the row's ``bill`` relationship must be loaded.
     """
-    if accounting_mode == "settlement" and tx.bill_id is not None:
-        bill = tx.bill
+    bill = tx.bill if accounting_mode == "settlement" and tx.bill_id is not None else None
+    if bill is not None:
         if bill.settled_on is not None:
             return bill.settled_on
         current = today or app_today()
@@ -208,11 +208,9 @@ def reporting_date_of(tx: Transaction, accounting_mode: str, today: Optional[dat
 
 def bill_projected_row(tx: Transaction, accounting_mode: str) -> bool:
     """Python twin of ``is_bill_projected`` for an already loaded row."""
-    return (
-        accounting_mode == "settlement"
-        and tx.bill_id is not None
-        and tx.bill.settled_on is None
-    )
+    if accounting_mode != "settlement" or tx.bill_id is None or tx.bill is None:
+        return False
+    return tx.bill.settled_on is None
 
 
 def is_not_ignored():

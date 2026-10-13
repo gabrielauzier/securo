@@ -31,7 +31,7 @@ def freeze_today(monkeypatch, today: date) -> None:
     def fake_today() -> date:
         return today
 
-    fake_today.frozen = True  # type: ignore[attr-defined]
+    setattr(fake_today, "frozen", True)
     original = app_clock.app_today
     for name, module in list(sys.modules.items()):
         if not name.startswith("app."):
