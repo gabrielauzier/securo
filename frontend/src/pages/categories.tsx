@@ -55,6 +55,7 @@ export default function CategoriesPage() {
   const [formColor, setFormColor] = useState('#6366f1')
   const [formTreatAsTransfer, setFormTreatAsTransfer] = useState(false)
   const [formIgnoreTransfer, setFormIgnoreTransfer] = useState(false)
+  const [formBillPayment, setFormBillPayment] = useState(false)
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<CategoryGroup | null>(null)
   const [groupFormIcon, setGroupFormIcon] = useState('folder')
@@ -237,6 +238,7 @@ export default function CategoriesPage() {
     setFormColor(cat?.color ?? '#6366f1')
     setFormTreatAsTransfer(cat?.treat_as_transfer ?? false)
     setFormIgnoreTransfer(cat?.is_ignored ?? false)
+    setFormBillPayment(cat?.is_bill_payment ?? false)
     setCatDialogOpen(true)
   }
 
@@ -431,7 +433,8 @@ export default function CategoriesPage() {
                 color: formData.get('color') as string,
                 group_id: (formData.get('group_id') as string) || null,
                 treat_as_transfer: formTreatAsTransfer,
-                is_ignored: formIgnoreTransfer
+                is_ignored: formIgnoreTransfer,
+                is_bill_payment: formBillPayment,
               }
               if (editingCat) {
                 updateCatMutation.mutate({ id: editingCat.id, ...data })
@@ -493,6 +496,18 @@ export default function CategoriesPage() {
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium text-foreground">{t('categories.ignoreTransfer')}</span>
                     <p className="text-xs text-muted-foreground mt-0.5">{t('categories.ignoreTransferDesc')}</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formBillPayment}
+                    onChange={(e) => setFormBillPayment(e.target.checked)}
+                    className="h-4 w-4 mt-0.5 rounded border-border shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-foreground">{t('categories.billPayment')}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('categories.billPaymentDesc')}</p>
                   </div>
                 </label>
               </div>

@@ -1631,6 +1631,8 @@
     "ignoreTransfer": "Игнорировать этот перевод",
     "ignoreTransferDesc": "Игнорируемые транзакции не будут отображаться в отчётах о доходах и расходах.",
     "ignoreTransferBadge": "Игнорировать",
+    "billPayment": "Credit card bill payment",
+    "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
     "hiddenScopeDescription": "Скрытые категории по умолчанию удаляются из списков выбора и больше не назначаются правилами. Существующие транзакции, бюджеты, панели и отчёты продолжают их использовать.",
     "hiddenBadge": "Скрыта",
     "showDefault": "Показать категорию по умолчанию",

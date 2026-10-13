@@ -1614,6 +1614,8 @@
     "ignoreTransfer": "Αγνόηση αυτής της μεταφοράς",
     "ignoreTransferDesc": "Οι αγνοημένες συναλλαγές δεν θα εμφανίζονται στις αναφορές εσόδων ή εξόδων.",
     "ignoreTransferBadge": "Αγνόηση",
+    "billPayment": "Credit card bill payment",
+    "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
     "hiddenScopeDescription": "Οι κρυφές προεπιλογές αφαιρούνται από τα εργαλεία επιλογής κατηγορίας και δεν εκχωρούνται πλέον από κανόνες. Οι υπάρχουσες συναλλαγές, οι προϋπολογισμοί, οι πίνακες ελέγχου και οι αναφορές συνεχίζουν να τις χρησιμοποιούν.",
     "hiddenBadge": "Κρυφό",
     "showDefault": "Εμφάνιση προεπιλεγμένης κατηγορίας",

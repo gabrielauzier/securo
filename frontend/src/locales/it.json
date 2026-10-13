@@ -1618,6 +1618,8 @@
     "ignoreTransfer": "Ignora questo trasferimento",
     "ignoreTransferDesc": "Le transazioni ignorate non appariranno nei report di entrate o spese.",
     "ignoreTransferBadge": "Ignora",
+    "billPayment": "Credit card bill payment",
+    "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
     "hiddenScopeDescription": "Le categorie predefinite nascoste vengono rimosse dai selettori e non vengono più assegnate dalle regole. Le transazioni, i budget, le dashboard e i report esistenti continuano a utilizzarle.",
     "hiddenBadge": "Nascosta",
     "showDefault": "Mostra categoria predefinita",

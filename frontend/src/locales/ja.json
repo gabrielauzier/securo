@@ -1614,6 +1614,8 @@
     "ignoreTransfer": "この振替を無視",
     "ignoreTransferDesc": "無視された取引は収入・支出レポートに表示されません。",
     "ignoreTransferBadge": "無視",
+    "billPayment": "Credit card bill payment",
+    "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
     "hiddenScopeDescription": "非表示の既定カテゴリはカテゴリ選択から除外され、ルールによる割り当ても行われません。既存の取引、予算、ダッシュボード、レポートは引き続き使用します。",
     "hiddenBadge": "非表示",
     "showDefault": "既定カテゴリを表示",

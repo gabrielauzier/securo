@@ -1164,9 +1164,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Toggle saves `is_bill_payment`; keys in every locale
-- [ ] New test `frontend/src/pages/categories-bill-payment.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/pages/categories-bill-payment.test.tsx`
+- [x] Toggle saves `is_bill_payment`; keys in every locale
+- [x] New test `frontend/src/pages/categories-bill-payment.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/pages/categories-bill-payment.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

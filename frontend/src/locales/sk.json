@@ -1706,6 +1706,8 @@
     "ignoreTransfer": "Ignorovať tento prevod",
     "ignoreTransferDesc": "Ignorované transakcie sa nezobrazia v reportoch príjmov ani výdavkov.",
     "ignoreTransferBadge": "Ignorovať",
+    "billPayment": "Credit card bill payment",
+    "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
     "hiddenScopeDescription": "Skryté predvolené kategórie zmiznú z výberov kategórií a pravidlá ich už nebudú priraďovať. Existujúce transakcie, rozpočty, prehľady a reporty ich používajú ďalej.",
     "hiddenBadge": "Skrytá",
     "showDefault": "Zobraziť predvolenú kategóriu",

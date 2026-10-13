@@ -1631,6 +1631,8 @@
     "ignoreTransfer": "Ігнорувати цей переказ",
     "ignoreTransferDesc": "Ігноровані транзакції не відображатимуться у звітах про доходи та витрати.",
     "ignoreTransferBadge": "Ігнорувати",
+    "billPayment": "Credit card bill payment",
+    "billPaymentDesc": "Transactions in this category pay a credit card bill and won't count as income or expense. The card purchases are the expense.",
     "hiddenScopeDescription": "Приховані типові категорії вилучаються зі списків вибору та більше не призначаються правилами. Наявні транзакції, бюджети, панелі та звіти й надалі їх використовують.",
     "hiddenBadge": "Прихована",
     "showDefault": "Показати типову категорію",
