@@ -422,6 +422,12 @@ async def get_summary(
     monthly_income = float(monthly_row[0] or 0)
     monthly_expenses = float(monthly_row[1] or 0)
 
+    # SPEC_DEVIATION: BREP AC 10 asks every mode to bucket the split
+    # adjustments by its own date. The summary has always bucketed them by
+    # purchase date in `accrual` too, and this feature must not change any
+    # `cash` or `accrual` number (spec Out of Scope, decision Q1), so only
+    # `settlement` gets its own date here.
+    split_mode = "settlement" if accounting_mode == "settlement" else "cash"
     if not filtered:
         # Subtract non-owner shares of the user's own split txs — they paid
         # for the others, so those amounts aren't their actual cost.
@@ -430,7 +436,7 @@ async def get_summary(
             user_id,
             month_start,
             month_end,
-            use_effective_date=False,
+            accounting_mode=split_mode,
             workspace_id=workspace_id,
         )
         monthly_income -= own_offset_inc
@@ -440,7 +446,7 @@ async def get_summary(
         # member but not the owner. Their concert ticket paid by a friend
         # is a real expense in their P/L picture.
         shared_income, shared_expenses = await viewer_shared_pnl(
-            session, user_id, month_start, month_end, use_effective_date=False
+            session, user_id, month_start, month_end, accounting_mode=split_mode
         )
         monthly_income += shared_income
         monthly_expenses += shared_expenses
@@ -578,7 +584,7 @@ async def get_summary(
             user_id,
             month_start,
             month_end,
-            use_effective_date=False,
+            accounting_mode=split_mode,
             primary_currency=primary_currency,
             workspace_id=workspace_id,
         )
@@ -872,7 +878,7 @@ async def get_spending_by_category(
         user_id,
         month_start,
         month_end,
-        use_effective_date=accounting_mode == "accrual",
+        accounting_mode=accounting_mode,
         primary_currency=primary_currency,
         workspace_id=workspace_id,
     )
@@ -888,7 +894,7 @@ async def get_spending_by_category(
     # parent transaction.
     shared_by_cat = {} if filtered else await viewer_shared_spending_by_category(
         session, user_id, month_start, month_end,
-        use_effective_date=accounting_mode == "accrual",
+        accounting_mode=accounting_mode,
         primary_currency=primary_currency,
     )
     if shared_by_cat:
@@ -1121,13 +1127,13 @@ async def get_monthly_trend(
         else:
             own_inc, own_exp = await owner_split_offset_pnl(
                 session, user_id, m_start, m_end,
-                use_effective_date=accounting_mode == "accrual",
+                accounting_mode=accounting_mode,
                 primary_currency=primary_currency,
                 workspace_id=workspace_id,
             )
             shared_inc, shared_exp = await viewer_shared_pnl(
                 session, user_id, m_start, m_end,
-                use_effective_date=accounting_mode == "accrual",
+                accounting_mode=accounting_mode,
                 primary_currency=primary_currency,
             )
         adjusted.append(

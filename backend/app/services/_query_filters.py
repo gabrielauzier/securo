@@ -381,7 +381,7 @@ async def owner_split_offset_pnl(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
     workspace_id: Optional[uuid.UUID] = None,
 ) -> tuple[float, float]:
@@ -406,10 +406,9 @@ async def owner_split_offset_pnl(
             )
         )
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -441,6 +440,7 @@ async def owner_split_offset_pnl(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_user_pnl(),
         )
         .group_by(Transaction.currency)
@@ -476,7 +476,7 @@ async def owner_split_offset_by_category(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
     workspace_id: Optional[uuid.UUID] = None,
 ) -> dict:
@@ -495,10 +495,9 @@ async def owner_split_offset_by_category(
             )
         )
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -521,6 +520,7 @@ async def owner_split_offset_by_category(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_user_pnl(),
         )
         .group_by(Transaction.category_id, Transaction.currency)
@@ -549,7 +549,7 @@ async def viewer_shared_pnl(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
 ) -> tuple[float, float]:
     """Return (income, expense) totals contributed by transactions the
@@ -574,10 +574,9 @@ async def viewer_shared_pnl(
         GroupMember.linked_user_id == user_id,
         GroupMember.is_self.is_(False),
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -605,6 +604,7 @@ async def viewer_shared_pnl(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_pnl(),
         )
         .group_by(Transaction.currency)
@@ -644,7 +644,7 @@ async def viewer_shared_spending_by_category(
     user_id: uuid.UUID,
     month_start: date,
     month_end: date,
-    use_effective_date: bool = False,
+    accounting_mode: str = "cash",
     primary_currency: Optional[str] = None,
 ) -> dict:
     """Return {category_id (uuid|None): total_share_expense_float} for
@@ -663,10 +663,9 @@ async def viewer_shared_spending_by_category(
         GroupMember.linked_user_id == user_id,
         GroupMember.is_self.is_(False),
     )
-    date_col = func.coalesce(
-        Transaction.effective_bill_date,
-        Transaction.effective_date if use_effective_date else Transaction.date,
-    )
+    # Bucketed like the aggregation it adjusts, so a split purchase offsets
+    # in the month the purchase is recognized (BREP AC 10).
+    date_col = reporting_date_col(accounting_mode)
 
     result = await session.execute(
         select(
@@ -684,6 +683,7 @@ async def viewer_shared_spending_by_category(
             date_col < month_end,
             date_col <= app_today(),
             Transaction.status == "posted",
+            is_recognized(accounting_mode),
             counts_as_pnl(),
         )
         .group_by(Transaction.category_id, Transaction.currency)

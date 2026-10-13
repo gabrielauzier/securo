@@ -1039,9 +1039,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] A split card purchase offsets in the same month the purchase is recognized in each mode (BREP AC 10)
-- [ ] New test `backend/tests/test_split_offsets_mode.py`
-- [ ] Gate passes: Full
+- [x] A split card purchase offsets in the same month the purchase is recognized in each mode (BREP AC 10)
+- [x] New test `backend/tests/test_split_offsets_mode.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

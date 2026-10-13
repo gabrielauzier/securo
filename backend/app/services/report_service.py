@@ -898,7 +898,7 @@ async def get_income_expenses_report(
     # composition consistent with summary totals under share-only model.
     full_range_offset = {} if filtered else await owner_split_offset_by_category(
         session, user_id, start, axis_end + timedelta(days=1),
-        use_effective_date=accounting_mode == "accrual",
+        accounting_mode=accounting_mode,
         primary_currency=primary_currency,
     )
     for cat_uuid, offset_total in full_range_offset.items():
