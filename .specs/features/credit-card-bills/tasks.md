@@ -1314,9 +1314,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH AC 10, 11 pass in the UI; empty state shown
-- [ ] New test `frontend/src/components/bill-match-apply-dialog.test.tsx`
-- [ ] Gate passes: `cd frontend && npx vitest run src/components/bill-match-apply-dialog.test.tsx`
+- [x] BMATCH AC 10, 11 pass in the UI; empty state shown
+- [x] New test `frontend/src/components/bill-match-apply-dialog.test.tsx`
+- [x] Gate passes: `cd frontend && npx vitest run src/components/bill-match-apply-dialog.test.tsx`
 
 **Tests**: unit
 **Gate**: Quick-FE

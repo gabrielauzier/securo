@@ -2953,6 +2953,20 @@
       "confirm": "Confirm bill payment",
       "dismiss": "Dismiss suggestion",
       "dismissSuccess": "Suggestion dismissed"
+    },
+    "apply": {
+      "action": "Apply payment matches",
+      "description": "Review the proposed bill payment links. Nothing is linked until you apply.",
+      "empty": "No payment matches to apply.",
+      "confirm": "Apply selected",
+      "selectPair": "Link {{payment}} to {{card}} {{month}}",
+      "success": "Payments linked: {{count}}",
+      "failedTitle": "Not linked",
+      "kind": {
+        "exact": "Exact",
+        "partial": "Partial",
+        "suggestion": "Suggestion"
+      }
     }
   }
 }

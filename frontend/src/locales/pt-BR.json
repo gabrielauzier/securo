@@ -2955,6 +2955,20 @@
       "confirm": "Confirmar pagamento de fatura",
       "dismiss": "Descartar sugestão",
       "dismissSuccess": "Sugestão descartada"
+    },
+    "apply": {
+      "action": "Aplicar match de pagamentos",
+      "description": "Revise os vínculos de pagamento de fatura propostos. Nada é vinculado até você aplicar.",
+      "empty": "Nenhum match de pagamento para aplicar.",
+      "confirm": "Aplicar selecionados",
+      "selectPair": "Vincular {{payment}} à fatura {{card}} {{month}}",
+      "success": "Pagamentos vinculados: {{count}}",
+      "failedTitle": "Não vinculados",
+      "kind": {
+        "exact": "Exato",
+        "partial": "Parcial",
+        "suggestion": "Sugestão"
+      }
     }
   }
 }

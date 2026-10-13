@@ -55,6 +55,7 @@ import { useSidebarState } from '@/contexts/sidebar-state-context'
 import { cn } from '@/lib/utils'
 import { LinkTransferDialog } from '@/components/link-transfer-dialog'
 import { LinkBillDialog } from '@/components/link-bill-dialog'
+import { BillMatchApplyDialog } from '@/components/bill-match-apply-dialog'
 import { BillPaymentRowBadge } from '@/components/bill-payment-row-badge'
 import { canLinkBill } from '@/lib/bill-payment'
 import { BulkTransferDialog } from '@/components/bulk-transfer-dialog'
@@ -255,6 +256,7 @@ export default function TransactionsPage() {
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [linkTransferDialogOpen, setLinkTransferDialogOpen] = useState(false)
   const [linkBillTx, setLinkBillTx] = useState<Transaction | null>(null)
+  const [billMatchOpen, setBillMatchOpen] = useState(false)
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
@@ -1446,6 +1448,7 @@ export default function TransactionsPage() {
             onAdd={canWrite ? () => { setEditingTx(null); setDialogOpen(true) } : undefined}
             onDuplicate={duplicableTx ? () => handleDuplicateTransaction(duplicableTx) : undefined}
             onTransfer={canWrite ? () => setTransferDialogOpen(true) : undefined}
+            onApplyBillMatches={canWrite ? () => setBillMatchOpen(true) : undefined}
           />
         }
       />
@@ -2144,6 +2147,8 @@ export default function TransactionsPage() {
         transaction={linkBillTx}
         accounts={accountsList ?? []}
       />
+
+      <BillMatchApplyDialog open={billMatchOpen} onClose={() => setBillMatchOpen(false)} />
 
       {/* Transfer Dialog */}
       <TransferDialog
