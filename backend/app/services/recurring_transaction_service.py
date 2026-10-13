@@ -12,7 +12,7 @@ from app.models.bank_connection import BankConnection
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.transaction import Transaction
 from app.schemas.recurring_transaction import RecurringTransactionCreate, RecurringTransactionUpdate
-from app.services import recurring_match_service
+from app.services import bill_service, recurring_match_service
 from app.services.credit_card_service import apply_effective_date
 from app.services.fx_rate_service import stamp_primary_amount
 
@@ -317,6 +317,7 @@ async def generate_pending(
     recurring_list = list(result.scalars().all())
 
     count = 0
+    generated: dict[uuid.UUID, list[uuid.UUID]] = {}
     for recurring in recurring_list:
         # Legacy rows may exist with a null account_id from before account_id
         # was required. Skip them rather than crashing on Transaction's NOT NULL
@@ -384,6 +385,7 @@ async def generate_pending(
                 session.add(transaction)
                 await session.flush()
                 await stamp_primary_amount(session, user_id, transaction)
+                generated.setdefault(recurring.account_id, []).append(transaction.id)
                 count += 1
 
             # Advance to next occurrence
@@ -395,6 +397,12 @@ async def generate_pending(
             # Check again if past end_date after advancing
             if recurring.end_date and recurring.next_occurrence > recurring.end_date:
                 recurring.is_active = False
+
+    # Generated card charges join their bill (AD-004).
+    for account_id, tx_ids in generated.items():
+        account = await session.get(Account, account_id)
+        if account is not None:
+            await bill_service.link_account_transactions(session, account, tx_ids)
 
     await session.commit()
     return count

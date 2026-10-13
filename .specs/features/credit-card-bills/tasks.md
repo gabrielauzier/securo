@@ -359,9 +359,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] A recurring charge generated on a card lands on its bill
-- [ ] New test `backend/tests/test_recurring_bills.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_recurring_bills.py -q`
+- [x] A recurring charge generated on a card lands on its bill
+- [x] New test `backend/tests/test_recurring_bills.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_recurring_bills.py -q`
 
 **Tests**: unit
 **Gate**: Quick
