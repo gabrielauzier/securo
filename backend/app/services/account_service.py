@@ -639,6 +639,46 @@ async def delete_account(session: AsyncSession, account_id: uuid.UUID, workspace
     tx_ids = [row[0] for row in tx_result.all()]
     await cleanup_attachment_files(session, tx_ids)
 
+    # Bills: the account's own bills go with it and their payments are unlinked;
+    # bills its rows paid are refreshed after the delete (AD-004).
+    own_bill_ids = set(
+        (
+            await session.execute(
+                select(CreditCardBill.id).where(CreditCardBill.account_id == account_id)
+            )
+        ).scalars().all()
+    )
+    refresh_ids = await bill_service.collect_bill_ids(session, tx_ids) - own_bill_ids
+    from app.services.transfer_detection_service import unlink_transfer_pair  # local: circular
+
+    # Transfer pairs created by a bill link are undone with the link (BPAY AC 9).
+    payment_pairs = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.bill_payment_pair.is_(True),
+                Transaction.transfer_pair_id.is_not(None),
+                or_(
+                    Transaction.account_id == account_id,
+                    Transaction.paid_bill_id.in_(own_bill_ids),
+                ),
+            )
+        )
+    ).scalars().all()
+    for payment in payment_pairs:
+        if payment.transfer_pair_id is not None:
+            await unlink_transfer_pair(session, workspace_id, payment.transfer_pair_id)
+        payment.bill_payment_pair = False
+    if own_bill_ids:
+        await session.execute(
+            update(Transaction)
+            .where(Transaction.paid_bill_id.in_(own_bill_ids))
+            .values(paid_bill_id=None)
+        )
+        await session.execute(
+            update(Transaction).where(Transaction.bill_id.in_(own_bill_ids)).values(bill_id=None)
+        )
+        await session.execute(delete(CreditCardBill).where(CreditCardBill.id.in_(own_bill_ids)))
+
     # Break FK references before deleting the account. In production these are
     # also enforced at the DB level (see migration 039) — this code path makes
     # the behavior explicit and keeps the FK bug from #110 from regressing for
@@ -669,6 +709,7 @@ async def delete_account(session: AsyncSession, account_id: uuid.UUID, workspace
     )
 
     await session.delete(account)
+    await bill_service.refresh_bills(session, refresh_ids)
     await session.commit()
     return True
 

@@ -1521,10 +1521,10 @@ T55 → T56 → T57 → T58 → T59 → T60
 
 **Done when**:
 
-- [ ] Deleting a checking account holding a linked payment drops the bill's `paid_amount` and status
-- [ ] Deleting a card account deletes its bills and leaves its former payments unlinked (`paid_bill_id` null), asserted on PostgreSQL with `postgres_sessions` (Verifier gap 3, spec edge case)
-- [ ] New test `backend/tests/test_account_delete_bills.py`
-- [ ] Gate passes: Full
+- [x] Deleting a checking account holding a linked payment drops the bill's `paid_amount` and status
+- [x] Deleting a card account deletes its bills and leaves its former payments unlinked (`paid_bill_id` null), asserted on PostgreSQL with `postgres_sessions` (Verifier gap 3, spec edge case)
+- [x] New test `backend/tests/test_account_delete_bills.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
