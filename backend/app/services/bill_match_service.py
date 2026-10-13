@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
+from app.models.bill_payment_dismissal import BillPaymentDismissal
 from app.models.category import Category
 from app.models.credit_card_bill import CreditCardBill
 from app.models.transaction import Transaction
@@ -168,11 +169,30 @@ async def _bill_payment_categories(session: AsyncSession, workspace_id: uuid.UUI
     return {category_id for (category_id,) in rows}
 
 
+async def _dismissed(
+    session: AsyncSession, workspace_id: uuid.UUID, payment_ids: Sequence[uuid.UUID] | None = None
+) -> dict[uuid.UUID, set[uuid.UUID]]:
+    """The bills the user dismissed for each payment."""
+    query = select(BillPaymentDismissal.transaction_id, BillPaymentDismissal.bill_id).where(
+        BillPaymentDismissal.workspace_id == workspace_id
+    )
+    if payment_ids is not None:
+        query = query.where(BillPaymentDismissal.transaction_id.in_(list(payment_ids)))
+    dismissed: dict[uuid.UUID, set[uuid.UUID]] = {}
+    for tx_id, bill_id in await session.execute(query):
+        dismissed.setdefault(tx_id, set()).add(bill_id)
+    return dismissed
+
+
 async def candidates_for(session: AsyncSession, payment: Transaction) -> list[Candidate]:
     """The bills the payment may pay: window candidates first, then the other unpaid bills."""
     bills = await _workspace_bills(session, payment.workspace_id)
     categories = await _bill_payment_categories(session, payment.workspace_id)
-    return rank_candidates(payment, bills, hinted=_has_hint(payment, categories))
+    dismissed = await _dismissed(session, payment.workspace_id, [payment.id])
+    return rank_candidates(
+        payment, bills, hinted=_has_hint(payment, categories),
+        dismissed=dismissed.get(payment.id, set()),
+    )
 
 
 # --- Proposals ---------------------------------------------------------------
@@ -242,8 +262,12 @@ async def _candidates_by_payment(
 ) -> dict[uuid.UUID, list[Candidate]]:
     bills = await _workspace_bills(session, workspace_id)
     categories = await _bill_payment_categories(session, workspace_id)
+    dismissed = await _dismissed(session, workspace_id, [payment.id for payment in payments])
     return {
-        payment.id: rank_candidates(payment, bills, hinted=_has_hint(payment, categories))
+        payment.id: rank_candidates(
+            payment, bills, hinted=_has_hint(payment, categories),
+            dismissed=dismissed.get(payment.id, set()),
+        )
         for payment in payments
     }
 
@@ -300,3 +324,57 @@ async def apply_matches(
             continue
         result.linked += 1
     return result
+
+
+# --- Dismissed suggestions ---------------------------------------------------
+
+
+async def dismiss(
+    session: AsyncSession, workspace_id: uuid.UUID, payment_id: uuid.UUID, bill_id: uuid.UUID
+) -> None:
+    """Never suggest this payment-bill pair again (BMATCH AC 9). Idempotent."""
+    from app.services.bill_payment_service import BillPaymentError  # local: circular
+
+    payment = (
+        await session.execute(
+            select(Transaction.id).where(
+                Transaction.id == payment_id, Transaction.workspace_id == workspace_id
+            )
+        )
+    ).scalar_one_or_none()
+    if payment is None:
+        raise BillPaymentError(404, "Transaction not found")
+    if await bill_service.get_bill(session, workspace_id, bill_id) is None:
+        raise BillPaymentError(404, "Bill not found")
+    exists = (
+        await session.execute(
+            select(BillPaymentDismissal.id).where(
+                BillPaymentDismissal.transaction_id == payment_id,
+                BillPaymentDismissal.bill_id == bill_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if exists is None:
+        session.add(
+            BillPaymentDismissal(
+                workspace_id=workspace_id, transaction_id=payment_id, bill_id=bill_id
+            )
+        )
+        await session.flush()
+
+
+async def has_suggestion(
+    session: AsyncSession, workspace_id: uuid.UUID, tx_ids: Iterable[uuid.UUID]
+) -> set[uuid.UUID]:
+    """The rows that are eligible payments with an undismissed window candidate.
+
+    Runs a fixed number of queries whatever the number of rows."""
+    payments = await eligible_payments(session, workspace_id, list(tx_ids))
+    if not payments:
+        return set()
+    candidates = await _candidates_by_payment(session, workspace_id, payments)
+    return {
+        payment_id
+        for payment_id, listed in candidates.items()
+        if any(c.kind != KIND_OTHER for c in listed)
+    }

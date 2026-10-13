@@ -713,9 +713,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH AC 9 passes; `has_suggestion` true only for undismissed suggestion pairs
-- [ ] New test `backend/tests/test_bill_match_dismiss.py`
-- [ ] Gate passes: `cd backend && uv run pytest tests/test_bill_match_dismiss.py -q`
+- [x] BMATCH AC 9 passes; `has_suggestion` true only for undismissed suggestion pairs
+- [x] New test `backend/tests/test_bill_match_dismiss.py`
+- [x] Gate passes: `cd backend && uv run pytest tests/test_bill_match_dismiss.py -q`
 
 **Tests**: unit
 **Gate**: Quick
