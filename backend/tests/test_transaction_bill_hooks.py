@@ -296,3 +296,59 @@ async def test_bulk_delete_transactions_refreshes_the_bills(
     bill = (await _bills(session, card))[SEP]
     assert bill.computed_total == Decimal("20.00")
     assert bill.paid_amount == Decimal("0.00")
+
+
+# --- T26: auto-match on manual entry (BMATCH AC 7) ----------------------------
+
+
+async def _september_bill_of_1283_20(session, ws, user, card) -> CreditCardBill:
+    await _create(session, ws, user, card, date(2026, 8, 10), amount="1283.20")
+    return (await _bills(session, card))[SEP]
+
+
+async def test_manually_entered_reference_payment_links_automatically(
+    session, test_user, test_workspace, card, checking
+):
+    bill = await _september_bill_of_1283_20(session, test_workspace, test_user, card)
+
+    payment = await _create(
+        session, test_workspace, test_user, checking, date(2026, 9, 14), amount="1283.20",
+        description="PAGAMENTO FATURA",
+    )
+
+    await session.refresh(bill)
+    assert payment.paid_bill_id == bill.id
+    assert bill.paid_amount == Decimal("1283.20")
+    assert bill_service.bill_status(bill, date(2026, 9, 14)) == "paid"
+
+
+async def test_editing_a_debit_into_the_reference_payment_links_it(
+    session, test_user, test_workspace, card, checking
+):
+    bill = await _september_bill_of_1283_20(session, test_workspace, test_user, card)
+    payment = await _create(
+        session, test_workspace, test_user, checking, date(2026, 9, 14), amount="1000.00",
+    )
+    assert payment.paid_bill_id is None
+
+    updated = await update_transaction(
+        session, payment.id, test_workspace.id, test_user.id,
+        TransactionUpdate(amount=Decimal("1283.20")),
+    )
+
+    assert updated is not None
+    assert updated.paid_bill_id == bill.id
+
+
+async def test_card_entry_that_creates_the_bill_matches_an_existing_payment(
+    session, test_user, test_workspace, card, checking
+):
+    payment = await _create(
+        session, test_workspace, test_user, checking, date(2026, 9, 14), amount="1283.20",
+    )
+    assert payment.paid_bill_id is None
+
+    await _create(session, test_workspace, test_user, card, date(2026, 8, 10), amount="1283.20")
+
+    await session.refresh(payment)
+    assert payment.paid_bill_id == (await _bills(session, card))[SEP].id

@@ -763,9 +763,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Manually entered reference payment links automatically
-- [ ] Tests added to `backend/tests/test_transaction_bill_hooks.py`
-- [ ] Gate passes: Full
+- [x] Manually entered reference payment links automatically
+- [x] Tests added to `backend/tests/test_transaction_bill_hooks.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full

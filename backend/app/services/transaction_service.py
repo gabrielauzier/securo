@@ -763,9 +763,10 @@ async def create_transaction(
     # to remove, and leaving this path out would remove it only for people
     # whose bank happens to be connected.
     await reconciliation_service.match_incoming(session, workspace_id, [transaction])
-    await _sync_card_bills(session, [transaction.id])
+    bills_created = await _sync_card_bills(session, [transaction.id])
 
     await session.commit()
+    await _auto_match_bill_payments(session, workspace_id, [transaction.id], bills_created)
     await session.refresh(transaction, ["category", "splits"])
     return transaction
 
@@ -1352,16 +1353,17 @@ async def _sync_card_bills(
     session: AsyncSession,
     tx_ids: list[uuid.UUID],
     stale_bill_ids: set[uuid.UUID] | None = None,
-) -> None:
+) -> int:
     """Keep bills current after rows were created or changed (AD-004).
 
     Drops a link to another account's bill, links card rows to the bill of
     their period, and refreshes every bill the rows belong to or pay, plus
-    `stale_bill_ids` (the bills they belonged to before the change)."""
+    `stale_bill_ids` (the bills they belonged to before the change).
+    Returns how many bills were created."""
     from app.models.credit_card_bill import CreditCardBill  # local: avoid circular
 
     if not tx_ids:
-        return
+        return 0
     await session.flush()
     rows = (
         await session.execute(
@@ -1377,13 +1379,44 @@ async def _sync_card_bills(
             stale.add(tx.bill_id)
             tx.bill_id = None
         by_account.setdefault(tx.account_id, []).append(tx.id)
+    created = 0
     for account_id, ids in by_account.items():
         account = await session.get(Account, account_id)
         if account is not None:
-            await bill_service.link_account_transactions(session, account, ids)
+            summary = await bill_service.link_account_transactions(session, account, ids)
+            created += summary.bills_created
     await bill_service.refresh_bills(
         session, stale | await bill_service.collect_bill_ids(session, tx_ids)
     )
+    return created
+
+
+async def _auto_match_bill_payments(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    tx_ids: list[uuid.UUID],
+    bills_created: int,
+) -> None:
+    """Run the bill payment matcher when the rows hold a non-card debit or
+    created a bill (BMATCH AC 7). Call after the write is committed: linking
+    commits when it pairs the card credit."""
+    from app.services import bill_match_service  # local: avoid circular
+
+    if not bills_created:
+        non_card_debit = await session.scalar(
+            select(func.count())
+            .select_from(Transaction)
+            .join(Account, Account.id == Transaction.account_id)
+            .where(
+                Transaction.id.in_(tx_ids),
+                Transaction.type == "debit",
+                Account.type != "credit_card",
+            )
+        )
+        if not non_card_debit:
+            return
+    if await bill_match_service.run_auto_match(session, workspace_id):
+        await session.commit()
 
 
 async def _ids_in_workspace(
@@ -1734,9 +1767,10 @@ async def update_transaction(
         await session.flush()
         await _resync_installment_series_total(session, workspace_id, transaction)
 
-    await _sync_card_bills(session, affected, bills_before)
+    bills_created = await _sync_card_bills(session, affected, bills_before)
 
     await session.commit()
+    await _auto_match_bill_payments(session, workspace_id, affected, bills_created)
     await session.refresh(transaction, ["category", "payee_entity", "splits"])
     return transaction
 
