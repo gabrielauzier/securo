@@ -412,8 +412,14 @@ export default function DashboardPage() {
   // While accounts are loading or failed to load, treat their balance
   // components as unavailable rather than silently rendering zero.
   const accountsUnavailable = accountsLoading || accountsError
-  const creditCardBalance = sumAccountBalances((accountsList ?? [])
-    .filter((a) => (activeAccountIds ? activeAccountIds.includes(a.id) : true) && a.type === 'credit_card'))
+  // In `settlement` the summary carries what is left to pay on the unpaid
+  // bills (BREP AC 11), shown as a debt like the card balances it replaces;
+  // `cash` and `accrual` send null and keep the card-balance sum.
+  const openBillsRemaining = summary?.open_bills_remaining_primary
+  const creditCardBalance = openBillsRemaining != null
+    ? -openBillsRemaining
+    : sumAccountBalances((accountsList ?? [])
+      .filter((a) => (activeAccountIds ? activeAccountIds.includes(a.id) : true) && a.type === 'credit_card'))
   // Net worth's "Available balance" breakdown row: every non-card account
   // (unlike the headline `availableBalance`, which is checking/savings only),
   // so it reconciles with `totalBalance` — which sums all account types.

@@ -1214,9 +1214,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BREP AC 11 visible: settlement shows the API value; cash/accrual keep the card-balance sum; hidden when 0
-- [ ] Tests added to `frontend/src/pages/dashboard.test.tsx`
-- [ ] Gate passes: Build (frontend)
+- [x] BREP AC 11 visible: settlement shows the API value; cash/accrual keep the card-balance sum; hidden when 0
+- [x] Tests added to `frontend/src/pages/dashboard.test.tsx`
+- [x] Gate passes: Build (frontend)
 
 **Tests**: unit
 **Gate**: Build

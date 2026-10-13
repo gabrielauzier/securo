@@ -137,3 +137,33 @@ describe('Dashboard net worth breakdown', () => {
     expect(cardRow).toHaveTextContent(formatCurrency(-500, 'USD', 'en-US'))
   })
 })
+
+// BREP AC 11: in `settlement`, "Open credit card bills" is the remaining amount
+// of the bills that are not paid, which the summary carries; `cash` and
+// `accrual` send null and keep the card-balance sum.
+describe('Dashboard open credit card bills', () => {
+  async function openBillsRow(openBills: number | null) {
+    api.dashboard.summary.mockResolvedValue({ ...summary, open_bills_remaining_primary: openBills })
+    const { user } = renderWithProviders(
+      <TooltipProvider delayDuration={0}>
+        <DashboardPage />
+      </TooltipProvider>,
+    )
+    await screen.findByText(formatCurrency(500, 'USD', 'en-US'))
+    await user.hover(screen.getByRole('button', { name: 'i' }))
+    const tooltip = await screen.findByRole('tooltip')
+    return within(tooltip).queryByText(t('dashboard.creditCardBalance'))?.parentElement ?? null
+  }
+
+  it('shows the remaining amount of the unpaid bills in settlement mode', async () => {
+    expect(await openBillsRow(1283.2)).toHaveTextContent(formatCurrency(-1283.2, 'USD', 'en-US'))
+  })
+
+  it('keeps the card balance sum when the summary carries no open bills value', async () => {
+    expect(await openBillsRow(null)).toHaveTextContent(formatCurrency(-500, 'USD', 'en-US'))
+  })
+
+  it('hides the row when nothing is left to pay in settlement mode', async () => {
+    expect(await openBillsRow(0)).toBeNull()
+  })
+})
