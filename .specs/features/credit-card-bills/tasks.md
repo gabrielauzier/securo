@@ -1489,7 +1489,7 @@ Phase 8:  T42 → T43 → T44 → T45
 Phase 9:  T46 → T47 → T48 → T49 → T50 → T51
 ```
 
-Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phases 7-8 (10), B7 = Phase 9 (6).
+Batches (~7 tasks, whole phases): B1 = Phase 1 (5), B2 = Phase 2 (7), B3 = Phases 3-4 (9), B4 = Phase 5 (8), B5 = Phase 6 (9), B6 = Phase 7 (6), B7 = Phase 8 (4), B8 = Phase 9 (6).
 
 ---
 
