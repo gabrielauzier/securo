@@ -175,4 +175,5 @@ async def import_transactions(
         "import_log_id": str(import_log_id),
         "bills_linked": result.bills_linked,
         "bills_created": result.bills_created,
+        "payments_matched": result.payments_matched,
     }

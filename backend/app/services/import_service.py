@@ -20,7 +20,12 @@ from app.models.category import Category
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.schemas.transaction import TransactionImport, FailedRow
-from app.services import bill_service, reconciliation_service, recurring_match_service
+from app.services import (
+    bill_match_service,
+    bill_service,
+    reconciliation_service,
+    recurring_match_service,
+)
 from app.services.credit_card_service import apply_effective_date
 from app.services.category_service import get_assignable_category_ids
 from app.services.rule_engine import apply_rule_actions, evaluate_conditions, merge_notes
@@ -797,10 +802,12 @@ async def enrich_with_category_suggestions(
 
 class ImportResult(tuple):
     """`(imported, skipped, excluded, import_log_id)`, plus how many rows
-    joined a credit-card bill and how many bills the import created."""
+    joined a credit-card bill, how many bills the import created and how many
+    bill payments were matched to their bill afterwards."""
 
     bills_linked: int
     bills_created: int
+    payments_matched: int
 
     def __new__(
         cls,
@@ -813,6 +820,7 @@ class ImportResult(tuple):
         result = super().__new__(cls, (imported, skipped, excluded, import_log_id))
         result.bills_linked = bill_summary.linked
         result.bills_created = bill_summary.bills_created
+        result.payments_matched = 0
         return result
 
 
@@ -1095,7 +1103,14 @@ async def import_transactions(
         )
 
     await session.commit()
-    return ImportResult(imported, skipped, excluded_count, import_log.id, bill_summary)
+    result = ImportResult(imported, skipped, excluded_count, import_log.id, bill_summary)
+    if imported:
+        # BMATCH AC 7: new debits or new bills may complete a payment-bill pair.
+        # Runs after the import's own commit, so a matching failure never
+        # undoes the import.
+        result.payments_matched = await bill_match_service.run_auto_match(session, workspace_id)
+        await session.commit()
+    return result
 
 # Currency symbols and ISO codes around a number ("R$", "$", "NGN ", " EUR").
 _AMOUNT_EDGE_LEADING = re.compile(r'^[^\d\-+(),.]+')

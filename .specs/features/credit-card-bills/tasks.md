@@ -738,9 +738,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] BMATCH Independent Test passes; card import that creates a bill matches an existing payment (AC 7)
-- [ ] New test `backend/tests/test_import_bill_match.py`
-- [ ] Gate passes: Full
+- [x] BMATCH Independent Test passes; card import that creates a bill matches an existing payment (AC 7)
+- [x] New test `backend/tests/test_import_bill_match.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
