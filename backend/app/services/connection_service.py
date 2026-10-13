@@ -37,7 +37,12 @@ from app.providers.base import (
 )
 from app.services import oauth_state
 from app.services import admin_service
-from app.services import bill_service, reconciliation_service, recurring_match_service
+from app.services import (
+    bill_match_service,
+    bill_service,
+    reconciliation_service,
+    recurring_match_service,
+)
 from app.services.text_similarity import token_overlap
 from app.services.account_service import (
     _simplefin_to_internal_balance,
@@ -1294,6 +1299,7 @@ async def handle_oauth_callback(
     connection.last_sync_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(connection)
+    await _match_bill_payments(session, workspace_id, connection)
     return connection
 
 
@@ -1796,6 +1802,23 @@ async def _sync_bill_finance_charges(
     for tx in orphans:
         if tx.external_id not in desired_external_ids:
             await session.delete(tx)
+
+
+async def _match_bill_payments(
+    session: AsyncSession, workspace_id: uuid.UUID, connection: BankConnection
+) -> None:
+    """Link synced bill payments to their bills (BMATCH AC 7).
+
+    Runs after the sync committed, so the synced data stays whatever happens
+    here; a matching failure is logged and rolled back, never a failed sync."""
+    connection_id = connection.id
+    try:
+        if await bill_match_service.run_auto_match(session, workspace_id):
+            await session.commit()
+    except Exception:
+        logger.exception("Bill payment matching failed after syncing %s", connection_id)
+        await session.rollback()
+        await session.refresh(connection)
 
 
 async def _sync_account_bills(session: AsyncSession, account: Account) -> None:
@@ -2480,6 +2503,7 @@ async def sync_connection(
             connection.status = "active"
         await session.commit()
         await session.refresh(connection)
+        await _match_bill_payments(session, workspace_id, connection)
         return connection, merged_count
 
     except SessionExpiredError:

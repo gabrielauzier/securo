@@ -146,3 +146,81 @@ async def test_resync_keeps_a_declared_total_the_user_typed(session, test_user, 
     bills, _ = await _state(session)
     assert bills[SEP].total_amount == Decimal("200.00")
     assert bills[SEP].declared_total == Decimal("175.50")
+
+
+# --- T27: auto-match after sync (BMATCH AC 7) ---------------------------------
+
+
+def _checking_provider(transactions: list[TransactionData]) -> AsyncMock:
+    mock = AsyncMock()
+    mock.refresh_credentials = AsyncMock(return_value={"token": "t"})
+    mock.get_accounts = AsyncMock(
+        return_value=[
+            AccountData(
+                external_id="chk-1", name="Nubank", type="checking",
+                balance=Decimal("0"), currency="BRL",
+            )
+        ]
+    )
+    mock.get_transactions = AsyncMock(return_value=transactions)
+    mock.get_bills = AsyncMock(return_value=[])
+    return mock
+
+
+async def _manual_card_bill(session, user, workspace) -> CreditCardBill:
+    from app.models.account import Account
+    from app.services import bill_service
+    from app.services.credit_card_service import bill_period_for_month
+
+    card = Account(
+        id=uuid.uuid4(), user_id=user.id, workspace_id=workspace.id,
+        name="Cartão de Crédito Nubank", type="credit_card", currency="BRL",
+        statement_close_day=5, payment_due_day=12,
+    )
+    session.add(card)
+    await session.flush()
+    bill, _ = await bill_service.get_or_create_bill(
+        session, card, bill_period_for_month(SEP, 5, 12)
+    )
+    session.add(
+        Transaction(
+            id=uuid.uuid4(), user_id=user.id, workspace_id=workspace.id, account_id=card.id,
+            description="MERCADO", amount=Decimal("1283.20"), currency="BRL",
+            date=date(2026, 8, 20), effective_date=date(2026, 8, 20), type="debit",
+            source="manual", bill_id=bill.id,
+        )
+    )
+    await bill_service.refresh_bills(session, [bill.id])
+    await session.commit()
+    return bill
+
+
+PAYMENT = [_tx("pagamento-fatura", date(2026, 9, 14), "1283.20")]
+
+
+async def test_synced_checking_payment_links_to_its_bill(session, test_user, test_workspace):
+    bill = await _manual_card_bill(session, test_user, test_workspace)
+    conn = await _connection(session, test_user.id)
+
+    await _sync(session, conn, test_workspace, test_user, _checking_provider(PAYMENT))
+
+    _, rows = await _state(session)
+    await session.refresh(bill)
+    assert rows["pagamento-fatura"].paid_bill_id == bill.id
+    assert bill.paid_amount == Decimal("1283.20")
+
+
+async def test_a_failed_match_keeps_the_synced_rows(session, test_user, test_workspace):
+    await _manual_card_bill(session, test_user, test_workspace)
+    conn = await _connection(session, test_user.id)
+
+    with patch(
+        "app.services.bill_match_service.run_auto_match",
+        new_callable=AsyncMock, side_effect=RuntimeError("boom"),
+    ):
+        await _sync(session, conn, test_workspace, test_user, _checking_provider(PAYMENT))
+
+    _, rows = await _state(session)
+    await session.refresh(conn)
+    assert rows["pagamento-fatura"].paid_bill_id is None
+    assert conn.status == "active"

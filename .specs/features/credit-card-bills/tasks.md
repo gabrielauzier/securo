@@ -788,9 +788,9 @@ T46 → T47 → T48 → T49 → T50 → T51
 
 **Done when**:
 
-- [ ] Synced checking payment links to its bill
-- [ ] Tests added to `backend/tests/test_sync_bills.py`
-- [ ] Gate passes: Full
+- [x] Synced checking payment links to its bill
+- [x] Tests added to `backend/tests/test_sync_bills.py`
+- [x] Gate passes: Full
 
 **Tests**: unit
 **Gate**: Full
