@@ -17,10 +17,12 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.schemas.dashboard import DashboardSummary, SpendingByCategory, MonthlyTrend, ProjectedTransaction, DailyBalance, BalanceHistory
 from app.services._query_filters import (
     counts_as_user_pnl,
+    is_bill_projected,
     is_recognized,
     owner_split_offset_by_category,
     owner_split_offset_pnl,
     reporting_date_col,
+    reporting_date_of,
     viewer_shared_pnl,
     viewer_shared_spending_by_category,
     within_opening_floor,
@@ -159,6 +161,7 @@ async def _get_forecast_transactions(
     range_end: date,
     account_ids: Optional[list[uuid.UUID]] = None,
     range_date_col=None,
+    accounting_mode: Optional[str] = None,
 ) -> list[Transaction]:
     """Return real rows that belong to the forecast, not the current balance.
 
@@ -166,9 +169,14 @@ async def _get_forecast_transactions(
     today is also forecast: this is how future installments and generate-ahead
     recurring rows follow the same rule as bank pending rows without needing a
     source-specific branch at every consumer.
+
+    In the `settlement` mode, purchases on unpaid bills are forecast too
+    (BREP AC 3, 4); they come from ``_get_settlement_projections`` so each
+    row is returned once, with its ``bill`` loaded for the bucketing date.
     """
     if account_ids is not None and len(account_ids) == 0:
         return []
+    settlement = accounting_mode == "settlement"
 
     today = app_today()
     bucket_date = range_date_col if range_date_col is not None else Transaction.date
@@ -190,6 +198,54 @@ async def _get_forecast_transactions(
         .options(
             selectinload(Transaction.account),
             selectinload(Transaction.category),
+        )
+        .order_by(Transaction.date.asc(), Transaction.created_at.asc())
+    )
+    if account_ids:
+        stmt = stmt.where(Transaction.account_id.in_(account_ids))
+    if settlement:
+        stmt = stmt.where(~is_bill_projected(accounting_mode)).options(
+            selectinload(Transaction.bill)
+        )
+    result = await session.execute(stmt)
+    rows = list(result.scalars().all())
+    if settlement:
+        rows += await _get_settlement_projections(
+            session, workspace_id, range_start, range_end, account_ids
+        )
+    return rows
+
+
+async def _get_settlement_projections(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    range_start: date,
+    range_end: date,
+    account_ids: Optional[list[uuid.UUID]] = None,
+) -> list[Transaction]:
+    """Purchases on unpaid bills whose `settlement` date falls in the range.
+
+    They are projected expenses at the bill's effective due date, or today
+    when that date is in a past month, whatever their own date or status.
+    """
+    if account_ids is not None and len(account_ids) == 0:
+        return []
+    bucket_date = reporting_date_col("settlement")
+    stmt = (
+        select(Transaction)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(
+            Transaction.workspace_id == workspace_id,
+            Account.is_closed == False,
+            bucket_date >= range_start,
+            bucket_date < range_end,
+            Transaction.source != "opening_balance",
+            is_bill_projected("settlement"),
+        )
+        .options(
+            selectinload(Transaction.account),
+            selectinload(Transaction.category),
+            selectinload(Transaction.bill),
         )
         .order_by(Transaction.date.asc(), Transaction.created_at.asc())
     )
@@ -402,6 +458,7 @@ async def get_summary(
     forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, month_start, month_end, account_ids,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for proj in projections:
         if proj["type"] == "credit":
@@ -881,6 +938,7 @@ async def get_spending_by_category(
     forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, month_start, month_end, account_ids,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for tx in forecast_transactions:
         if tx.type != "debit" or tx.is_ignored:
@@ -990,14 +1048,12 @@ async def get_monthly_trend(
     forecast_transactions = await _get_forecast_transactions(
         session, workspace_id, forecast_start, forecast_end, account_ids,
         range_date_col=report_date,
+        accounting_mode=accounting_mode,
     )
     for tx in forecast_transactions:
         if not _counts_as_user_pnl_row(tx):
             continue
-        tx_report_date = (
-            tx.effective_bill_date
-            or (tx.effective_date if accounting_mode == "accrual" else tx.date)
-        )
+        tx_report_date = reporting_date_of(tx, accounting_mode, today)
         month_key = f"{tx_report_date.year:04d}-{tx_report_date.month:02d}"
         bucket = trend_map.setdefault(month_key, [0.0, 0.0])
         if tx.amount_primary is not None:

@@ -26,11 +26,19 @@ OCT = date(2026, 10, 1)
 
 
 def freeze_today(monkeypatch, today: date) -> None:
-    """Pin `app_today` in every app module that imported it."""
+    """Pin `app_today` in every app module that imported it (again when re-pinned)."""
+
+    def fake_today() -> date:
+        return today
+
+    fake_today.frozen = True  # type: ignore[attr-defined]
     original = app_clock.app_today
     for name, module in list(sys.modules.items()):
-        if name.startswith("app.") and getattr(module, "app_today", None) is original:
-            monkeypatch.setattr(module, "app_today", lambda: today)
+        if not name.startswith("app."):
+            continue
+        current = getattr(module, "app_today", None)
+        if current is original or getattr(current, "frozen", False):
+            monkeypatch.setattr(module, "app_today", fake_today)
 
 
 async def set_mode(session, mode: str) -> None:

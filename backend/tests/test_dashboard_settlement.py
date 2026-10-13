@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.models.transaction import Transaction
 from app.services import dashboard_service
 from app.services._query_filters import reporting_date_col
-from tests.settlement_fixtures import AUG, SEP, freeze_today, pay, seed_reference, set_mode, unpay
+from tests.settlement_fixtures import AUG, OCT, SEP, freeze_today, pay, seed_reference, set_mode, unpay
 
 
 @pytest_asyncio.fixture
@@ -92,6 +92,84 @@ async def test_unlinking_the_completing_payment_unrecognizes_the_bill(
     assert await _by_category(session, test_workspace, test_user, SEP) == {"Sem categoria": 500.0}
 
 
+# --- T32: projections ---------------------------------------------------------
+
+
+async def _projected(session, ws, user, month):
+    summary = await dashboard_service.get_summary(session, ws.id, user.id, month=month)
+    rows = await dashboard_service.get_spending_by_category(session, ws.id, user.id, month=month)
+    by_category = {
+        row.category_name: (row.total, row.projected_total)
+        for row in rows
+        if row.projected_total
+    }
+    return summary.monthly_expenses, summary.projected_expenses, by_category
+
+
+async def test_unpaid_bill_is_projected_in_its_due_month(
+    monkeypatch, session, test_user, test_workspace, ref
+):
+    """AC 3: an unpaid bill is projected at its effective due date (2026-09-14), not realized."""
+    freeze_today(monkeypatch, date(2026, 9, 10))
+
+    assert await _projected(session, test_workspace, test_user, SEP) == (
+        0.0,
+        1000.0,
+        {"Mercado": (0.0, 600.0), "Restaurantes": (0.0, 400.0)},
+    )
+    assert await _projected(session, test_workspace, test_user, AUG) == (0.0, 0.0, {})
+
+
+async def test_overdue_bill_is_projected_in_the_current_month(
+    monkeypatch, session, test_user, test_workspace, ref
+):
+    """AC 4: due 2026-09-14 and unpaid on 2026-10-12 → projected in October."""
+    freeze_today(monkeypatch, date(2026, 10, 12))
+
+    assert await _projected(session, test_workspace, test_user, OCT) == (
+        0.0,
+        1000.0,
+        {"Mercado": (0.0, 600.0), "Restaurantes": (0.0, 400.0)},
+    )
+    assert await _projected(session, test_workspace, test_user, SEP) == (0.0, 0.0, {})
+
+
+async def test_partially_paid_bill_stays_projected(session, test_user, test_workspace, ref):
+    """AC 6: 500.00 on 2026-09-14 → September shows 0 realized and 1,000.00 projected."""
+    await pay(session, ref, "500.00", date(2026, 9, 14))
+
+    assert await _projected(session, test_workspace, test_user, SEP) == (
+        0.0,
+        1000.0,
+        {"Mercado": (0.0, 600.0), "Restaurantes": (0.0, 400.0)},
+    )
+
+
+async def test_unlinked_completing_payment_moves_the_bill_back_to_projected(
+    session, test_user, test_workspace, ref
+):
+    """AC 8: the purchases return to projected once the completing payment is unlinked."""
+    await pay(session, ref, "500.00", date(2026, 9, 14))
+    completing = await pay(session, ref, "500.00", date(2026, 9, 20))
+    await unpay(session, ref, completing)
+
+    expenses, projected, by_category = await _projected(session, test_workspace, test_user, SEP)
+    assert (expenses, projected) == (500.0, 1500.0)
+    assert by_category["Mercado"] == (0.0, 600.0)
+    assert by_category["Restaurantes"] == (0.0, 400.0)
+
+
+async def test_paid_bill_is_not_projected_twice(session, test_user, test_workspace, ref):
+    """AC 2: once paid, the purchases are realized and leave the projection."""
+    await pay(session, ref, "1000.00", date(2026, 9, 14))
+
+    assert await _projected(session, test_workspace, test_user, SEP) == (
+        1000.0,
+        1000.0,
+        {"Mercado": (600.0, 600.0), "Restaurantes": (400.0, 400.0)},
+    )
+
+
 class TestTrendOnPostgres:
     """The monthly trend groups by `to_char`, so it runs on PostgreSQL."""
 
@@ -117,3 +195,16 @@ class TestTrendOnPostgres:
         expenses = {point.month: point.expenses for point in trend}
         assert expenses.get("2026-09") == 1000.0
         assert expenses.get("2026-08", 0.0) == 0.0
+
+    async def test_overdue_bill_trends_in_the_current_month(
+        self, monkeypatch, session, test_user, test_workspace, ref
+    ):
+        """AC 4 on the monthly trend: the unpaid bill lands in October."""
+        freeze_today(monkeypatch, date(2026, 10, 12))
+
+        trend = await dashboard_service.get_monthly_trend(
+            session, test_workspace.id, test_user.id, months=6
+        )
+        expenses = {point.month: point.expenses for point in trend}
+        assert expenses.get("2026-10") == 1000.0
+        assert expenses.get("2026-09", 0.0) == 0.0
