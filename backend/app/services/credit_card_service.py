@@ -208,6 +208,33 @@ def bill_period_for_month(reference_month: date, close_day: int, due_day: int) -
     return _period(close_date, close_day, due_day)
 
 
+# Consecutive close dates checked by `cycle_days_compatible`: four years,
+# from 2027 through 2030, so a leap February (2028) is included.
+_CYCLE_CHECK_START = date(2027, 1, 1)
+_CYCLE_CHECK_MONTHS = 48
+
+
+def cycle_days_compatible(close_day: int, due_day: int) -> bool:
+    """Whether every close date of the cycle gets its own reference month.
+
+    Near month end, clamping can map two consecutive closes to the same
+    nominal due month (close 30, due 31: the bills closing on 28 Feb and
+    30 Mar are both due in March). Such a cycle cannot keep one bill per
+    reference month, so it is refused."""
+    previous = None
+    for offset in range(_CYCLE_CHECK_MONTHS):
+        close = _clamp_day(*_shift_month(_CYCLE_CHECK_START, offset), close_day)
+        period = bill_period_for(close - timedelta(days=1), close_day, due_day)
+        if period.close_date != close:
+            return False
+        if previous is not None and period.reference_month <= previous:
+            return False
+        if bill_period_for_month(period.reference_month, close_day, due_day).close_date != close:
+            return False
+        previous = period.reference_month
+    return True
+
+
 # Days between close and due assumed for a provider bill whose card has no
 # statement close day configured.
 PROVIDER_BILL_DEFAULT_CLOSE_GAP = 7

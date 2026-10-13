@@ -148,7 +148,10 @@ async def create_account(
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
-    account = await account_service.create_account(session, ctx.workspace.id, ctx.user_id, data)
+    try:
+        account = await account_service.create_account(session, ctx.workspace.id, ctx.user_id, data)
+    except account_service.IncompatibleCycleDaysError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
     return account_service.serialize_account(account, None, None)
 
 
@@ -161,6 +164,8 @@ async def update_account(
 ):
     try:
         account = await account_service.update_account(session, account_id, ctx.workspace.id, data)
+    except account_service.IncompatibleCycleDaysError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not account:

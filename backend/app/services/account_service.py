@@ -22,7 +22,13 @@ from app.services._query_filters import (
     is_not_future,
     within_opening_floor,
 )
-from app.services.credit_card_service import apply_effective_date, compute_available_credit, get_cycle_dates
+from app.services import bill_service
+from app.services.credit_card_service import (
+    apply_effective_date,
+    compute_available_credit,
+    cycle_days_compatible,
+    get_cycle_dates,
+)
 from app.models.category import Category
 
 
@@ -258,6 +264,20 @@ async def get_account(session: AsyncSession, account_id: uuid.UUID, workspace_id
     return result.scalar_one_or_none()
 
 
+class IncompatibleCycleDaysError(ValueError):
+    """Close and due days that would map two bills to one reference month."""
+
+    def __init__(self) -> None:
+        super().__init__("incompatible_cycle_days")
+
+
+def _check_cycle_days(account_type: str, close_day: Optional[int], due_day: Optional[int]) -> None:
+    if account_type != "credit_card" or not close_day or not due_day:
+        return
+    if not cycle_days_compatible(close_day, due_day):
+        raise IncompatibleCycleDaysError()
+
+
 async def create_account(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -265,6 +285,7 @@ async def create_account(
     data: AccountCreate,
 ) -> Account:
     is_cc = data.type == "credit_card"
+    _check_cycle_days(data.type, data.statement_close_day, data.payment_due_day)
     # A floor is created only when the user chose a date or opened the account
     # with a balance. A zero-balance account without a chosen date keeps
     # balance_date NULL so imported history still counts (an explicit null in
@@ -331,6 +352,13 @@ async def update_account(
     cycle_fields_changed = any(
         k in update_data for k in ("statement_close_day", "payment_due_day")
     )
+    # Refuse a cycle that cannot keep one bill per reference month before
+    # anything is written.
+    _check_cycle_days(
+        update_data.get("type", account.type),
+        update_data.get("statement_close_day", account.statement_close_day),
+        update_data.get("payment_due_day", account.payment_due_day),
+    )
 
     # Bank-connected accounts are managed by the sync pipeline. Beyond display
     # name and credit card metadata (limit + cycle days, which providers often
@@ -388,6 +416,7 @@ async def update_account(
             account.card_level = None
         if cycle_fields_changed:
             await _recompute_effective_dates(session, account)
+            await bill_service.relink_account(session, account)
         await session.commit()
         await session.refresh(account)
         return account
@@ -452,6 +481,7 @@ async def update_account(
 
     if cycle_fields_changed:
         await _recompute_effective_dates(session, account)
+        await bill_service.relink_account(session, account)
 
     await session.commit()
     await session.refresh(account)
