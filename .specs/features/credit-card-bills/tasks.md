@@ -2070,9 +2070,9 @@ T75 → T76 → T77 → T78
 
 **Done when**:
 
-- [ ] API-level test through `accept_suggestion` asserts `computed_total` 1000.00 and status not `paid` before payment reaches target
-- [ ] Test fails with the listener disabled (checked once in scratch, not committed)
-- [ ] Gate passes: Build (backend)
+- [x] API-level test through `accept_suggestion` asserts `computed_total` 1000.00 and status not `paid` before payment reaches target
+- [x] Test fails with the listener disabled (checked once in scratch, not committed)
+- [x] Gate passes: Build (backend)
 
 **Tests**: integration
 **Gate**: Build
