@@ -45,10 +45,10 @@
 ## Handoff
 
 - **Feature**: .specs/features/credit-card-bills
-- **Phase / Task**: Execute, Phase 13 (AD-005 safety net + link highlight fix) after Verifier round 3 FAIL; owner approved a 4th verification round on 2026-10-13
-- **Completed**: T1-T74 (see tasks.md), Verifier rounds 1-3 (FAIL, gaps fixed except the reconciliation accept)
+- **Phase / Task**: Done. Verifier round 4 PASS (validation.md, commit 5228ace)
+- **Completed**: T1-T78, Verifier rounds 1-4
 - **In-progress** (file:line): none
-- **Next step**: Phase 13 batch (T75-T78), then Verifier round 4, then browser re-check and PR
+- **Next step**: owner reviews the branch; push and open the PR only with the owner's go-ahead
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: claude/credit-card-improvements-e85788

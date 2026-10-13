@@ -236,7 +236,7 @@ Source: `.specs/features/credit-card-bills/ajustes.md`, approved by the owner fo
 **Acceptance Criteria**:
 
 1. WHEN a category has `is_bill_payment` THEN the categories list SHALL show a "Pagamento de fatura" badge next to it, styled like the existing "Transferências" and "Ignorado" badges.
-2. WHILE the mode is `settlement`, the transactions list SHALL show, for each card row with a bill, the reporting date as the row date with the label "Paga em" when the bill is `paid` or "Pagar até" otherwise, and below it the line "Lançada em <purchase date>".
+2. WHILE the mode is `settlement`, the transactions list SHALL show, for each card row with a bill, the reporting date as the row date with the label "Paga em" when its bill has a settlement date (`settled_on`) or "Pagar até" otherwise, and below it the line "Lançada em <purchase date>".
 3. WHILE the mode is `cash` or `accrual`, the transactions list SHALL show card rows exactly as before.
 4. WHILE the mode is `settlement`, the transactions list SHALL show the existing "Prevista" badge on rows with `is_bill_projected = true`.
 5. WHEN the user opens a card transaction that has a bill THEN the transaction dialog SHALL show, read-only, the bill (card and reference month) and either "Quitada em <settled_on>" or "Não quitada · vence em <effective due date>".
@@ -269,28 +269,28 @@ Source: `.specs/features/credit-card-bills/ajustes.md`, approved by the owner fo
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| BILL-01 | P1: Bills exist (AC 1-6, period and status math) | Tasks | In Tasks |
-| BILL-02 | P1: Bills exist (AC 7-11, manual create/edit/delete) | Tasks | In Tasks |
-| BILL-03 | P1: Bills exist (AC 12-13, card cycle change) | Tasks | In Tasks |
-| BILL-04 | P1: Bills exist (AC 14-15, backfill) | Tasks | In Tasks |
-| BIMP-01 | P1: Imported transactions join their bill (AC 1-8) | Tasks | In Tasks |
-| BPAY-01 | P1: Bill payments (AC 1-2, 5-12, link/unlink and totals) | Tasks | In Tasks |
-| BPAY-02 | P1: Bill payments (AC 3-4, transfer pairing) | Tasks | In Tasks |
-| BPAY-03 | P1: Bill payments (AC 13, `is_bill_payment` category) | Tasks | In Tasks |
-| BDAY-01 | P2: Matching (AC 1-2, business-day calendar) | Tasks | In Tasks |
-| BMATCH-01 | P2: Matching (AC 3-7, 12-13, 15, engine) | Tasks | In Tasks |
-| BMATCH-02 | P2: Matching (AC 8-9, 14, dialog and suggestions) | Tasks | In Tasks |
-| BMATCH-03 | P2: Matching (AC 10-11, bulk preview) | Tasks | In Tasks |
-| BREP-01 | P2: Settlement mode (AC 1-11, 16) | Tasks | In Tasks |
-| BREP-02 | P2: Settlement mode (AC 12-15, drill-down) | Tasks | In Tasks |
-| ADJ-01 | P2: Adjustments (AC 1, category badge) | Tasks | In Tasks |
-| ADJ-02 | P2: Adjustments (AC 2-4, transactions list in settlement) | Tasks | In Tasks |
-| ADJ-03 | P2: Adjustments (AC 5, transaction dialog bill info) | Tasks | In Tasks |
-| ADJ-04 | P2: Adjustments (AC 6, projected count badge) | Tasks | In Tasks |
-| ADJ-05 | P2: Adjustments (AC 7, available credit) | Tasks | In Tasks |
-| ADJ-06 | P2: Adjustments (AC 8, payment link) | Tasks | In Tasks |
-| ADJ-07 | P2: Adjustments (AC 9, release notes on inverted signs) | Tasks | In Tasks |
-| BVIEW-01 | P3: Consolidated page (AC 1-11) | Tasks | In Tasks |
+| BILL-01 | P1: Bills exist (AC 1-6, period and status math) | Done | Verified |
+| BILL-02 | P1: Bills exist (AC 7-11, manual create/edit/delete) | Done | Verified |
+| BILL-03 | P1: Bills exist (AC 12-13, card cycle change) | Done | Verified |
+| BILL-04 | P1: Bills exist (AC 14-15, backfill) | Done | Verified |
+| BIMP-01 | P1: Imported transactions join their bill (AC 1-8) | Done | Verified |
+| BPAY-01 | P1: Bill payments (AC 1-2, 5-12, link/unlink and totals) | Done | Verified |
+| BPAY-02 | P1: Bill payments (AC 3-4, transfer pairing) | Done | Verified |
+| BPAY-03 | P1: Bill payments (AC 13, `is_bill_payment` category) | Done | Verified |
+| BDAY-01 | P2: Matching (AC 1-2, business-day calendar) | Done | Verified |
+| BMATCH-01 | P2: Matching (AC 3-7, 12-13, 15, engine) | Done | Verified |
+| BMATCH-02 | P2: Matching (AC 8-9, 14, dialog and suggestions) | Done | Verified |
+| BMATCH-03 | P2: Matching (AC 10-11, bulk preview) | Done | Verified |
+| BREP-01 | P2: Settlement mode (AC 1-11, 16) | Done | Verified |
+| BREP-02 | P2: Settlement mode (AC 12-15, drill-down) | Done | Verified |
+| ADJ-01 | P2: Adjustments (AC 1, category badge) | Done | Verified |
+| ADJ-02 | P2: Adjustments (AC 2-4, transactions list in settlement) | Done | Verified |
+| ADJ-03 | P2: Adjustments (AC 5, transaction dialog bill info) | Done | Verified |
+| ADJ-04 | P2: Adjustments (AC 6, projected count badge) | Done | Verified |
+| ADJ-05 | P2: Adjustments (AC 7, available credit) | Done | Verified |
+| ADJ-06 | P2: Adjustments (AC 8, payment link) | Done | Verified |
+| ADJ-07 | P2: Adjustments (AC 9, release notes on inverted signs) | Done | Verified |
+| BVIEW-01 | P3: Consolidated page (AC 1-11) | Done | Verified |
 
 **Coverage:** 22 total, 22 mapped to tasks (see `tasks.md` Requirement Coverage), 0 unmapped.
 
